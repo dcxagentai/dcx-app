@@ -2,7 +2,7 @@
  * CONTEXT:
  * Root app composition for the first DCX user account surface.
  * It now bootstraps the shared browser session, routes unauthenticated users to `/login`,
- * and renders the first protected `/me/account` surface once access is resolved.
+ * and renders the first protected `/me/account` surface once access is resolved cleanly.
  */
 import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
