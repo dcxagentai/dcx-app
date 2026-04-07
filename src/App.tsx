@@ -1,89 +1,281 @@
 /**
  * CONTEXT:
- * Minimal hello-world surface for the DCX user app frontend.
- * This now proves the local React + TanStack + shadcn stack boots cleanly while consuming
- * the shared branding package for the common button primitive, shared backend welcome banner,
- * and logo asset.
- *
- * CONTRACT:
- * preconditions: The Vite React app has booted, is wrapped in a QueryClientProvider, and the local branding package dependency is installed.
- * postconditions: Renders a stable app hello-world screen with a shared branding logo, a shared branding button, a shared backend welcome banner, and one TanStack-backed status line.
- * side_effects: None.
- * idempotent: Yes.
- * retry_safe: Yes.
- * blocking_behavior: Non-blocking render after the in-memory query resolves and the shared banner performs its own backend fetch.
- *
- * NARRATIVE:
- * WHY this exists: To verify the MVP user app can consume shared branding assets and shared UI primitives while also connecting to the backend shell.
- * WHEN TO USE it: During initial setup and smoke testing of the app workspace.
- * WHEN NOT TO USE it: Once real user app flows replace the bootstrap screen.
- * WHAT CAN GO WRONG: Missing provider wiring, broken branding package dependency, broken asset import, or backend unavailability can stop parts of the screen from rendering correctly.
- * WHAT COMES NEXT: Replace this screen with the first real user-facing app routes and states while continuing to consume shared branding elements.
- *
- * TESTS:
- * - renders the DCX App heading
- * - renders the shared logo asset without import errors
- * - renders the shared branding button without import errors
- * - renders the shared backend welcome banner without import errors
- * - renders the TanStack query status as ready
- *
- * ERRORS:
- * - APP_HELLO_WORLD_PROVIDER_MISSING: TanStack hooks used outside the provider.
- *   suggested_action: Wrap the app tree in QueryClientProvider.
- *   common_causes: Provider removed from main.tsx.
- *   recovery_steps: Restore QueryClientProvider around <App />.
- *   retry_safe: Yes.
- * - APP_HELLO_WORLD_BRANDING_DEPENDENCY_MISSING: Shared branding imports cannot resolve.
- *   suggested_action: Reinstall dependencies and confirm @prompteoai/dcx-branding is present.
- *   common_causes: Local file dependency not installed or stale node_modules state.
- *   recovery_steps: Run npm install again in dcx_app after any branding package change.
- *   retry_safe: Yes.
- *
- * CODE:
+ * Root app composition for the first DCX user account surface.
+ * It now bootstraps the shared browser session, routes unauthenticated users to `/login`,
+ * and renders the first protected `/me/account` surface once access is resolved.
  */
-import { useQuery } from "@tanstack/react-query"
-import { Button, SharedBackendWelcomeMessageBanner } from "@prompteoai/dcx-branding"
-import dcxLogo from "@prompteoai/dcx-branding/assets/dcx_logo.png"
+import { useEffect, useState } from "react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+
+import { DcxAppAuthLoginPage } from "./components/dcx_app_auth_login_page"
+import { DcxAppAuthPasswordRequestResetPage } from "./components/dcx_app_auth_password_request_reset_page"
+import { DcxAppAuthPasswordSetPage } from "./components/dcx_app_auth_password_set_page"
+import { DcxAppUserAccountSummaryPage } from "./components/dcx_app_user_account_summary_page"
+import { completeDcxPasswordSet } from "./lib/complete_dcx_password_set"
+import { loginDcxUserWithEmailAndPassword } from "./lib/login_dcx_user_with_email_and_password"
+import { logoutAuthenticatedDcxUser } from "./lib/logout_authenticated_dcx_user"
+import { readDcxAuthenticatedSession } from "./lib/read_dcx_authenticated_session"
+import { requestDcxPasswordReset } from "./lib/request_dcx_password_reset"
+
+const DCX_AUTH_LOGOUT_SYNC_STORAGE_KEY = "dcx_auth_logout_at_ts_ms"
+
+function redirectToLoginScreen(): void {
+  if (window.location.pathname === "/login" && window.location.search === "") {
+    return
+  }
+
+  window.location.replace("/login")
+}
+
+function navigateToPathname(nextPathname: string, options?: { preserveSearch?: boolean }): void {
+  const nextSearch = options?.preserveSearch ? window.location.search : ""
+
+  if (window.location.pathname === nextPathname && window.location.search === nextSearch) {
+    return
+  }
+
+  window.history.pushState({}, "", `${nextPathname}${nextSearch}`)
+}
+
+function readDcxAppApiBaseUrl(): string {
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL
+  }
+
+  if (window.location.hostname === "127.0.0.1") {
+    return "http://127.0.0.1:8000"
+  }
+
+  return "http://localhost:8000"
+}
 
 function App() {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000"
+  const queryClient = useQueryClient()
+  const apiBaseUrl = readDcxAppApiBaseUrl()
+  const [pathname, setPathname] = useState(window.location.pathname || "/me/account")
 
-  const { data } = useQuery({
-    queryKey: ["dcx_app_bootstrap_status"],
-    queryFn: async () => ({ status: "ready" as const }),
+  const authenticatedSessionQuery = useQuery({
+    queryKey: ["dcx_authenticated_session"],
+    queryFn: async () =>
+      readDcxAuthenticatedSession({
+        apiBaseUrl,
+      }),
+    retry: false,
+    refetchOnWindowFocus: true,
+    refetchInterval: 15000,
+    refetchIntervalInBackground: false,
   })
 
+  const loginMutation = useMutation({
+    mutationFn: async (credentials: { email: string; password: string }) =>
+      loginDcxUserWithEmailAndPassword({
+        apiBaseUrl,
+        email: credentials.email,
+        password: credentials.password,
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["dcx_authenticated_session"] })
+      navigateToPathname("/me/account")
+      setPathname("/me/account")
+    },
+  })
+
+  const logoutMutation = useMutation({
+    mutationFn: async () =>
+      logoutAuthenticatedDcxUser({
+        apiBaseUrl,
+      }),
+    onSuccess: async () => {
+      localStorage.setItem(DCX_AUTH_LOGOUT_SYNC_STORAGE_KEY, String(Date.now()))
+      queryClient.removeQueries({ queryKey: ["dcx_authenticated_session"] })
+      queryClient.removeQueries({ queryKey: ["dcx_app_authenticated_user_account_summary"] })
+      redirectToLoginScreen()
+    },
+  })
+  const passwordResetRequestMutation = useMutation({
+    mutationFn: async (email: string) =>
+      requestDcxPasswordReset({
+        apiBaseUrl,
+        email,
+      }),
+  })
+  const completePasswordSetMutation = useMutation({
+    mutationFn: async (payload: {
+      passwordChallengeToken: string
+      password: string
+      confirmPassword: string
+    }) =>
+      completeDcxPasswordSet({
+        apiBaseUrl,
+        passwordChallengeToken: payload.passwordChallengeToken,
+        password: payload.password,
+        confirmPassword: payload.confirmPassword,
+      }),
+    onSuccess: () => {
+      navigateToPathname("/login")
+      setPathname("/login")
+    },
+  })
+
+  useEffect(() => {
+    if (window.location.pathname !== "/password/set" && window.location.search !== "") {
+      window.history.replaceState({}, "", window.location.pathname)
+    }
+
+    const handlePopState = () => {
+      setPathname(window.location.pathname || "/me/account")
+    }
+
+    const handleVisibilityOrFocusChange = () => {
+      void queryClient.invalidateQueries({ queryKey: ["dcx_authenticated_session"] })
+    }
+
+    const handleStorageEvent = (event: StorageEvent) => {
+      if (event.key !== DCX_AUTH_LOGOUT_SYNC_STORAGE_KEY) {
+        return
+      }
+
+      queryClient.removeQueries({ queryKey: ["dcx_authenticated_session"] })
+      queryClient.removeQueries({ queryKey: ["dcx_app_authenticated_user_account_summary"] })
+      redirectToLoginScreen()
+    }
+
+    window.addEventListener("popstate", handlePopState)
+    window.addEventListener("focus", handleVisibilityOrFocusChange)
+    window.addEventListener("storage", handleStorageEvent)
+    document.addEventListener("visibilitychange", handleVisibilityOrFocusChange)
+    return () => {
+      window.removeEventListener("popstate", handlePopState)
+      window.removeEventListener("focus", handleVisibilityOrFocusChange)
+      window.removeEventListener("storage", handleStorageEvent)
+      document.removeEventListener("visibilitychange", handleVisibilityOrFocusChange)
+    }
+  }, [queryClient])
+
+  const sessionRequiredErrorCode =
+    (authenticatedSessionQuery.error as Error & { code?: string } | null)?.code ?? null
+  const isSessionExplicitlyMissing = sessionRequiredErrorCode === "API_DCX_AUTH_SESSION_REQUIRED"
+  const authenticatedSessionSummary = isSessionExplicitlyMissing
+    ? null
+    : authenticatedSessionQuery.data?.data ?? null
+
+  const isPasswordRoute = pathname === "/password/reset/request" || pathname === "/password/set"
+
+  useEffect(() => {
+    if (authenticatedSessionSummary && (pathname === "/login" || isPasswordRoute)) {
+      navigateToPathname("/me/account")
+      setPathname("/me/account")
+      return
+    }
+
+    if (
+      !authenticatedSessionSummary &&
+      !authenticatedSessionQuery.isLoading &&
+      pathname !== "/login" &&
+      !isPasswordRoute
+    ) {
+      queryClient.removeQueries({ queryKey: ["dcx_app_authenticated_user_account_summary"] })
+      redirectToLoginScreen()
+    }
+  }, [
+    authenticatedSessionQuery.isLoading,
+    authenticatedSessionSummary,
+    isPasswordRoute,
+    pathname,
+    queryClient,
+  ])
+
+  if (authenticatedSessionQuery.isLoading && !authenticatedSessionSummary) {
+    return (
+      <main className="min-h-screen bg-[#f4f6f8] px-4 py-6 text-slate-950 sm:px-6 lg:px-8">
+        <section className="mx-auto max-w-4xl rounded-[1.75rem] border border-black/6 bg-white px-6 py-8 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
+          <p className="text-sm text-slate-500">Checking DCX session...</p>
+        </section>
+      </main>
+    )
+  }
+
+  if (!authenticatedSessionSummary) {
+    if (pathname === "/password/reset/request") {
+      return (
+        <DcxAppAuthPasswordRequestResetPage
+          isPending={passwordResetRequestMutation.isPending}
+          isSuccess={passwordResetRequestMutation.isSuccess}
+          errorMessage={
+            passwordResetRequestMutation.isError
+              ? (passwordResetRequestMutation.error as Error).message
+              : null
+          }
+          onSubmit={(email) => passwordResetRequestMutation.mutate(email)}
+          onBackToLogin={() => {
+            passwordResetRequestMutation.reset()
+            navigateToPathname("/login")
+            setPathname("/login")
+          }}
+        />
+      )
+    }
+
+    if (pathname === "/password/set") {
+      return (
+        <DcxAppAuthPasswordSetPage
+          isPending={completePasswordSetMutation.isPending}
+          isSuccess={completePasswordSetMutation.isSuccess}
+          errorMessage={
+            completePasswordSetMutation.isError
+              ? (completePasswordSetMutation.error as Error).message
+              : null
+          }
+          onSubmit={(passwordChallengeToken, password, confirmPassword) =>
+            completePasswordSetMutation.mutate({
+              passwordChallengeToken,
+              password,
+              confirmPassword,
+            })
+          }
+          onBackToLogin={() => {
+            completePasswordSetMutation.reset()
+            navigateToPathname("/login")
+            setPathname("/login")
+          }}
+        />
+      )
+    }
+
+    return (
+      <DcxAppAuthLoginPage
+        isPending={loginMutation.isPending}
+        errorMessage={
+          loginMutation.isError
+            ? (loginMutation.error as Error & { suggested_action?: string }).message
+            : authenticatedSessionQuery.isError
+              ? (authenticatedSessionQuery.error as Error & { suggested_action?: string }).message
+              : null
+        }
+        onSubmit={(email, password) => loginMutation.mutate({ email, password })}
+        onForgotPassword={() => {
+          loginMutation.reset()
+          navigateToPathname("/password/reset/request")
+          setPathname("/password/reset/request")
+        }}
+      />
+    )
+  }
+
   return (
-    <main className="min-h-screen bg-slate-50 px-6 py-16 text-slate-950">
-      <section className="mx-auto flex max-w-3xl flex-col gap-6 rounded-2xl border border-slate-200 bg-white p-10 shadow-sm">
-        <div className="flex items-center gap-4">
-          <img src={dcxLogo} alt="DCX logo" className="h-12 w-12 rounded-xl object-contain" />
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">
-            DCX App
-          </p>
-        </div>
-
-        <div className="space-y-3">
-          <h1 className="text-4xl font-semibold tracking-tight">
-            User app frontend hello world
-          </h1>
-          <p className="max-w-2xl text-base leading-7 text-slate-600">
-            React, TanStack Query, and shadcn are installed and rendering inside the
-            user app workspace. The shared branding package now supplies the button,
-            logo, and backend welcome banner.
-          </p>
-        </div>
-
-        <SharedBackendWelcomeMessageBanner apiBaseUrl={apiBaseUrl} />
-
-        <div className="flex flex-wrap items-center gap-4">
-          <Button>shared branding button works</Button>
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700">
-            TanStack status: {data?.status ?? "loading"}
-          </span>
-        </div>
-      </section>
-    </main>
+    <DcxAppUserAccountSummaryPage
+      apiBaseUrl={apiBaseUrl}
+      authenticatedSessionSummary={
+        authenticatedSessionSummary
+          ? {
+              primary_email: authenticatedSessionSummary.primary_email,
+              user_role: authenticatedSessionSummary.user_role,
+            }
+          : null
+      }
+      onLogout={authenticatedSessionSummary ? () => logoutMutation.mutate() : null}
+      isLogoutPending={logoutMutation.isPending}
+    />
   )
 }
 
