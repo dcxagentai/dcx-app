@@ -11,6 +11,7 @@ import dcxLogo from "@prompteoai/dcx-branding/assets/dcx_logo.png"
 type Props = {
   isPending: boolean
   errorMessage: string | null
+  ux: Record<string, string>
   onSubmit: (email: string, password: string) => void
   onForgotPassword: () => void
 }
@@ -33,44 +34,42 @@ export function DcxAppAuthLoginPage(props: Props) {
               <img src={dcxLogo} alt="DCX logo" className="h-11 w-11 rounded-xl bg-[#fbfaf7] p-1.5" />
               <div className="space-y-1">
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-                  DCX App
+                  {props.ux.surface_label}
                 </p>
                 <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
-                  Sign in
+                  {props.ux.page_title}
                 </h1>
               </div>
             </div>
 
             <div className="mt-10 max-w-xl space-y-4">
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Account access
+                {props.ux.hero_eyebrow}
               </p>
               <h2 className="text-4xl font-semibold tracking-tight text-slate-950">
-                Continue into the private DCX app.
+                {props.ux.hero_title}
               </h2>
               <p className="max-w-lg text-base leading-7 text-slate-600">
-                Use the same shared DCX session for both the app and internal admin surfaces. Password
-                setup and reset can come in the next pass once the session loop is proven.
+                {props.ux.hero_body}
               </p>
             </div>
           </article>
 
           <article className="rounded-[1.75rem] border border-black/6 bg-[#0f172a] px-6 py-8 text-white shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)] sm:px-8">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">
-              Shared auth
+              {props.ux.auth_eyebrow}
             </p>
             <h2 className="mt-3 text-2xl font-semibold tracking-tight">
-              Email and password
+              {props.ux.auth_title}
             </h2>
             <p className="mt-3 text-sm leading-6 text-slate-300">
-              Confirmed users with a password can enter the app immediately. Admin access stays
-              role-gated on top of the same browser session.
+              {props.ux.auth_body}
             </p>
 
             <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
               <label className="block space-y-2">
                 <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                  Email
+                  {props.ux.field_email}
                 </span>
                 <input
                   type="email"
@@ -78,14 +77,14 @@ export function DcxAppAuthLoginPage(props: Props) {
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   className="h-11 w-full rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-white outline-none transition placeholder:text-slate-400 focus:border-sky-300"
-                  placeholder="you@company.com"
+                  placeholder={props.ux.field_email_placeholder}
                   disabled={props.isPending}
                 />
               </label>
 
               <label className="block space-y-2">
                 <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                  Password
+                  {props.ux.field_password}
                 </span>
                 <input
                   type="password"
@@ -93,7 +92,7 @@ export function DcxAppAuthLoginPage(props: Props) {
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   className="h-11 w-full rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-white outline-none transition placeholder:text-slate-400 focus:border-sky-300"
-                  placeholder="Enter your password"
+                  placeholder={props.ux.field_password_placeholder}
                   disabled={props.isPending}
                 />
               </label>
@@ -102,8 +101,7 @@ export function DcxAppAuthLoginPage(props: Props) {
                 <p className="text-sm leading-6 text-red-300">{props.errorMessage}</p>
               ) : (
                 <p className="text-sm leading-6 text-slate-400">
-                  Use your confirmed email and current password. If you lost access, request a new
-                  password link.
+                  {props.ux.help_idle}
                 </p>
               )}
 
@@ -113,14 +111,14 @@ export function DcxAppAuthLoginPage(props: Props) {
                   className="h-11 w-full rounded-2xl bg-white text-slate-950 hover:bg-slate-100"
                   disabled={props.isPending || email.trim() === "" || password === ""}
                 >
-                  {props.isPending ? "Signing in..." : "Sign in"}
+                  {props.isPending ? props.ux.submit_pending : props.ux.submit_idle}
                 </Button>
                 <button
                   type="button"
                   className="text-left text-sm font-medium text-sky-300 transition hover:text-sky-200"
                   onClick={props.onForgotPassword}
                 >
-                  Forgot password?
+                  {props.ux.forgot_password_button}
                 </button>
               </div>
             </form>

@@ -12,19 +12,91 @@ import { DcxAppAuthPasswordRequestResetPage } from "./components/dcx_app_auth_pa
 import { DcxAppAuthPasswordSetPage } from "./components/dcx_app_auth_password_set_page"
 import { DcxAppUserAccountSummaryPage } from "./components/dcx_app_user_account_summary_page"
 import { completeDcxPasswordSet } from "./lib/complete_dcx_password_set"
+import {
+  buildDcxAppPathWithLanguageCode,
+  persistDcxAppLanguageCode,
+  readDcxAppLanguageCodeFromCurrentSearch,
+  readResolvedDcxAppLanguageCode,
+} from "./lib/dcx_app_language_preference"
 import { loginDcxUserWithEmailAndPassword } from "./lib/login_dcx_user_with_email_and_password"
 import { logoutAuthenticatedDcxUser } from "./lib/logout_authenticated_dcx_user"
+import { readDcxAppAuthUxStringsBundle } from "./lib/read_dcx_app_auth_ux_strings_bundle"
 import { readDcxAuthenticatedSession } from "./lib/read_dcx_authenticated_session"
 import { requestDcxPasswordReset } from "./lib/request_dcx_password_reset"
 
 const DCX_AUTH_LOGOUT_SYNC_STORAGE_KEY = "dcx_auth_logout_at_ts_ms"
+const DCX_APP_AUTH_UX_DEFAULTS = {
+  common: {
+    checking_session: "Checking DCX session...",
+  },
+  login_page: {
+    surface_label: "DCX App",
+    page_title: "Sign in",
+    hero_eyebrow: "Account access",
+    hero_title: "Continue into the private DCX app.",
+    hero_body: "Use the same shared DCX session for both the app and internal admin surfaces.",
+    auth_eyebrow: "Shared auth",
+    auth_title: "Email and password",
+    auth_body: "Confirmed users with a password can enter the app immediately. Admin access stays role-gated on top of the same browser session.",
+    field_email: "Email",
+    field_email_placeholder: "you@company.com",
+    field_password: "Password",
+    field_password_placeholder: "Enter your password",
+    help_idle: "Use your confirmed email and current password. If you lost access, request a new password link.",
+    submit_idle: "Sign in",
+    submit_pending: "Signing in...",
+    forgot_password_button: "Forgot password?",
+  },
+  password_reset_request_page: {
+    surface_label: "DCX App",
+    page_title: "Reset password",
+    hero_eyebrow: "Recovery",
+    hero_title: "Send a secure password link to your confirmed email.",
+    hero_body: "If the account exists and is already confirmed, DCX will send a one-time password link to the email address you enter here.",
+    auth_eyebrow: "Shared auth",
+    auth_title: "Password reset email",
+    auth_body: "The response stays generic for security. Use the newest email link only once.",
+    field_email: "Email",
+    field_email_placeholder: "you@company.com",
+    help_idle: "We will send a one-time link to the confirmed account email if it exists.",
+    success_message: "If that email belongs to a confirmed DCX account, a secure password link is on the way.",
+    submit_idle: "Send password link",
+    submit_pending: "Sending...",
+    back_to_login_button: "Back to sign in",
+  },
+  password_set_page: {
+    surface_label: "DCX App",
+    page_title: "Password",
+    hero_eyebrow: "Shared auth",
+    hero_title_setup: "Create your DCX password.",
+    hero_body_setup: "Your email is now verified. Choose the password you will use to enter the private DCX app.",
+    hero_title_reset: "Choose a new password.",
+    hero_body_reset: "Use the secure link token from your reset email to choose a new password, then sign in again.",
+    rule_eyebrow: "Password rule",
+    rule_title: "At least 12 characters",
+    rule_body: "Longer passphrases are welcome. Once saved, return to sign in with the new password.",
+    field_password: "New password",
+    field_password_placeholder: "Enter a strong passphrase",
+    field_confirm_password: "Confirm password",
+    field_confirm_password_placeholder: "Enter the same password again",
+    validation_min_length: "Use a password with at least 12 characters.",
+    validation_confirmation_mismatch: "The password confirmation must match exactly.",
+    token_missing_error: "This password link is missing or has already been cleared. Request a fresh one and retry.",
+    help_idle: "This one-time link works only once. If it expires, request another password email.",
+    success_message: "Password saved. Continue back to sign in.",
+    submit_idle: "Save password",
+    submit_pending: "Saving...",
+    back_to_login_button: "Back to sign in",
+  },
+}
 
 function redirectToLoginScreen(): void {
-  if (window.location.pathname === "/login" && window.location.search === "") {
+  const targetLocation = buildDcxAppPathWithLanguageCode("/login", readResolvedDcxAppLanguageCode())
+  if (`${window.location.pathname}${window.location.search}` === targetLocation) {
     return
   }
 
-  window.location.replace("/login")
+  window.location.replace(targetLocation)
 }
 
 function navigateToPathname(nextPathname: string, options?: { preserveSearch?: boolean }): void {
@@ -53,6 +125,17 @@ function App() {
   const queryClient = useQueryClient()
   const apiBaseUrl = readDcxAppApiBaseUrl()
   const [pathname, setPathname] = useState(window.location.pathname || "/me/account")
+  const [authLanguageCode, setAuthLanguageCode] = useState(readResolvedDcxAppLanguageCode())
+
+  const appAuthUxStringsBundleQuery = useQuery({
+    queryKey: ["dcx_app_auth_ux_strings_bundle", authLanguageCode],
+    queryFn: async () =>
+      readDcxAppAuthUxStringsBundle({
+        apiBaseUrl,
+        languageCode: authLanguageCode,
+      }),
+    retry: false,
+  })
 
   const authenticatedSessionQuery = useQuery({
     queryKey: ["dcx_authenticated_session"],
@@ -112,18 +195,37 @@ function App() {
         confirmPassword: payload.confirmPassword,
       }),
     onSuccess: () => {
-      navigateToPathname("/login")
+      persistDcxAppLanguageCode(authLanguageCode)
+      navigateToPathname("/login", { preserveSearch: false })
+      window.history.replaceState({}, "", buildDcxAppPathWithLanguageCode("/login", authLanguageCode))
       setPathname("/login")
     },
   })
 
   useEffect(() => {
-    if (window.location.pathname !== "/password/set" && window.location.search !== "") {
-      window.history.replaceState({}, "", window.location.pathname)
+    const currentSearchParams = new URLSearchParams(window.location.search)
+    if (currentSearchParams.has("user_id")) {
+      currentSearchParams.delete("user_id")
+    }
+
+    if (currentSearchParams.has("admin_user_id")) {
+      currentSearchParams.delete("admin_user_id")
+    }
+
+    const normalizedSearch = currentSearchParams.toString()
+    const currentSearch = window.location.search.startsWith("?")
+      ? window.location.search.slice(1)
+      : window.location.search
+    if (normalizedSearch !== currentSearch) {
+      const nextSearch = normalizedSearch === "" ? "" : `?${normalizedSearch}`
+      window.history.replaceState({}, "", `${window.location.pathname}${nextSearch}${window.location.hash}`)
     }
 
     const handlePopState = () => {
       setPathname(window.location.pathname || "/me/account")
+      const nextLanguageCode = readResolvedDcxAppLanguageCode()
+      persistDcxAppLanguageCode(nextLanguageCode)
+      setAuthLanguageCode(nextLanguageCode)
     }
 
     const handleVisibilityOrFocusChange = () => {
@@ -152,12 +254,24 @@ function App() {
     }
   }, [queryClient])
 
+  useEffect(() => {
+    const explicitLanguageCode = readDcxAppLanguageCodeFromCurrentSearch()
+    if (explicitLanguageCode) {
+      persistDcxAppLanguageCode(explicitLanguageCode)
+      setAuthLanguageCode(explicitLanguageCode)
+      return
+    }
+
+    setAuthLanguageCode(readResolvedDcxAppLanguageCode())
+  }, [pathname])
+
   const sessionRequiredErrorCode =
     (authenticatedSessionQuery.error as Error & { code?: string } | null)?.code ?? null
   const isSessionExplicitlyMissing = sessionRequiredErrorCode === "API_DCX_AUTH_SESSION_REQUIRED"
   const authenticatedSessionSummary = isSessionExplicitlyMissing
     ? null
     : authenticatedSessionQuery.data?.data ?? null
+  const authUxStringsBundle = appAuthUxStringsBundleQuery.data?.data ?? DCX_APP_AUTH_UX_DEFAULTS
 
   const isPasswordRoute = pathname === "/password/reset/request" || pathname === "/password/set"
 
@@ -189,7 +303,7 @@ function App() {
     return (
       <main className="min-h-screen bg-[#f4f6f8] px-4 py-6 text-slate-950 sm:px-6 lg:px-8">
         <section className="mx-auto max-w-4xl rounded-[1.75rem] border border-black/6 bg-white px-6 py-8 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
-          <p className="text-sm text-slate-500">Checking DCX session...</p>
+          <p className="text-sm text-slate-500">{authUxStringsBundle.common.checking_session}</p>
         </section>
       </main>
     )
@@ -201,6 +315,7 @@ function App() {
         <DcxAppAuthPasswordRequestResetPage
           isPending={passwordResetRequestMutation.isPending}
           isSuccess={passwordResetRequestMutation.isSuccess}
+          ux={authUxStringsBundle.password_reset_request_page}
           errorMessage={
             passwordResetRequestMutation.isError
               ? (passwordResetRequestMutation.error as Error).message
@@ -209,7 +324,9 @@ function App() {
           onSubmit={(email) => passwordResetRequestMutation.mutate(email)}
           onBackToLogin={() => {
             passwordResetRequestMutation.reset()
-            navigateToPathname("/login")
+            const nextLanguageCode = readResolvedDcxAppLanguageCode()
+            persistDcxAppLanguageCode(nextLanguageCode)
+            window.history.pushState({}, "", buildDcxAppPathWithLanguageCode("/login", nextLanguageCode))
             setPathname("/login")
           }}
         />
@@ -221,6 +338,7 @@ function App() {
         <DcxAppAuthPasswordSetPage
           isPending={completePasswordSetMutation.isPending}
           isSuccess={completePasswordSetMutation.isSuccess}
+          ux={authUxStringsBundle.password_set_page}
           errorMessage={
             completePasswordSetMutation.isError
               ? (completePasswordSetMutation.error as Error).message
@@ -235,7 +353,9 @@ function App() {
           }
           onBackToLogin={() => {
             completePasswordSetMutation.reset()
-            navigateToPathname("/login")
+            const nextLanguageCode = readResolvedDcxAppLanguageCode()
+            persistDcxAppLanguageCode(nextLanguageCode)
+            window.history.pushState({}, "", buildDcxAppPathWithLanguageCode("/login", nextLanguageCode))
             setPathname("/login")
           }}
         />
@@ -245,6 +365,7 @@ function App() {
     return (
       <DcxAppAuthLoginPage
         isPending={loginMutation.isPending}
+        ux={authUxStringsBundle.login_page}
         errorMessage={
           loginMutation.isError
             ? (loginMutation.error as Error & { suggested_action?: string }).message
@@ -255,7 +376,13 @@ function App() {
         onSubmit={(email, password) => loginMutation.mutate({ email, password })}
         onForgotPassword={() => {
           loginMutation.reset()
-          navigateToPathname("/password/reset/request")
+          const nextLanguageCode = readResolvedDcxAppLanguageCode()
+          persistDcxAppLanguageCode(nextLanguageCode)
+          window.history.pushState(
+            {},
+            "",
+            buildDcxAppPathWithLanguageCode("/password/reset/request", nextLanguageCode),
+          )
           setPathname("/password/reset/request")
         }}
       />

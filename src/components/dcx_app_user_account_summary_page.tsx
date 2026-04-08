@@ -11,6 +11,10 @@ import { Button } from "@/components/ui/button"
 import dcxLogo from "@prompteoai/dcx-branding/assets/dcx_logo.png"
 
 import {
+  persistDcxAppLanguageCode,
+  readDcxLocaleForLanguageCode,
+} from "../lib/dcx_app_language_preference"
+import {
   readDcxAppAuthenticatedUserAccountSummary,
 } from "../lib/read_dcx_app_authenticated_user_account_summary"
 import { saveDcxAppAuthenticatedUserAccountSettings } from "../lib/save_dcx_app_authenticated_user_account_settings"
@@ -68,14 +72,20 @@ const DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS: Record<string, string> = {
   field_updated_at: "Updated at",
   field_not_set: "Not set",
   field_phone_not_set_yet: "Not set yet",
+  logout_button_label: "Logout",
+  logout_button_pending_label: "Signing out...",
   editable_status_idle: "Blue means editable. Click to adjust.",
   editable_status_editing: "Editing. Choose a value to autosave.",
   editable_status_saving: "Saving...",
   editable_status_saved: "Saved.",
+  editable_status_retrying_template: "Retrying save ({attempt}/{total})...",
   editable_status_save_failed: "Save failed. Please click back in and retry.",
   editable_status_saving_default_language: "Saving default language...",
+  error_account_load_suggested_action: "Sign in again through the DCX app login flow, then retry.",
   activity_eyebrow: "Activity",
   activity_title: "Account timeline",
+  email_preference_announcements: "Announcements",
+  email_preference_essential_only: "Essential only",
   next_eyebrow: "Next",
   next_title: "Email and phone changes can come after the field behavior is proven.",
   next_body:
@@ -84,6 +94,7 @@ const DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS: Record<string, string> = {
 
 function formatTimestampLabel(
   timestampMs: number | null,
+  languageCode: string,
   preferredTimezoneIanaName: string | null,
   emptyLabel: string,
 ): string {
@@ -91,7 +102,7 @@ function formatTimestampLabel(
     return emptyLabel
   }
 
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat(readDcxLocaleForLanguageCode(languageCode), {
     dateStyle: "medium",
     timeStyle: "short",
     timeZone: preferredTimezoneIanaName ?? undefined,
@@ -250,6 +261,10 @@ export function DcxAppUserAccountSummaryPage(props: Props) {
       return
     }
 
+    if (accountSummary.preferred_language?.language_code) {
+      persistDcxAppLanguageCode(accountSummary.preferred_language.language_code)
+    }
+
     setEditableDraft({
       preferredLanguageId: accountSummary.preferred_language?.id ?? null,
       preferredTimezoneId: accountSummary.preferred_timezone?.id ?? null,
@@ -346,12 +361,14 @@ export function DcxAppUserAccountSummaryPage(props: Props) {
       } catch (error) {
         if (attemptNumber < 3) {
           setEditableFieldUiStateByKey((previousState) => ({
-            ...previousState,
-            [fieldKey]: {
-              visualState: "saving",
-              statusText: `Retrying save (${attemptNumber + 1}/3)...`,
-            },
-          }))
+              ...previousState,
+              [fieldKey]: {
+                visualState: "saving",
+                statusText: ux.editable_status_retrying_template
+                  .replace("{attempt}", String(attemptNumber + 1))
+                  .replace("{total}", "3"),
+              },
+            }))
           await new Promise((resolve) => setTimeout(resolve, 700 * attemptNumber))
           continue
         }
@@ -401,6 +418,7 @@ export function DcxAppUserAccountSummaryPage(props: Props) {
 
   const editableControlsDisabled = saveAccountSettingsMutation.isPending
   const selectedTimezoneIanaName = accountSummary?.preferred_timezone?.iana_name ?? null
+  const selectedLanguageCode = accountSummary?.preferred_language?.language_code ?? "en"
   const phoneDisplayValue = accountSummary?.primary_phone_e164
     ? `${accountSummary.primary_phone_e164}${accountSummary.primary_phone_channel ? ` (${accountSummary.primary_phone_channel})` : ""}`
     : ux.field_phone_not_set_yet
@@ -452,7 +470,7 @@ export function DcxAppUserAccountSummaryPage(props: Props) {
                 onClick={props.onLogout}
                 disabled={props.isLogoutPending}
               >
-                {props.isLogoutPending ? "Signing out..." : "Logout"}
+                {props.isLogoutPending ? ux.logout_button_pending_label : ux.logout_button_label}
               </Button>
             ) : null}
           </div>
@@ -478,7 +496,7 @@ export function DcxAppUserAccountSummaryPage(props: Props) {
               </p>
               <p className="text-sm text-slate-500">
               {(accountSummaryQuery.error as Error & { suggested_action?: string }).suggested_action ??
-                  "Sign in again through the DCX app login flow, then retry."}
+                  ux.error_account_load_suggested_action}
               </p>
             </div>
           </section>
@@ -617,23 +635,23 @@ export function DcxAppUserAccountSummaryPage(props: Props) {
                   <dl>
                     <AccountFieldRow
                       label={ux.field_email_confirmed_at}
-                      value={formatTimestampLabel(accountSummary.primary_email_confirmed_at_ts_ms, selectedTimezoneIanaName, ux.field_not_set)}
+                      value={formatTimestampLabel(accountSummary.primary_email_confirmed_at_ts_ms, selectedLanguageCode, selectedTimezoneIanaName, ux.field_not_set)}
                     />
                     <AccountFieldRow
                       label={ux.field_phone_confirmed_at}
-                      value={formatTimestampLabel(accountSummary.primary_phone_confirmed_at_ts_ms, selectedTimezoneIanaName, ux.field_not_set)}
+                      value={formatTimestampLabel(accountSummary.primary_phone_confirmed_at_ts_ms, selectedLanguageCode, selectedTimezoneIanaName, ux.field_not_set)}
                     />
                     <AccountFieldRow
                       label={ux.field_last_seen_at}
-                      value={formatTimestampLabel(accountSummary.last_seen_at_ts_ms, selectedTimezoneIanaName, ux.field_not_set)}
+                      value={formatTimestampLabel(accountSummary.last_seen_at_ts_ms, selectedLanguageCode, selectedTimezoneIanaName, ux.field_not_set)}
                     />
                     <AccountFieldRow
                       label={ux.field_created_at}
-                      value={formatTimestampLabel(accountSummary.created_at_ts_ms, selectedTimezoneIanaName, ux.field_not_set)}
+                      value={formatTimestampLabel(accountSummary.created_at_ts_ms, selectedLanguageCode, selectedTimezoneIanaName, ux.field_not_set)}
                     />
                     <AccountFieldRow
                       label={ux.field_updated_at}
-                      value={formatTimestampLabel(accountSummary.updated_at_ts_ms, selectedTimezoneIanaName, ux.field_not_set)}
+                      value={formatTimestampLabel(accountSummary.updated_at_ts_ms, selectedLanguageCode, selectedTimezoneIanaName, ux.field_not_set)}
                     />
                   </dl>
                 </section>

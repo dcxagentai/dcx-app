@@ -17,6 +17,7 @@ type Props = {
   isPending: boolean
   isSuccess: boolean
   errorMessage: string | null
+  ux: Record<string, string>
   onSubmit: (token: string, password: string, confirmPassword: string) => void
   onBackToLogin: () => void
 }
@@ -49,15 +50,20 @@ export function DcxAppAuthPasswordSetPage(props: Props) {
     }
 
     if (password.length < 12) {
-      return "Use a password with at least 12 characters."
+      return props.ux.validation_min_length
     }
 
     if (password !== confirmPassword) {
-      return "The password confirmation must match exactly."
+      return props.ux.validation_confirmation_mismatch
     }
 
     return null
-  }, [confirmPassword, password])
+  }, [
+    confirmPassword,
+    password,
+    props.ux.validation_confirmation_mismatch,
+    props.ux.validation_min_length,
+  ])
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -69,11 +75,9 @@ export function DcxAppAuthPasswordSetPage(props: Props) {
   }
 
   const title =
-    currentMode === "password_reset" ? "Choose a new password." : "Create your DCX password."
+    currentMode === "password_reset" ? props.ux.hero_title_reset : props.ux.hero_title_setup
   const body =
-    currentMode === "password_reset"
-      ? "Use the secure link token from your reset email to choose a new password, then sign in again."
-      : "Your email is now verified. Choose the password you will use to enter the private DCX app."
+    currentMode === "password_reset" ? props.ux.hero_body_reset : props.ux.hero_body_setup
 
   return (
     <main className="min-h-screen bg-[#f4f6f8] px-4 py-6 text-slate-950 sm:px-6 lg:px-8">
@@ -84,17 +88,17 @@ export function DcxAppAuthPasswordSetPage(props: Props) {
               <img src={dcxLogo} alt="DCX logo" className="h-11 w-11 rounded-xl bg-[#fbfaf7] p-1.5" />
               <div className="space-y-1">
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-                  DCX App
+                  {props.ux.surface_label}
                 </p>
                 <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
-                  Password
+                  {props.ux.page_title}
                 </h1>
               </div>
             </div>
 
             <div className="mt-10 max-w-xl space-y-4">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Shared auth
+                {props.ux.hero_eyebrow}
               </p>
               <h2 className="text-4xl font-semibold tracking-tight text-slate-950">
                 {title}
@@ -107,19 +111,19 @@ export function DcxAppAuthPasswordSetPage(props: Props) {
 
           <article className="rounded-[1.75rem] border border-black/6 bg-[#0f172a] px-6 py-8 text-white shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)] sm:px-8">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">
-              Password rule
+              {props.ux.rule_eyebrow}
             </p>
             <h2 className="mt-3 text-2xl font-semibold tracking-tight">
-              At least 12 characters
+              {props.ux.rule_title}
             </h2>
             <p className="mt-3 text-sm leading-6 text-slate-300">
-              Longer passphrases are welcome. Once saved, return to sign in with the new password.
+              {props.ux.rule_body}
             </p>
 
             <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
               <label className="block space-y-2">
                 <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                  New password
+                  {props.ux.field_password}
                 </span>
                 <input
                   type="password"
@@ -127,14 +131,14 @@ export function DcxAppAuthPasswordSetPage(props: Props) {
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   className="h-11 w-full rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-white outline-none transition placeholder:text-slate-400 focus:border-sky-300"
-                  placeholder="Enter a strong passphrase"
+                  placeholder={props.ux.field_password_placeholder}
                   disabled={props.isPending || props.isSuccess || !passwordChallengeToken}
                 />
               </label>
 
               <label className="block space-y-2">
                 <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                  Confirm password
+                  {props.ux.field_confirm_password}
                 </span>
                 <input
                   type="password"
@@ -142,27 +146,26 @@ export function DcxAppAuthPasswordSetPage(props: Props) {
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}
                   className="h-11 w-full rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-white outline-none transition placeholder:text-slate-400 focus:border-sky-300"
-                  placeholder="Enter the same password again"
+                  placeholder={props.ux.field_confirm_password_placeholder}
                   disabled={props.isPending || props.isSuccess || !passwordChallengeToken}
                 />
               </label>
 
               {!passwordChallengeToken ? (
                 <p className="text-sm leading-6 text-red-300">
-                  This password link is missing or has already been cleared. Request a fresh one and
-                  retry.
+                  {props.ux.token_missing_error}
                 </p>
               ) : props.errorMessage ? (
                 <p className="text-sm leading-6 text-red-300">{props.errorMessage}</p>
               ) : props.isSuccess ? (
                 <p className="text-sm leading-6 text-emerald-300">
-                  Password saved. Continue back to sign in.
+                  {props.ux.success_message}
                 </p>
               ) : localValidationError ? (
                 <p className="text-sm leading-6 text-amber-300">{localValidationError}</p>
               ) : (
                 <p className="text-sm leading-6 text-slate-400">
-                  This one-time link works only once. If it expires, request another password email.
+                  {props.ux.help_idle}
                 </p>
               )}
 
@@ -179,14 +182,14 @@ export function DcxAppAuthPasswordSetPage(props: Props) {
                     localValidationError !== null
                   }
                 >
-                  {props.isPending ? "Saving..." : "Save password"}
+                  {props.isPending ? props.ux.submit_pending : props.ux.submit_idle}
                 </Button>
                 <Button
                   type="button"
                   className="h-11 w-full rounded-2xl border border-white/15 bg-white/5 text-white hover:bg-white/10"
                   onClick={props.onBackToLogin}
                 >
-                  Back to sign in
+                  {props.ux.back_to_login_button}
                 </Button>
               </div>
             </form>
