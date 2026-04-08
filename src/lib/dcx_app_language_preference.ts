@@ -1,30 +1,31 @@
 /**
  * CONTEXT:
- * Shared language-preference helpers for the DCX app browser surface.
- * They exist so logged-in account pages, logged-out auth pages, and emailed password links can all
- * converge on one consistent language choice without requiring a session first.
+ * Shared language and auth-route helpers for the DCX app browser surface.
+ * They exist so unauthenticated auth pages can use explicit path-based language routing such as
+ * `/fr/t/login`, while authenticated surfaces can still format dates and route handoffs consistently.
  */
 
-const DCX_APP_LANGUAGE_CODE_STORAGE_KEY = "dcx_app_language_code"
+const DCX_APP_SUPPORTED_LANGUAGE_CODES = ["en", "es", "fr", "de"] as const
+
+type DcxAppSupportedLanguageCode = (typeof DCX_APP_SUPPORTED_LANGUAGE_CODES)[number]
+type DcxAppAuthRoutePath = "/login" | "/password/reset/request" | "/password/set"
 
 export function normalizeDcxAppLanguageCode(candidateLanguageCode: string | null | undefined): string {
   const normalizedLanguageCode = candidateLanguageCode?.trim().toLowerCase() ?? ""
-  return normalizedLanguageCode === "es" ||
-    normalizedLanguageCode === "fr" ||
-    normalizedLanguageCode === "de"
+  return DCX_APP_SUPPORTED_LANGUAGE_CODES.includes(
+    normalizedLanguageCode as DcxAppSupportedLanguageCode,
+  )
     ? normalizedLanguageCode
     : "en"
 }
 
-export function readStoredDcxAppLanguageCode(): string {
-  return normalizeDcxAppLanguageCode(window.localStorage.getItem(DCX_APP_LANGUAGE_CODE_STORAGE_KEY))
-}
+export function readDcxAppLanguageCodeFromCurrentPathname(pathname: string = window.location.pathname): string | null {
+  const pathnameSegments = pathname.split("/").filter((segment) => segment !== "")
+  if (pathnameSegments.length < 3 || pathnameSegments[1] !== "t") {
+    return null
+  }
 
-export function persistDcxAppLanguageCode(languageCode: string): void {
-  window.localStorage.setItem(
-    DCX_APP_LANGUAGE_CODE_STORAGE_KEY,
-    normalizeDcxAppLanguageCode(languageCode),
-  )
+  return normalizeDcxAppLanguageCode(pathnameSegments[0])
 }
 
 export function readDcxAppLanguageCodeFromCurrentSearch(): string | null {
@@ -37,13 +38,66 @@ export function readDcxAppLanguageCodeFromCurrentSearch(): string | null {
   return normalizeDcxAppLanguageCode(explicitLanguageCode)
 }
 
-export function readResolvedDcxAppLanguageCode(): string {
-  return readDcxAppLanguageCodeFromCurrentSearch() ?? readStoredDcxAppLanguageCode()
+export function readResolvedDcxAppLanguageCode(pathname: string = window.location.pathname): string {
+  return (
+    readDcxAppLanguageCodeFromCurrentPathname(pathname) ??
+    readDcxAppLanguageCodeFromCurrentSearch() ??
+    "en"
+  )
 }
 
-export function buildDcxAppPathWithLanguageCode(pathname: string, languageCode: string): string {
+export function readDcxAppAuthRoutePath(pathname: string = window.location.pathname): DcxAppAuthRoutePath | null {
+  const pathnameSegments = pathname.split("/").filter((segment) => segment !== "")
+
+  if (
+    pathnameSegments.length === 3 &&
+    DCX_APP_SUPPORTED_LANGUAGE_CODES.includes(pathnameSegments[0] as DcxAppSupportedLanguageCode) &&
+    pathnameSegments[1] === "t" &&
+    pathnameSegments[2] === "login"
+  ) {
+    return "/login"
+  }
+
+  if (
+    pathnameSegments.length === 5 &&
+    DCX_APP_SUPPORTED_LANGUAGE_CODES.includes(pathnameSegments[0] as DcxAppSupportedLanguageCode) &&
+    pathnameSegments[1] === "t" &&
+    pathnameSegments[2] === "password" &&
+    pathnameSegments[3] === "reset" &&
+    pathnameSegments[4] === "request"
+  ) {
+    return "/password/reset/request"
+  }
+
+  if (
+    pathnameSegments.length === 4 &&
+    DCX_APP_SUPPORTED_LANGUAGE_CODES.includes(pathnameSegments[0] as DcxAppSupportedLanguageCode) &&
+    pathnameSegments[1] === "t" &&
+    pathnameSegments[2] === "password" &&
+    pathnameSegments[3] === "set"
+  ) {
+    return "/password/set"
+  }
+
+  if (pathname === "/login" || pathname === "/password/reset/request" || pathname === "/password/set") {
+    return pathname
+  }
+
+  return null
+}
+
+export function buildDcxAppPathWithLanguageCode(pathname: DcxAppAuthRoutePath, languageCode: string): string {
   const normalizedLanguageCode = normalizeDcxAppLanguageCode(languageCode)
-  return `${pathname}?language_code=${normalizedLanguageCode}`
+
+  if (pathname === "/login") {
+    return `/${normalizedLanguageCode}/t/login`
+  }
+
+  if (pathname === "/password/reset/request") {
+    return `/${normalizedLanguageCode}/t/password/reset/request`
+  }
+
+  return `/${normalizedLanguageCode}/t/password/set`
 }
 
 export function readDcxLocaleForLanguageCode(languageCode: string): string {

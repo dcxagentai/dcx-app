@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button"
 import dcxLogo from "@prompteoai/dcx-branding/assets/dcx_logo.png"
 
 import {
-  persistDcxAppLanguageCode,
   readDcxLocaleForLanguageCode,
 } from "../lib/dcx_app_language_preference"
 import {
@@ -259,10 +258,6 @@ export function DcxAppUserAccountSummaryPage(props: Props) {
   useEffect(() => {
     if (!accountSummary) {
       return
-    }
-
-    if (accountSummary.preferred_language?.language_code) {
-      persistDcxAppLanguageCode(accountSummary.preferred_language.language_code)
     }
 
     setEditableDraft({

@@ -14,7 +14,8 @@ import { DcxAppUserAccountSummaryPage } from "./components/dcx_app_user_account_
 import { completeDcxPasswordSet } from "./lib/complete_dcx_password_set"
 import {
   buildDcxAppPathWithLanguageCode,
-  persistDcxAppLanguageCode,
+  normalizeDcxAppLanguageCode,
+  readDcxAppAuthRoutePath,
   readDcxAppLanguageCodeFromCurrentSearch,
   readResolvedDcxAppLanguageCode,
 } from "./lib/dcx_app_language_preference"
@@ -91,7 +92,16 @@ const DCX_APP_AUTH_UX_DEFAULTS = {
 }
 
 function redirectToLoginScreen(): void {
-  const targetLocation = buildDcxAppPathWithLanguageCode("/login", readResolvedDcxAppLanguageCode())
+  const targetLocation = buildDcxAppPathWithLanguageCode("/login", "en")
+  if (`${window.location.pathname}${window.location.search}` === targetLocation) {
+    return
+  }
+
+  window.location.replace(targetLocation)
+}
+
+function redirectToLocalizedLoginScreen(languageCode: string): void {
+  const targetLocation = buildDcxAppPathWithLanguageCode("/login", languageCode)
   if (`${window.location.pathname}${window.location.search}` === targetLocation) {
     return
   }
@@ -125,7 +135,7 @@ function App() {
   const queryClient = useQueryClient()
   const apiBaseUrl = readDcxAppApiBaseUrl()
   const [pathname, setPathname] = useState(window.location.pathname || "/me/account")
-  const [authLanguageCode, setAuthLanguageCode] = useState(readResolvedDcxAppLanguageCode())
+  const [authLanguageCode, setAuthLanguageCode] = useState(readResolvedDcxAppLanguageCode(window.location.pathname))
 
   const appAuthUxStringsBundleQuery = useQuery({
     queryKey: ["dcx_app_auth_ux_strings_bundle", authLanguageCode],
@@ -169,10 +179,18 @@ function App() {
         apiBaseUrl,
       }),
     onSuccess: async () => {
+      const cachedAccountSummary = queryClient.getQueryData<{
+        data?: {
+          preferred_language?: { language_code?: string | null } | null
+        }
+      }>(["dcx_app_authenticated_user_account_summary"])
+      const logoutLanguageCode = normalizeDcxAppLanguageCode(
+        cachedAccountSummary?.data?.preferred_language?.language_code ?? "en",
+      )
       localStorage.setItem(DCX_AUTH_LOGOUT_SYNC_STORAGE_KEY, String(Date.now()))
       queryClient.removeQueries({ queryKey: ["dcx_authenticated_session"] })
       queryClient.removeQueries({ queryKey: ["dcx_app_authenticated_user_account_summary"] })
-      redirectToLoginScreen()
+      redirectToLocalizedLoginScreen(logoutLanguageCode)
     },
   })
   const passwordResetRequestMutation = useMutation({
@@ -195,21 +213,46 @@ function App() {
         confirmPassword: payload.confirmPassword,
       }),
     onSuccess: () => {
-      persistDcxAppLanguageCode(authLanguageCode)
-      navigateToPathname("/login", { preserveSearch: false })
       window.history.replaceState({}, "", buildDcxAppPathWithLanguageCode("/login", authLanguageCode))
-      setPathname("/login")
+      setPathname(window.location.pathname)
     },
   })
 
   useEffect(() => {
     const currentSearchParams = new URLSearchParams(window.location.search)
+    const legacyAuthRoutePath = readDcxAppAuthRoutePath(window.location.pathname)
+    const queryLanguageCode = readDcxAppLanguageCodeFromCurrentSearch()
+
     if (currentSearchParams.has("user_id")) {
       currentSearchParams.delete("user_id")
     }
 
     if (currentSearchParams.has("admin_user_id")) {
       currentSearchParams.delete("admin_user_id")
+    }
+
+    if (currentSearchParams.has("language_code")) {
+      currentSearchParams.delete("language_code")
+    }
+
+    if (
+      legacyAuthRoutePath &&
+      (window.location.pathname === legacyAuthRoutePath || queryLanguageCode !== null)
+    ) {
+      const nextSearch = currentSearchParams.toString()
+      const canonicalAuthPath = buildDcxAppPathWithLanguageCode(
+        legacyAuthRoutePath,
+        queryLanguageCode ?? "en",
+      )
+      const nextSearchSuffix = nextSearch === "" ? "" : `?${nextSearch}`
+      window.history.replaceState(
+        {},
+        "",
+        `${canonicalAuthPath}${nextSearchSuffix}${window.location.hash}`,
+      )
+      setPathname(window.location.pathname)
+      setAuthLanguageCode(readResolvedDcxAppLanguageCode(window.location.pathname))
+      return
     }
 
     const normalizedSearch = currentSearchParams.toString()
@@ -223,8 +266,7 @@ function App() {
 
     const handlePopState = () => {
       setPathname(window.location.pathname || "/me/account")
-      const nextLanguageCode = readResolvedDcxAppLanguageCode()
-      persistDcxAppLanguageCode(nextLanguageCode)
+      const nextLanguageCode = readResolvedDcxAppLanguageCode(window.location.pathname)
       setAuthLanguageCode(nextLanguageCode)
     }
 
@@ -255,14 +297,7 @@ function App() {
   }, [queryClient])
 
   useEffect(() => {
-    const explicitLanguageCode = readDcxAppLanguageCodeFromCurrentSearch()
-    if (explicitLanguageCode) {
-      persistDcxAppLanguageCode(explicitLanguageCode)
-      setAuthLanguageCode(explicitLanguageCode)
-      return
-    }
-
-    setAuthLanguageCode(readResolvedDcxAppLanguageCode())
+    setAuthLanguageCode(readResolvedDcxAppLanguageCode(pathname))
   }, [pathname])
 
   const sessionRequiredErrorCode =
@@ -273,10 +308,11 @@ function App() {
     : authenticatedSessionQuery.data?.data ?? null
   const authUxStringsBundle = appAuthUxStringsBundleQuery.data?.data ?? DCX_APP_AUTH_UX_DEFAULTS
 
-  const isPasswordRoute = pathname === "/password/reset/request" || pathname === "/password/set"
+  const authRoutePath = readDcxAppAuthRoutePath(pathname)
+  const isPasswordRoute = authRoutePath === "/password/reset/request" || authRoutePath === "/password/set"
 
   useEffect(() => {
-    if (authenticatedSessionSummary && (pathname === "/login" || isPasswordRoute)) {
+    if (authenticatedSessionSummary && (authRoutePath === "/login" || isPasswordRoute)) {
       navigateToPathname("/me/account")
       setPathname("/me/account")
       return
@@ -285,7 +321,7 @@ function App() {
     if (
       !authenticatedSessionSummary &&
       !authenticatedSessionQuery.isLoading &&
-      pathname !== "/login" &&
+      authRoutePath !== "/login" &&
       !isPasswordRoute
     ) {
       queryClient.removeQueries({ queryKey: ["dcx_app_authenticated_user_account_summary"] })
@@ -295,7 +331,7 @@ function App() {
     authenticatedSessionQuery.isLoading,
     authenticatedSessionSummary,
     isPasswordRoute,
-    pathname,
+    authRoutePath,
     queryClient,
   ])
 
@@ -310,7 +346,7 @@ function App() {
   }
 
   if (!authenticatedSessionSummary) {
-    if (pathname === "/password/reset/request") {
+    if (authRoutePath === "/password/reset/request") {
       return (
         <DcxAppAuthPasswordRequestResetPage
           isPending={passwordResetRequestMutation.isPending}
@@ -324,16 +360,15 @@ function App() {
           onSubmit={(email) => passwordResetRequestMutation.mutate(email)}
           onBackToLogin={() => {
             passwordResetRequestMutation.reset()
-            const nextLanguageCode = readResolvedDcxAppLanguageCode()
-            persistDcxAppLanguageCode(nextLanguageCode)
+            const nextLanguageCode = authLanguageCode
             window.history.pushState({}, "", buildDcxAppPathWithLanguageCode("/login", nextLanguageCode))
-            setPathname("/login")
+            setPathname(window.location.pathname)
           }}
         />
       )
     }
 
-    if (pathname === "/password/set") {
+    if (authRoutePath === "/password/set") {
       return (
         <DcxAppAuthPasswordSetPage
           isPending={completePasswordSetMutation.isPending}
@@ -353,10 +388,9 @@ function App() {
           }
           onBackToLogin={() => {
             completePasswordSetMutation.reset()
-            const nextLanguageCode = readResolvedDcxAppLanguageCode()
-            persistDcxAppLanguageCode(nextLanguageCode)
+            const nextLanguageCode = authLanguageCode
             window.history.pushState({}, "", buildDcxAppPathWithLanguageCode("/login", nextLanguageCode))
-            setPathname("/login")
+            setPathname(window.location.pathname)
           }}
         />
       )
@@ -376,14 +410,13 @@ function App() {
         onSubmit={(email, password) => loginMutation.mutate({ email, password })}
         onForgotPassword={() => {
           loginMutation.reset()
-          const nextLanguageCode = readResolvedDcxAppLanguageCode()
-          persistDcxAppLanguageCode(nextLanguageCode)
+          const nextLanguageCode = authLanguageCode
           window.history.pushState(
             {},
             "",
             buildDcxAppPathWithLanguageCode("/password/reset/request", nextLanguageCode),
           )
-          setPathname("/password/reset/request")
+          setPathname(window.location.pathname)
         }}
       />
     )
