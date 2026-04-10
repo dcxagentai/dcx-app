@@ -10,7 +10,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { DcxAppAuthLoginPage } from "./components/dcx_app_auth_login_page"
 import { DcxAppAuthPasswordRequestResetPage } from "./components/dcx_app_auth_password_request_reset_page"
 import { DcxAppAuthPasswordSetPage } from "./components/dcx_app_auth_password_set_page"
+import { DcxAppShell } from "./components/dcx_app_shell"
+import { DcxAppUserActivityLogPage } from "./components/dcx_app_user_activity_log_page"
+import { DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS } from "./components/dcx_app_user_account_shared"
 import { DcxAppUserAccountSummaryPage } from "./components/dcx_app_user_account_summary_page"
+import { DcxAppUserSettingsPage } from "./components/dcx_app_user_settings_page"
 import { completeDcxPasswordSet } from "./lib/complete_dcx_password_set"
 import {
   buildDcxAppPathWithLanguageCode,
@@ -22,6 +26,7 @@ import {
 import { loginDcxUserWithEmailAndPassword } from "./lib/login_dcx_user_with_email_and_password"
 import { logoutAuthenticatedDcxUser } from "./lib/logout_authenticated_dcx_user"
 import { readDcxAppAuthUxStringsBundle } from "./lib/read_dcx_app_auth_ux_strings_bundle"
+import { readDcxAppAuthenticatedUserAccountSummary } from "./lib/read_dcx_app_authenticated_user_account_summary"
 import { readDcxAuthenticatedSession } from "./lib/read_dcx_authenticated_session"
 import { requestDcxPasswordReset } from "./lib/request_dcx_password_reset"
 
@@ -119,6 +124,11 @@ function navigateToPathname(nextPathname: string, options?: { preserveSearch?: b
   window.history.pushState({}, "", `${nextPathname}${nextSearch}`)
 }
 
+function navigateWithinProtectedApp(nextPathname: string, setPathname: (pathname: string) => void): void {
+  navigateToPathname(nextPathname)
+  setPathname(nextPathname)
+}
+
 function readDcxAppApiBaseUrl(): string {
   if (import.meta.env.VITE_API_BASE_URL) {
     return import.meta.env.VITE_API_BASE_URL
@@ -131,9 +141,30 @@ function readDcxAppApiBaseUrl(): string {
   return "http://localhost:8000"
 }
 
+function readDcxAdminSurfaceUrl(): string {
+  const currentProtocol = window.location.protocol
+  const currentHostname = window.location.hostname
+
+  if (currentHostname === "localhost") {
+    return `${currentProtocol}//localhost:5174`
+  }
+
+  if (currentHostname === "127.0.0.1") {
+    return `${currentProtocol}//127.0.0.1:5174`
+  }
+
+  const hostnameParts = currentHostname.split(".")
+  if (hostnameParts.length >= 2) {
+    return `${currentProtocol}//admin.${hostnameParts.slice(-2).join(".")}`
+  }
+
+  return `${currentProtocol}//admin.${currentHostname}`
+}
+
 function App() {
   const queryClient = useQueryClient()
   const apiBaseUrl = readDcxAppApiBaseUrl()
+  const adminSurfaceUrl = readDcxAdminSurfaceUrl()
   const [pathname, setPathname] = useState(window.location.pathname || "/me/account")
   const [authLanguageCode, setAuthLanguageCode] = useState(readResolvedDcxAppLanguageCode(window.location.pathname))
 
@@ -307,9 +338,21 @@ function App() {
     ? null
     : authenticatedSessionQuery.data?.data ?? null
   const authUxStringsBundle = appAuthUxStringsBundleQuery.data?.data ?? DCX_APP_AUTH_UX_DEFAULTS
+  const appAccountSummaryQuery = useQuery({
+    queryKey: ["dcx_app_authenticated_user_account_summary"],
+    queryFn: async () =>
+      readDcxAppAuthenticatedUserAccountSummary({
+        apiBaseUrl,
+      }),
+    enabled: authenticatedSessionSummary !== null,
+    retry: false,
+  })
+  const protectedAppUxStrings =
+    appAccountSummaryQuery.data?.data?.ux_strings ?? DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS
 
   const authRoutePath = readDcxAppAuthRoutePath(pathname)
   const isPasswordRoute = authRoutePath === "/password/reset/request" || authRoutePath === "/password/set"
+  const protectedAppPathname = readProtectedAppPathname(pathname)
 
   useEffect(() => {
     if (authenticatedSessionSummary && (authRoutePath === "/login" || isPasswordRoute)) {
@@ -423,21 +466,61 @@ function App() {
   }
 
   return (
-    <DcxAppUserAccountSummaryPage
-      apiBaseUrl={apiBaseUrl}
-      authenticatedSessionSummary={
-        authenticatedSessionSummary
-          ? {
-              primary_email: authenticatedSessionSummary.primary_email,
-              user_role: authenticatedSessionSummary.user_role,
-            }
+    <DcxAppShell
+      title={readProtectedAppPageTitle(protectedAppPathname, protectedAppUxStrings)}
+      currentPathname={pathname}
+      userEmail={authenticatedSessionSummary?.primary_email ?? null}
+      userRole={authenticatedSessionSummary?.user_role ?? null}
+      adminHref={
+        authenticatedSessionSummary?.user_role === "admin" ||
+        authenticatedSessionSummary?.user_role === "dev"
+          ? adminSurfaceUrl
           : null
       }
+      uxStrings={protectedAppUxStrings}
+      onNavigateWithinApp={(nextPathname) => navigateWithinProtectedApp(nextPathname, setPathname)}
       onLogout={authenticatedSessionSummary ? () => logoutMutation.mutate() : null}
       isLogoutPending={logoutMutation.isPending}
-    />
+    >
+      {protectedAppPathname === "/me/settings" ? (
+        <DcxAppUserSettingsPage apiBaseUrl={apiBaseUrl} />
+      ) : null}
+      {protectedAppPathname === "/me/activity-log" ? (
+        <DcxAppUserActivityLogPage apiBaseUrl={apiBaseUrl} />
+      ) : null}
+      {protectedAppPathname === "/me/account" ? (
+        <DcxAppUserAccountSummaryPage apiBaseUrl={apiBaseUrl} />
+      ) : null}
+    </DcxAppShell>
   )
 }
 
 export default App
+
+function readProtectedAppPathname(pathname: string): "/me/account" | "/me/settings" | "/me/activity-log" {
+  if (pathname === "/me/settings") {
+    return "/me/settings"
+  }
+
+  if (pathname === "/me/activity-log") {
+    return "/me/activity-log"
+  }
+
+  return "/me/account"
+}
+
+function readProtectedAppPageTitle(
+  pathname: "/me/account" | "/me/settings" | "/me/activity-log",
+  uxStrings: Record<string, string>,
+): string {
+  if (pathname === "/me/settings") {
+    return uxStrings.page_title_settings
+  }
+
+  if (pathname === "/me/activity-log") {
+    return uxStrings.page_title_activity_log
+  }
+
+  return uxStrings.page_title_account
+}
 
