@@ -352,6 +352,7 @@ function App() {
 
   const authRoutePath = readDcxAppAuthRoutePath(pathname)
   const isPasswordRoute = authRoutePath === "/password/reset/request" || authRoutePath === "/password/set"
+  const isAuthSurfaceRoute = authRoutePath === "/login" || isPasswordRoute
   const protectedAppPathname = readProtectedAppPathname(pathname)
 
   useEffect(() => {
@@ -378,7 +379,7 @@ function App() {
     queryClient,
   ])
 
-  if (authenticatedSessionQuery.isLoading && !authenticatedSessionSummary) {
+  if (authenticatedSessionQuery.isLoading && !authenticatedSessionSummary && !isAuthSurfaceRoute) {
     return (
       <main className="min-h-screen bg-[#f4f6f8] px-4 py-6 text-slate-950 sm:px-6 lg:px-8">
         <section className="mx-auto max-w-4xl rounded-[1.75rem] border border-black/6 bg-white px-6 py-8 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
@@ -389,6 +390,10 @@ function App() {
   }
 
   if (!authenticatedSessionSummary) {
+    const loginSurfaceErrorMessage = loginMutation.isError
+      ? (loginMutation.error as Error & { suggested_action?: string }).message
+      : null
+
     if (authRoutePath === "/password/reset/request") {
       return (
         <DcxAppAuthPasswordRequestResetPage
@@ -443,13 +448,7 @@ function App() {
       <DcxAppAuthLoginPage
         isPending={loginMutation.isPending}
         ux={authUxStringsBundle.login_page}
-        errorMessage={
-          loginMutation.isError
-            ? (loginMutation.error as Error & { suggested_action?: string }).message
-            : authenticatedSessionQuery.isError
-              ? (authenticatedSessionQuery.error as Error & { suggested_action?: string }).message
-              : null
-        }
+        errorMessage={loginSurfaceErrorMessage}
         onSubmit={(email, password) => loginMutation.mutate({ email, password })}
         onForgotPassword={() => {
           loginMutation.reset()
