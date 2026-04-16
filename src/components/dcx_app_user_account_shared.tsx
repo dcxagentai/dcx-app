@@ -56,6 +56,7 @@ export const DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS: Record<string, string> = {
   activity_subtitle: "See the basic account events we are already recording for this user.",
   field_primary_email: "Primary email",
   field_primary_phone: "Primary phone",
+  field_primary_phone_code: "WhatsApp code",
   field_user_uuid: "User UUID",
   field_account_status: "Account status",
   field_preferred_language: "Preferred language",
@@ -68,6 +69,14 @@ export const DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS: Record<string, string> = {
   field_updated_at: "Updated at",
   field_not_set: "Not set",
   field_phone_not_set_yet: "Not set yet",
+  field_phone_whatsapp_hint: "Link a WhatsApp number to route messages into this DCX account.",
+  field_phone_whatsapp_code_hint: "Enter the six-digit code sent to WhatsApp.",
+  field_phone_send_code: "Send code",
+  field_phone_resend_code: "Resend code",
+  field_phone_verify_code: "Verify",
+  field_phone_confirmed_badge: "Verified",
+  field_email_confirmed_badge: "Verified",
+  field_phone_pending_status: "Waiting for code",
   editable_status_idle: "Blue means editable. Click to adjust.",
   editable_status_editing: "Editing. Choose a value to autosave.",
   editable_status_saving: "Saving...",
@@ -166,4 +175,15 @@ export function readDcxAppEditableFieldCompactStatusLabel(
   }
 
   return uxStrings.editable_status_compact_idle
+}
+
+export function DcxAppConfirmedTickBadge(props: { label: string }) {
+  return (
+    <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
+      <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-white">
+        ✓
+      </span>
+      {props.label}
+    </span>
+  )
 }

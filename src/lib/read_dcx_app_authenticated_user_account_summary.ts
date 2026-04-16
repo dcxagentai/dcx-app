@@ -42,6 +42,17 @@ export type DcxAppAuthenticatedUserAccountSummary = {
   primary_phone_confirmed: boolean
   primary_phone_confirmed_at_ts_ms: number | null
   primary_phone_channel: string | null
+  pending_whatsapp_phone_link: {
+    phone_e164: string
+    challenge_status: string
+    expires_at_ts_ms: number
+    sent_at_ts_ms: number
+    next_send_allowed_at_ts_ms: number | null
+    locked_until_ts_ms: number | null
+    resend_count: number
+    send_count: number
+    last_resent_at_ts_ms: number | null
+  } | null
   account_status: string
   email_communication_preference: string
   last_seen_at_ts_ms: number | null
