@@ -6,6 +6,7 @@
  */
 import { type FormEvent, useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
+import { DcxAppPasswordInputWithVisibilityToggle } from "@/components/dcx_app_password_input_with_visibility_toggle"
 import dcxLogo from "@prompteoai/dcx-branding/assets/dcx_logo.png"
 import {
   captureDcxPasswordChallengeTokenFromLocationHash,
@@ -103,12 +104,10 @@ export function DcxAppAuthPasswordSetPage(props: Props) {
               <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
                 {props.ux.field_password}
               </span>
-              <input
-                type="password"
+              <DcxAppPasswordInputWithVisibilityToggle
                 autoComplete="new-password"
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className="h-11 w-full border border-white/10 bg-white/5 px-4 text-sm text-white outline-none transition placeholder:text-slate-400 focus:border-sky-300"
+                onChange={setPassword}
                 placeholder={props.ux.field_password_placeholder}
                 disabled={props.isPending || props.isSuccess || !passwordChallengeToken}
               />
@@ -118,12 +117,10 @@ export function DcxAppAuthPasswordSetPage(props: Props) {
               <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
                 {props.ux.field_confirm_password}
               </span>
-              <input
-                type="password"
+              <DcxAppPasswordInputWithVisibilityToggle
                 autoComplete="new-password"
                 value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
-                className="h-11 w-full border border-white/10 bg-white/5 px-4 text-sm text-white outline-none transition placeholder:text-slate-400 focus:border-sky-300"
+                onChange={setConfirmPassword}
                 placeholder={props.ux.field_confirm_password_placeholder}
                 disabled={props.isPending || props.isSuccess || !passwordChallengeToken}
               />
