@@ -8,7 +8,11 @@
 const DCX_APP_SUPPORTED_LANGUAGE_CODES = ["en", "es", "fr", "de"] as const
 
 type DcxAppSupportedLanguageCode = (typeof DCX_APP_SUPPORTED_LANGUAGE_CODES)[number]
-type DcxAppAuthRoutePath = "/login" | "/password/reset/request" | "/password/set"
+type DcxAppAuthRoutePath =
+  | "/login"
+  | "/password/reset/request"
+  | "/password/set"
+  | "/verify-whatsapp-phone"
 
 export function normalizeDcxAppLanguageCode(candidateLanguageCode: string | null | undefined): string {
   const normalizedLanguageCode = candidateLanguageCode?.trim().toLowerCase() ?? ""
@@ -79,7 +83,21 @@ export function readDcxAppAuthRoutePath(pathname: string = window.location.pathn
     return "/password/set"
   }
 
-  if (pathname === "/login" || pathname === "/password/reset/request" || pathname === "/password/set") {
+  if (
+    pathnameSegments.length === 3 &&
+    DCX_APP_SUPPORTED_LANGUAGE_CODES.includes(pathnameSegments[0] as DcxAppSupportedLanguageCode) &&
+    pathnameSegments[1] === "t" &&
+    pathnameSegments[2] === "verify-whatsapp-phone"
+  ) {
+    return "/verify-whatsapp-phone"
+  }
+
+  if (
+    pathname === "/login" ||
+    pathname === "/password/reset/request" ||
+    pathname === "/password/set" ||
+    pathname === "/verify-whatsapp-phone"
+  ) {
     return pathname
   }
 
@@ -95,6 +113,10 @@ export function buildDcxAppPathWithLanguageCode(pathname: DcxAppAuthRoutePath, l
 
   if (pathname === "/password/reset/request") {
     return `/${normalizedLanguageCode}/t/password/reset/request`
+  }
+
+  if (pathname === "/verify-whatsapp-phone") {
+    return `/${normalizedLanguageCode}/t/verify-whatsapp-phone`
   }
 
   return `/${normalizedLanguageCode}/t/password/set`

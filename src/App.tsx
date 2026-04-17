@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { DcxAppAuthLoginPage } from "./components/dcx_app_auth_login_page"
 import { DcxAppAuthPasswordRequestResetPage } from "./components/dcx_app_auth_password_request_reset_page"
 import { DcxAppAuthPasswordSetPage } from "./components/dcx_app_auth_password_set_page"
+import { DcxAppWhatsappPhoneVerifyPage } from "./components/dcx_app_whatsapp_phone_verify_page"
 import { DcxAppShell } from "./components/dcx_app_shell"
 import { DcxAppUserActivityLogPage } from "./components/dcx_app_user_activity_log_page"
 import { DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS } from "./components/dcx_app_user_account_shared"
@@ -352,7 +353,8 @@ function App() {
 
   const authRoutePath = readDcxAppAuthRoutePath(pathname)
   const isPasswordRoute = authRoutePath === "/password/reset/request" || authRoutePath === "/password/set"
-  const isAuthSurfaceRoute = authRoutePath === "/login" || isPasswordRoute
+  const isWhatsappPhoneVerifyRoute = authRoutePath === "/verify-whatsapp-phone"
+  const isAuthSurfaceRoute = authRoutePath === "/login" || isPasswordRoute || isWhatsappPhoneVerifyRoute
   const protectedAppPathname = readProtectedAppPathname(pathname)
 
   useEffect(() => {
@@ -366,7 +368,8 @@ function App() {
       !authenticatedSessionSummary &&
       !authenticatedSessionQuery.isLoading &&
       authRoutePath !== "/login" &&
-      !isPasswordRoute
+      !isPasswordRoute &&
+      !isWhatsappPhoneVerifyRoute
     ) {
       queryClient.removeQueries({ queryKey: ["dcx_app_authenticated_user_account_summary"] })
       redirectToLoginScreen()
@@ -375,6 +378,7 @@ function App() {
     authenticatedSessionQuery.isLoading,
     authenticatedSessionSummary,
     isPasswordRoute,
+    isWhatsappPhoneVerifyRoute,
     authRoutePath,
     queryClient,
   ])
@@ -444,6 +448,16 @@ function App() {
       )
     }
 
+    if (authRoutePath === "/verify-whatsapp-phone") {
+      return (
+        <DcxAppWhatsappPhoneVerifyPage
+          apiBaseUrl={apiBaseUrl}
+          languageCode={authLanguageCode}
+          hasAuthenticatedSession={false}
+        />
+      )
+    }
+
     return (
       <DcxAppAuthLoginPage
         isPending={loginMutation.isPending}
@@ -460,6 +474,16 @@ function App() {
           )
           setPathname(window.location.pathname)
         }}
+      />
+    )
+  }
+
+  if (authRoutePath === "/verify-whatsapp-phone") {
+    return (
+      <DcxAppWhatsappPhoneVerifyPage
+        apiBaseUrl={apiBaseUrl}
+        languageCode={authLanguageCode}
+        hasAuthenticatedSession
       />
     )
   }

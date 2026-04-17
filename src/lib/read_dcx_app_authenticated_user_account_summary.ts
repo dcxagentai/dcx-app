@@ -42,6 +42,37 @@ export type DcxAppAuthenticatedUserAccountSummary = {
   primary_phone_confirmed: boolean
   primary_phone_confirmed_at_ts_ms: number | null
   primary_phone_channel: string | null
+  email_contact_methods: Array<{
+    id: number
+    contact_value: string
+    normalized_value: string
+    display_label: string | null
+    is_primary: boolean
+    is_login_enabled: boolean
+    is_recovery_enabled: boolean
+    is_notification_enabled: boolean
+    is_verified: boolean
+    verified_at_ts_ms: number | null
+    verification_method: string | null
+    is_active: boolean
+    last_used_at_ts_ms: number | null
+  }>
+  phone_contact_methods: Array<{
+    id: number
+    contact_value: string
+    normalized_value: string
+    display_label: string | null
+    is_primary: boolean
+    is_login_enabled: boolean
+    is_recovery_enabled: boolean
+    is_notification_enabled: boolean
+    is_verified: boolean
+    verified_at_ts_ms: number | null
+    verification_method: string | null
+    is_active: boolean
+    last_used_at_ts_ms: number | null
+    channel: string | null
+  }>
   pending_whatsapp_phone_link: {
     phone_e164: string
     challenge_status: string
