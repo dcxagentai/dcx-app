@@ -7,7 +7,7 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { DcxAppPasswordInputWithVisibilityToggle } from "@/components/dcx_app_password_input_with_visibility_toggle"
-import dcxLogo from "@prompteoai/dcx-branding/assets/dcx_logo.png"
+import dcxLogo from "@/assets/dcx_logo.png"
 import {
   captureDcxPasswordChallengeTokenFromLocationHash,
   clearStoredDcxPasswordChallengeToken,

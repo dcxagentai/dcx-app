@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button"
-import dcxLogo from "@prompteoai/dcx-branding/assets/dcx_logo.png"
+import dcxLogo from "@/assets/dcx_logo.png"
 import { completeDcxAppWhatsappPhoneLinkFromToken } from "@/lib/account_phone/complete_dcx_app_whatsapp_phone_link_from_token"
 import {
   captureDcxWhatsappPhoneLinkTokenFromLocationHash,

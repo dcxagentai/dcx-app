@@ -20,7 +20,7 @@ import {
   ShieldUserIcon,
   MessageCircleMoreIcon,
 } from "lucide-react"
-import dcxLogo from "@prompteoai/dcx-branding/assets/dcx_logo.png"
+import dcxLogo from "@/assets/dcx_logo.png"
 
 type Props = React.ComponentProps<typeof Sidebar> & {
   currentPathname: string
