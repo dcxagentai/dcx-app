@@ -8,6 +8,7 @@
 import type { ReactNode } from "react"
 import { useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import type { ColumnDef } from "@tanstack/react-table"
 
 import { requestDcxAppAuthenticatedUserWhatsappPhoneLink } from "../lib/account_phone/request_dcx_app_authenticated_user_whatsapp_phone_link"
 import { setDcxAppAuthenticatedUserPrimaryPhoneContactMethod } from "../lib/account_phone/set_dcx_app_authenticated_user_primary_phone_contact_method"
@@ -29,6 +30,7 @@ import {
   DcxAppConfirmedTickBadge,
 } from "./dcx_app_user_account_shared"
 import { Button } from "./ui/button"
+import { DcxAppDataTable } from "./ui/dcx_app_data_table"
 import {
   Combobox,
   ComboboxContent,
@@ -54,6 +56,11 @@ type Props = {
 
 type PhoneEditorMode = "hidden" | "add" | "edit"
 type PhoneEditorVisualState = "idle" | "saved" | "error"
+type DcxAppAccountSummaryData = NonNullable<
+  Awaited<ReturnType<typeof readDcxAppAuthenticatedUserAccountSummary>>["data"]
+>
+type DcxAppEmailContactMethodRow = DcxAppAccountSummaryData["email_contact_methods"][number]
+type DcxAppPhoneContactMethodRow = DcxAppAccountSummaryData["phone_contact_methods"][number]
 
 function readDcxCurrentPhoneUxString(
   uxStrings: Record<string, string>,
@@ -148,52 +155,6 @@ function DcxAppReadonlySummaryField(props: {
       </div>
       {props.hint ? <p className="text-sm text-slate-500">{props.hint}</p> : null}
     </section>
-  )
-}
-
-function DcxAppContactMethodRow(props: {
-  value: ReactNode
-  valueKey: string
-  badges: Array<{ label: string; tone?: "neutral" | "primary" | "verified" }>
-  actions?: Array<{
-    label: string
-    onClick: () => void
-    disabled?: boolean
-  }>
-}) {
-  return (
-    <article className="border-b border-black/6 py-4 last:border-b-0">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
-          <p className="text-sm font-medium text-slate-950">{props.value}</p>
-          <div className="flex flex-wrap gap-2">
-            {props.badges.map((badge) => (
-              <DcxAppContactChip
-                key={`${props.valueKey}-${badge.label}`}
-                label={badge.label}
-                tone={badge.tone}
-              />
-            ))}
-          </div>
-        </div>
-        {props.actions && props.actions.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-2">
-            {props.actions.map((action) => (
-              <Button
-                key={`${props.valueKey}-${action.label}`}
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={action.disabled}
-                onClick={action.onClick}
-              >
-                {action.label}
-              </Button>
-            ))}
-          </div>
-        ) : null}
-      </div>
-    </article>
   )
 }
 
@@ -362,6 +323,146 @@ export function DcxAppUserAccountSummaryPage(props: Props) {
     primaryBadgeLabel,
     uxStrings.field_phone_confirmed_badge,
   ])
+
+  const emailContactMethodColumns = useMemo<ColumnDef<DcxAppEmailContactMethodRow>[]>(
+    () => [
+      {
+        id: "normalized_value",
+        header: "Email",
+        cell: ({ row }) => (
+          <span className="block truncate font-medium text-slate-950" title={row.original.normalized_value}>
+            {row.original.normalized_value}
+          </span>
+        ),
+      },
+      {
+        id: "status",
+        header: "Status",
+        cell: ({ row }) => (
+          <div className="flex flex-wrap gap-2">
+            {row.original.is_verified ? (
+              <DcxAppContactChip
+                label={uxStrings.field_email_confirmed_badge}
+                tone="verified"
+              />
+            ) : (
+              <DcxAppContactChip label={unverifiedBadgeLabel} tone="neutral" />
+            )}
+            {row.original.is_primary ? (
+              <DcxAppContactChip label={primaryBadgeLabel} tone="primary" />
+            ) : null}
+          </div>
+        ),
+      },
+    ],
+    [
+      primaryBadgeLabel,
+      unverifiedBadgeLabel,
+      uxStrings.field_email_confirmed_badge,
+    ],
+  )
+
+  const phoneContactMethodColumns = useMemo<ColumnDef<DcxAppPhoneContactMethodRow>[]>(
+    () => [
+      {
+        id: "normalized_value",
+        header: "Phone number",
+        cell: ({ row }) => readRenderablePhoneValue(row.original.normalized_value),
+      },
+      {
+        id: "status",
+        header: "Status",
+        cell: ({ row }) => (
+          <div className="flex flex-wrap gap-2">
+            {row.original.is_verified ? (
+              <DcxAppContactChip
+                label={uxStrings.field_phone_confirmed_badge}
+                tone="verified"
+              />
+            ) : (
+              <DcxAppContactChip label={unverifiedBadgeLabel} tone="neutral" />
+            )}
+            {row.original.is_primary ? (
+              <DcxAppContactChip label={primaryBadgeLabel} tone="primary" />
+            ) : null}
+            {row.original.channel ? (
+              <DcxAppContactChip label={row.original.channel} tone="neutral" />
+            ) : null}
+          </div>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+          <div className="flex flex-wrap justify-end gap-2">
+            {row.original.is_verified && !row.original.is_primary ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={setPrimaryPhoneMutation.isPending || phoneLinkRequestMutation.isPending}
+                onClick={() => {
+                  setPhoneEditorVisualState("idle")
+                  setPhoneEditorStatusText(null)
+                  setPrimaryPhoneMutation.mutate(row.original.id)
+                }}
+              >
+                {setPrimaryActionLabel}
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={setPrimaryPhoneMutation.isPending || phoneLinkRequestMutation.isPending}
+              onClick={() => openPhoneEditorForExistingPhone(row.original)}
+            >
+              {editActionLabel}
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    [
+      editActionLabel,
+      phoneLinkRequestMutation.isPending,
+      primaryBadgeLabel,
+      readRenderablePhoneValue,
+      setPrimaryActionLabel,
+      setPrimaryPhoneMutation.isPending,
+      unverifiedBadgeLabel,
+      uxStrings.field_phone_confirmed_badge,
+    ],
+  )
+
+  function readEmailContactMethodColumnWidthClassName(columnId: string): string {
+    if (columnId === "normalized_value") {
+      return "w-[60%]"
+    }
+
+    if (columnId === "status") {
+      return "w-[40%]"
+    }
+
+    return ""
+  }
+
+  function readPhoneContactMethodColumnWidthClassName(columnId: string): string {
+    if (columnId === "normalized_value") {
+      return "w-[42%]"
+    }
+
+    if (columnId === "status") {
+      return "w-[36%]"
+    }
+
+    if (columnId === "actions") {
+      return "w-[22%]"
+    }
+
+    return ""
+  }
 
   function readPhoneEditorDraftE164(): string {
     if (!selectedPhoneCountryOption) {
@@ -617,21 +718,12 @@ export function DcxAppUserAccountSummaryPage(props: Props) {
 
         <div className="space-y-4">
           {accountSummary.email_contact_methods.length > 0 ? (
-            accountSummary.email_contact_methods.map((emailContactMethod) => (
-              <DcxAppContactMethodRow
-                key={emailContactMethod.id}
-                valueKey={emailContactMethod.normalized_value}
-                value={emailContactMethod.normalized_value}
-                badges={[
-                  ...(emailContactMethod.is_verified
-                    ? [{ label: uxStrings.field_email_confirmed_badge, tone: "verified" as const }]
-                    : [{ label: unverifiedBadgeLabel, tone: "neutral" as const }]),
-                  ...(emailContactMethod.is_primary
-                    ? [{ label: primaryBadgeLabel, tone: "primary" as const }]
-                    : []),
-                ]}
-              />
-            ))
+            <DcxAppDataTable
+              columns={emailContactMethodColumns}
+              data={accountSummary.email_contact_methods}
+              emptyLabel={noEmailsLabel}
+              readColumnWidthClassName={readEmailContactMethodColumnWidthClassName}
+            />
           ) : (
             <p className="text-sm text-slate-500">{noEmailsLabel}</p>
           )}
@@ -656,42 +748,12 @@ export function DcxAppUserAccountSummaryPage(props: Props) {
 
         <div className="space-y-4">
           {accountSummary.phone_contact_methods.length > 0 ? (
-            accountSummary.phone_contact_methods.map((phoneContactMethod) => (
-              <DcxAppContactMethodRow
-                key={phoneContactMethod.id}
-                valueKey={phoneContactMethod.normalized_value}
-                value={readRenderablePhoneValue(phoneContactMethod.normalized_value)}
-                badges={[
-                  ...(phoneContactMethod.is_verified
-                    ? [{ label: uxStrings.field_phone_confirmed_badge, tone: "verified" as const }]
-                    : [{ label: unverifiedBadgeLabel, tone: "neutral" as const }]),
-                  ...(phoneContactMethod.is_primary
-                    ? [{ label: primaryBadgeLabel, tone: "primary" as const }]
-                    : []),
-                  ...(phoneContactMethod.channel
-                    ? [{ label: phoneContactMethod.channel, tone: "neutral" as const }]
-                    : []),
-                ]}
-                actions={[
-                  ...(phoneContactMethod.is_verified && !phoneContactMethod.is_primary
-                    ? [{
-                        label: setPrimaryActionLabel,
-                        onClick: () => {
-                          setPhoneEditorVisualState("idle")
-                          setPhoneEditorStatusText(null)
-                          setPrimaryPhoneMutation.mutate(phoneContactMethod.id)
-                        },
-                        disabled: setPrimaryPhoneMutation.isPending || phoneLinkRequestMutation.isPending,
-                      }]
-                    : []),
-                  {
-                    label: editActionLabel,
-                    onClick: () => openPhoneEditorForExistingPhone(phoneContactMethod),
-                    disabled: setPrimaryPhoneMutation.isPending || phoneLinkRequestMutation.isPending,
-                  },
-                ]}
-              />
-            ))
+            <DcxAppDataTable
+              columns={phoneContactMethodColumns}
+              data={accountSummary.phone_contact_methods}
+              emptyLabel={noPhonesLabel}
+              readColumnWidthClassName={readPhoneContactMethodColumnWidthClassName}
+            />
           ) : (
             <p className="text-sm text-slate-500">{noPhonesLabel}</p>
           )}
