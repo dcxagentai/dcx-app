@@ -25,12 +25,16 @@ import {
   FieldSet,
 } from "./ui/field"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select"
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxTriggerIcon,
+} from "./ui/combobox"
+import { DcxCountryFlagIcon } from "./ui/dcx_country_flag_icon"
+import { readDcxAppLanguageFlagRegionCode } from "../lib/dcx_app_language_flag_options"
 
 type EditableFieldKey =
   | "preferred_language"
@@ -62,7 +66,13 @@ type EditableSelectFieldProps = {
   isDisabled: boolean
   value: string
   placeholder: string
-  options: Array<{ value: string; label: string }>
+  options: Array<{
+    value: string
+    label: string
+    searchLabel?: string
+    subtitle?: string
+    regionCode?: string
+  }>
   onBeginEditing: () => void
   onCancelEditing: () => void
   onSelectValue: (value: string) => void
@@ -73,6 +83,7 @@ function DcxAppEditableSelectField(props: EditableSelectFieldProps) {
   const triggerBorderClass = readDcxAppEditableFieldBorderClass(props.visualState)
   const hasError = props.visualState === "error"
   const compactStatusLabel = readDcxAppEditableFieldCompactStatusLabel(props.visualState, props.uxStrings)
+  const selectedOption = props.options.find((option) => option.value === props.value) ?? null
 
   return (
     <Field data-invalid={hasError || undefined} className="gap-2">
@@ -84,36 +95,76 @@ function DcxAppEditableSelectField(props: EditableSelectFieldProps) {
           {compactStatusLabel}
         </span>
       </div>
-      <Select
-        disabled={props.isDisabled}
-        value={props.value}
-        onOpenChange={(isOpen) => {
-          if (isOpen) {
-            props.onBeginEditing()
-            return
-          }
+      <div className="relative">
+        {selectedOption?.regionCode ? (
+          <div className="pointer-events-none absolute inset-y-0 left-4 z-10 flex items-center">
+            <DcxCountryFlagIcon
+              regionCode={selectedOption.regionCode}
+              title={selectedOption.label}
+              fallbackLabel={selectedOption.regionCode}
+            />
+          </div>
+        ) : null}
+        <Combobox
+          items={props.options}
+          value={selectedOption ?? undefined}
+          itemToStringLabel={(option) => option.label}
+          itemToStringValue={(option) => option.searchLabel ?? option.label}
+          isItemEqualToValue={(left, right) => left.value === right.value}
+          disabled={props.isDisabled}
+          onOpenChange={(isOpen) => {
+            if (isOpen) {
+              props.onBeginEditing()
+              return
+            }
 
-          props.onCancelEditing()
-        }}
-        onValueChange={props.onSelectValue}
-      >
-        <SelectTrigger
-          aria-invalid={hasError || undefined}
-          className={[
-            "h-12 w-full rounded-none bg-slate-50 px-4 text-left text-sm text-slate-950 shadow-none",
-            triggerBorderClass,
-          ].join(" ")}
+            props.onCancelEditing()
+          }}
+          onValueChange={(nextOption) => {
+            if (!nextOption) {
+              return
+            }
+            props.onSelectValue(nextOption.value)
+          }}
+          autoHighlight
+          openOnInputClick
         >
-          <SelectValue placeholder={props.placeholder} />
-        </SelectTrigger>
-        <SelectContent align="end" className="min-w-[18rem]">
-          {props.options.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+          <ComboboxInput
+            aria-invalid={hasError || undefined}
+            className={[
+              selectedOption?.regionCode ? "pl-16" : "",
+              "pr-10",
+              triggerBorderClass,
+              "bg-slate-50",
+            ].join(" ")}
+            placeholder={props.placeholder}
+            disabled={props.isDisabled}
+          />
+          <ComboboxTriggerIcon />
+          <ComboboxContent>
+            <ComboboxEmpty>No options found.</ComboboxEmpty>
+            <ComboboxList>
+              {(option) => (
+                <ComboboxItem key={option.value} value={option}>
+                  {option.regionCode ? (
+                    <DcxCountryFlagIcon
+                      regionCode={option.regionCode}
+                      title={option.label}
+                      fallbackLabel={option.regionCode}
+                    />
+                  ) : null}
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate font-medium text-slate-950">{option.label}</span>
+                    {option.subtitle ? (
+                      <span className="text-xs text-slate-500">{option.subtitle}</span>
+                    ) : null}
+                  </div>
+                </ComboboxItem>
+              )}
+            </ComboboxList>
+          </ComboboxContent>
+        </Combobox>
+      </div>
       {hasError ? <FieldError>{props.statusText}</FieldError> : null}
     </Field>
   )
@@ -373,6 +424,9 @@ export function DcxAppUserSettingsPage(props: Props) {
               options={accountSummary.available_languages.map((availableLanguage) => ({
                 value: String(availableLanguage.id),
                 label: `${availableLanguage.language_name_native} (${availableLanguage.language_code})`,
+                subtitle: `${availableLanguage.language_code.toUpperCase()} · ${availableLanguage.language_name_native}`,
+                searchLabel: `${availableLanguage.language_name_native} ${availableLanguage.language_code}`,
+                regionCode: readDcxAppLanguageFlagRegionCode(availableLanguage.language_code),
               }))}
               onBeginEditing={() => beginEditingField("preferred_language")}
               onCancelEditing={() => cancelEditingField("preferred_language")}
@@ -403,6 +457,7 @@ export function DcxAppUserSettingsPage(props: Props) {
               options={accountSummary.available_timezones.map((availableTimezone) => ({
                 value: String(availableTimezone.id),
                 label: availableTimezone.display_label,
+                searchLabel: availableTimezone.display_label,
               }))}
               onBeginEditing={() => beginEditingField("preferred_timezone")}
               onCancelEditing={() => cancelEditingField("preferred_timezone")}
@@ -433,6 +488,7 @@ export function DcxAppUserSettingsPage(props: Props) {
               options={accountSummary.available_email_communication_preferences.map((availablePreference) => ({
                 value: availablePreference.value,
                 label: availablePreference.label,
+                searchLabel: availablePreference.label,
               }))}
               onBeginEditing={() => beginEditingField("email_communication_preference")}
               onCancelEditing={() => cancelEditingField("email_communication_preference")}
