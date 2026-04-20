@@ -739,11 +739,7 @@ export function DcxAppUserAccountSummaryPage(props: Props) {
             <Button type="button" variant="outline" size="sm" onClick={openPhoneEditorForAdd}>
               {addPhoneActionLabel}
             </Button>
-          ) : (
-            <Button type="button" variant="outline" size="sm" onClick={closePhoneEditor}>
-              {cancelActionLabel}
-            </Button>
-          )}
+          ) : null}
         </div>
 
         <div className="space-y-4">
@@ -876,6 +872,15 @@ export function DcxAppUserAccountSummaryPage(props: Props) {
                   onClick={submitPhoneLinkRequest}
                 >
                   {phoneLinkRequestMutation.isPending ? "Sending..." : activePhoneEditorButtonLabel}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={phoneLinkRequestMutation.isPending || setPrimaryPhoneMutation.isPending}
+                  onClick={closePhoneEditor}
+                >
+                  {cancelActionLabel}
                 </Button>
                 {phoneEditorMode === "edit" && editingPhoneIsVerified && !editingPhoneIsPrimary ? (
                   <Button
