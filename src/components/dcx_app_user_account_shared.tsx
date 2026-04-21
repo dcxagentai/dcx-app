@@ -50,7 +50,7 @@ export const DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS: Record<string, string> = {
   account_state_pending: "Pending",
   settings_eyebrow: "Settings",
   settings_title: "Preferences and notifications",
-  settings_subtitle: "Control language, timezone, and announcement preferences from one simple settings page.",
+  settings_subtitle: "Control language, timezone, newsletters, and promotional email preferences from one simple settings page.",
   activity_eyebrow: "Activity",
   activity_title: "Account timeline",
   activity_subtitle: "See the basic account events we are already recording for this user.",

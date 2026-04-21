@@ -200,7 +200,7 @@ export function DcxAppUserSettingsPage(props: Props) {
   const [editableDraft, setEditableDraft] = useState<EditableDraft>({
     preferredLanguageId: null,
     preferredTimezoneId: null,
-    emailCommunicationPreference: "announcements",
+    emailCommunicationPreference: "newsletters",
   })
   const [editableFieldUiStateByKey, setEditableFieldUiStateByKey] = useState<
     Record<EditableFieldKey, EditableFieldUiState>
