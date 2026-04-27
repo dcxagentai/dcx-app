@@ -45,6 +45,16 @@ type DcxAppSendStage =
   | "success"
   | "error"
 
+type DcxSendProgressStepStatus = "pending" | "current" | "complete" | "failed"
+
+type DcxSendProgressStep = {
+  key: string
+  indexLabel: string
+  title: string
+  body: string
+  status: DcxSendProgressStepStatus
+}
+
 export function DcxAppSendMessagePage(props: Props) {
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -136,6 +146,16 @@ export function DcxAppSendMessagePage(props: Props) {
   const hasFailedAnalysis = sendStage === "analysis_failed" && lastCreatedMessageDetail !== null
   const hasProhibitedContent = sendStage === "prohibited" && lastCreatedMessageDetail !== null
   const sendCommentary = readDcxSendCommentary(sendStage, messageFilePreviews.length, ux)
+  const sendProgressSteps = useMemo(
+    () =>
+      readDcxSendProgressSteps({
+        sendStage,
+        fileCount: messageFilePreviews.length,
+        uxStrings: ux,
+        isRetryingAnalysis,
+      }),
+    [isRetryingAnalysis, messageFilePreviews.length, sendStage, ux],
+  )
   const analysisModelNote = lastCreatedMessageDetail?.analysis_model_name
     ? `${ux.messages_detail_analysis_model_label ?? "Analysis model"}: ${lastCreatedMessageDetail.analysis_model_name}`
     : null
@@ -146,13 +166,21 @@ export function DcxAppSendMessagePage(props: Props) {
       return
     }
     setSendStage("preparing")
-    const uploadTimer = window.setTimeout(() => setSendStage("uploading"), 450)
-    const processingTimer = window.setTimeout(() => setSendStage("processing"), 1800)
+    const hasFiles = messageFiles.length > 0
+    const uploadTimer = hasFiles
+      ? window.setTimeout(() => setSendStage("uploading"), 450)
+      : null
+    const processingTimer = window.setTimeout(
+      () => setSendStage("processing"),
+      hasFiles ? 1800 : 900,
+    )
     return () => {
-      window.clearTimeout(uploadTimer)
+      if (uploadTimer !== null) {
+        window.clearTimeout(uploadTimer)
+      }
       window.clearTimeout(processingTimer)
     }
-  }, [isSendingMessage])
+  }, [isSendingMessage, messageFiles.length])
 
   useEffect(() => {
     if (sendStage !== "success" && sendStage !== "error") {
@@ -250,6 +278,7 @@ export function DcxAppSendMessagePage(props: Props) {
 
         <DcxSendProgressPanel
           commentary={sendCommentary}
+          steps={sendProgressSteps}
           isVisible={
             isSendingMessage ||
             createMessageMutation.isSuccess ||
@@ -297,6 +326,7 @@ export function DcxAppSendMessagePage(props: Props) {
 
 function DcxSendProgressPanel(props: {
   commentary: { title: string; body: string }
+  steps: DcxSendProgressStep[]
   isVisible: boolean
   isSuccess: boolean
   isError: boolean
@@ -347,6 +377,45 @@ function DcxSendProgressPanel(props: {
           <p className="mt-1 text-sm leading-6 text-slate-600">
             {props.errorText ?? props.commentary.body}
           </p>
+          {props.steps.length > 0 ? (
+            <ol className="mt-4 space-y-3">
+              {props.steps.map((step) => (
+                <li key={step.key} className="flex items-start gap-3">
+                  <span
+                    className={cn(
+                      "mt-0.5 inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full border px-1.5 text-[11px] font-semibold",
+                      step.status === "complete"
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : step.status === "current"
+                          ? "border-sky-200 bg-sky-50 text-sky-700"
+                          : step.status === "failed"
+                            ? "border-amber-200 bg-amber-50 text-amber-700"
+                            : "border-slate-200 bg-white text-slate-500",
+                    )}
+                  >
+                    {step.indexLabel}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start gap-2">
+                      {step.status === "complete" ? (
+                        <CheckCircle2Icon className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+                      ) : step.status === "current" ? (
+                        <Loader2Icon className="mt-0.5 size-4 shrink-0 animate-spin text-sky-600" />
+                      ) : step.status === "failed" ? (
+                        <AlertTriangleIcon className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                      ) : (
+                        <div className="mt-[5px] h-2 w-2 shrink-0 rounded-full bg-slate-300" />
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-900">{step.title}</p>
+                        <p className="mt-0.5 text-xs leading-5 text-slate-500">{step.body}</p>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          ) : null}
           {props.modelNote ? (
             <p className="mt-2 text-xs text-slate-500">{props.modelNote}</p>
           ) : null}
@@ -489,6 +558,179 @@ function readDcxSendCommentary(
     title: "",
     body: "",
   }
+}
+
+function readDcxSendProgressSteps(props: {
+  sendStage: DcxAppSendStage
+  fileCount: number
+  uxStrings: Record<string, string>
+  isRetryingAnalysis: boolean
+}): DcxSendProgressStep[] {
+  const hasFiles = props.fileCount > 0
+  const stepDefinitions = hasFiles
+    ? [
+        {
+          key: "prepare",
+          title: props.uxStrings.messages_compose_progress_preparing_title ?? "Preparing message...",
+          body:
+            props.uxStrings.messages_compose_progress_preparing_body_with_files ??
+            "We are packaging your note and selected files for secure upload.",
+        },
+        {
+          key: "upload",
+          title: props.uxStrings.messages_compose_progress_uploading_title ?? "Uploading files...",
+          body:
+            props.uxStrings.messages_compose_progress_uploading_body_with_files ??
+            "Your selected files are being uploaded. Larger media can take a little longer.",
+        },
+        {
+          key: "process",
+          title: props.uxStrings.messages_compose_progress_processing_title ?? "Processing message...",
+          body:
+            props.uxStrings.messages_compose_progress_processing_body ??
+            "DCX is storing the message and preparing the first analysis pass.",
+        },
+        {
+          key: "final",
+          title: props.uxStrings.messages_compose_progress_success_title ?? "Message sent.",
+          body:
+            props.uxStrings.messages_compose_progress_success_body ??
+            "Your message is now in the inbox and ready for review in Messages.",
+        },
+      ]
+    : [
+        {
+          key: "prepare",
+          title: props.uxStrings.messages_compose_progress_preparing_title ?? "Preparing message...",
+          body:
+            props.uxStrings.messages_compose_progress_preparing_body_no_files ??
+            "We are preparing your message for delivery.",
+        },
+        {
+          key: "process",
+          title: props.uxStrings.messages_compose_progress_processing_title ?? "Processing message...",
+          body:
+            props.uxStrings.messages_compose_progress_processing_body ??
+            "DCX is storing the message and preparing the first analysis pass.",
+        },
+        {
+          key: "final",
+          title: props.uxStrings.messages_compose_progress_success_title ?? "Message sent.",
+          body:
+            props.uxStrings.messages_compose_progress_success_body ??
+            "Your message is now in the inbox and ready for review in Messages.",
+        },
+      ]
+
+  const activeStepKey = readDcxSendActiveProgressStepKey(props.sendStage, hasFiles)
+  const failureStepKey =
+    props.sendStage === "analysis_failed" && !props.isRetryingAnalysis
+      ? "final"
+      : props.sendStage === "error"
+        ? activeStepKey
+        : null
+
+  return stepDefinitions.map((stepDefinition, stepIndex) => {
+    const stepPosition = stepDefinitions.findIndex((currentStep) => currentStep.key === stepDefinition.key)
+    const activeStepPosition = stepDefinitions.findIndex((currentStep) => currentStep.key === activeStepKey)
+    const isFailedStep = failureStepKey === stepDefinition.key
+    const isCurrentStep =
+      !isFailedStep &&
+      (props.isRetryingAnalysis
+        ? stepDefinition.key === "process"
+        : stepDefinition.key === activeStepKey) &&
+      props.sendStage !== "success" &&
+      props.sendStage !== "prohibited"
+    const isCompleteStep =
+      props.sendStage === "success" || props.sendStage === "prohibited"
+        ? stepDefinition.key !== "final"
+          ? true
+          : true
+        : !isFailedStep && activeStepPosition > stepPosition
+
+    return {
+      key: stepDefinition.key,
+      indexLabel: `${stepIndex + 1}/${stepDefinitions.length}`,
+      title: readDcxSendProgressStepTitle(stepDefinition.key, props.sendStage, props.uxStrings, props.isRetryingAnalysis),
+      body: readDcxSendProgressStepBody(stepDefinition.key, stepDefinition.body, props.sendStage, props.uxStrings, hasFiles),
+      status: isFailedStep ? "failed" : isCurrentStep ? "current" : isCompleteStep ? "complete" : "pending",
+    }
+  })
+}
+
+function readDcxSendActiveProgressStepKey(sendStage: DcxAppSendStage, hasFiles: boolean): string {
+  if (sendStage === "preparing") {
+    return "prepare"
+  }
+  if (sendStage === "uploading" && hasFiles) {
+    return "upload"
+  }
+  if (sendStage === "processing") {
+    return "process"
+  }
+  return "final"
+}
+
+function readDcxSendProgressStepTitle(
+  stepKey: string,
+  sendStage: DcxAppSendStage,
+  uxStrings: Record<string, string>,
+  isRetryingAnalysis: boolean,
+): string {
+  if (stepKey === "final") {
+    if (sendStage === "prohibited") {
+      return uxStrings.messages_compose_progress_prohibited_title ?? "Prohibited content"
+    }
+    if (sendStage === "analysis_failed") {
+      return isRetryingAnalysis
+        ? (uxStrings.messages_detail_retry_analysis_pending ?? "Retrying...")
+        : (uxStrings.messages_detail_analysis_failed_title ?? "LLM call failed.")
+    }
+    if (sendStage === "error") {
+      return uxStrings.messages_compose_progress_error_title ?? "We could not send that message."
+    }
+  }
+
+  if (stepKey === "process" && isRetryingAnalysis) {
+    return uxStrings.messages_detail_retry_analysis_pending ?? "Retrying..."
+  }
+
+  if (stepKey === "prepare") {
+    return uxStrings.messages_compose_progress_preparing_title ?? "Preparing message..."
+  }
+  if (stepKey === "upload") {
+    return uxStrings.messages_compose_progress_uploading_title ?? "Uploading files..."
+  }
+  if (stepKey === "process") {
+    return uxStrings.messages_compose_progress_processing_title ?? "Processing message..."
+  }
+  return uxStrings.messages_compose_progress_success_title ?? "Message sent."
+}
+
+function readDcxSendProgressStepBody(
+  stepKey: string,
+  defaultBody: string,
+  sendStage: DcxAppSendStage,
+  uxStrings: Record<string, string>,
+  hasFiles: boolean,
+): string {
+  if (stepKey === "final") {
+    if (sendStage === "prohibited") {
+      return uxStrings.messages_compose_progress_prohibited_body ?? "This message was received but blocked by content policy."
+    }
+    if (sendStage === "analysis_failed") {
+      return uxStrings.messages_detail_analysis_failed_body ?? "The message was received, but the AI analysis step did not complete. Please retry."
+    }
+    if (sendStage === "error") {
+      return uxStrings.messages_compose_progress_error_body ?? "Please review the details below and retry when you are ready."
+    }
+  }
+
+  if (stepKey === "upload" && !hasFiles) {
+    return uxStrings.messages_compose_progress_uploading_body_no_files ?? "Your message is on its way."
+  }
+
+  return defaultBody
 }
 
 function readDcxSendAttachmentStatusLabel(
