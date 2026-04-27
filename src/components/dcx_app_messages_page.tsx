@@ -6,7 +6,7 @@
  */
 import { useEffect, useMemo, useState } from "react"
 import type { ReactNode } from "react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { Column, ColumnDef, SortingState } from "@tanstack/react-table"
 import {
   ChevronRightIcon,
@@ -59,6 +59,7 @@ import {
   type DcxAppAuthenticatedUserAccountSummary,
 } from "../lib/read_dcx_app_authenticated_user_account_summary"
 import { readDcxAppLanguageFlagRegionCode } from "../lib/dcx_app_language_flag_options"
+import { retryDcxAppAuthenticatedUserMessageAnalysis } from "../lib/retry_dcx_app_authenticated_user_message_analysis"
 
 type DcxMessageFilter = "all" | "text" | "image" | "audio" | "document"
 type DcxMessageChannelFilter = "all" | "app" | "whatsapp" | "email"
@@ -158,6 +159,26 @@ export function DcxAppMessagesPage(props: Props) {
       return readDcxMessageShouldPoll(messageDetail.processing_status, messageDetail.analysis_status)
         ? 3000
         : false
+    },
+  })
+
+  const retryMessageAnalysisMutation = useMutation({
+    mutationFn: async (messageId: number) =>
+      retryDcxAppAuthenticatedUserMessageAnalysis({
+        apiBaseUrl: props.apiBaseUrl,
+        messageId,
+      }),
+    onSuccess: async (payload, messageId) => {
+      queryClient.setQueryData(
+        ["dcx_app_authenticated_user_message_detail", messageId],
+        payload,
+      )
+      await queryClient.invalidateQueries({
+        queryKey: ["dcx_app_authenticated_user_messages_inbox"],
+      })
+      await queryClient.invalidateQueries({
+        queryKey: ["dcx_app_authenticated_user_message_detail", messageId],
+      })
     },
   })
 
@@ -401,6 +422,16 @@ export function DcxAppMessagesPage(props: Props) {
         effectiveSelectedMessageId={effectiveSelectedMessageId}
         isLoading={selectedMessageDetailQuery.isLoading}
         errorText={selectedMessageDetailErrorText}
+        retryAnalysisErrorText={
+          retryMessageAnalysisMutation.isError
+            ? (
+                (retryMessageAnalysisMutation.error as Error & { suggested_action?: string }).suggested_action ??
+                (retryMessageAnalysisMutation.error as Error).message
+              )
+            : null
+        }
+        isRetryAnalysisPending={retryMessageAnalysisMutation.isPending}
+        onRetryAnalysis={(messageId) => retryMessageAnalysisMutation.mutate(messageId)}
         selectedMessage={selectedMessage}
         selectedMessageTitle={selectedMessageTitle}
         selectedMessageReceivedLabel={selectedMessageReceivedLabel}
@@ -449,16 +480,26 @@ export function DcxAppMessagesPage(props: Props) {
               <SheetTitle>{selectedMessageTitle}</SheetTitle>
               <SheetDescription>{ux.messages_detail_empty}</SheetDescription>
             </SheetHeader>
-            <DcxMessageDetailInspector
-              apiBaseUrl={props.apiBaseUrl}
-              effectiveSelectedMessageId={effectiveSelectedMessageId}
-              isLoading={selectedMessageDetailQuery.isLoading}
-              errorText={selectedMessageDetailErrorText}
-              selectedMessage={selectedMessage}
-              selectedMessageTitle={selectedMessageTitle}
-              selectedMessageReceivedLabel={selectedMessageReceivedLabel}
-              ux={ux}
-            />
+              <DcxMessageDetailInspector
+                apiBaseUrl={props.apiBaseUrl}
+                effectiveSelectedMessageId={effectiveSelectedMessageId}
+                isLoading={selectedMessageDetailQuery.isLoading}
+                errorText={selectedMessageDetailErrorText}
+                retryAnalysisErrorText={
+                  retryMessageAnalysisMutation.isError
+                    ? (
+                        (retryMessageAnalysisMutation.error as Error & { suggested_action?: string }).suggested_action ??
+                        (retryMessageAnalysisMutation.error as Error).message
+                      )
+                    : null
+                }
+                isRetryAnalysisPending={retryMessageAnalysisMutation.isPending}
+                onRetryAnalysis={(messageId) => retryMessageAnalysisMutation.mutate(messageId)}
+                selectedMessage={selectedMessage}
+                selectedMessageTitle={selectedMessageTitle}
+                selectedMessageReceivedLabel={selectedMessageReceivedLabel}
+                ux={ux}
+              />
           </SheetContent>
         </Sheet>
       ) : null}
@@ -573,6 +614,9 @@ function DcxMessageDetailInspector(props: {
   effectiveSelectedMessageId: number | null
   isLoading: boolean
   errorText: string | null
+  retryAnalysisErrorText: string | null
+  isRetryAnalysisPending: boolean
+  onRetryAnalysis: (messageId: number) => void
   selectedMessage: DcxSelectedMessageDetail | null
   selectedMessageTitle: string
   selectedMessageReceivedLabel: string
@@ -601,6 +645,13 @@ function DcxMessageDetailInspector(props: {
   const shouldShowAttachments = Boolean(
     props.selectedMessage &&
       props.selectedMessage.attachments.length > 0,
+  )
+  const hasFailedAnalysis = Boolean(
+    props.selectedMessage &&
+      readDcxMessageHasFailedAnalysis(
+        props.selectedMessage.processing_status,
+        props.selectedMessage.analysis_status,
+      ),
   )
 
   const detailStatusBadge = props.selectedMessage
@@ -637,6 +688,14 @@ function DcxMessageDetailInspector(props: {
                 ) : null}
               </div>
             ) : null}
+            {props.selectedMessage?.analysis_model_name.trim() ? (
+              <p className="mt-2 text-xs text-slate-500">
+                {props.ux.messages_detail_analysis_model_label ?? "Analysis model"}:{" "}
+                <span className="font-medium text-slate-700">
+                  {props.selectedMessage.analysis_model_name}
+                </span>
+              </p>
+            ) : null}
           </div>
         </div>
       </div>
@@ -658,6 +717,42 @@ function DcxMessageDetailInspector(props: {
 
         {props.selectedMessage ? (
           <div className="space-y-5">
+            {hasFailedAnalysis ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50/70 px-4 py-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-amber-950">
+                      {props.ux.messages_detail_analysis_failed_title ?? "LLM call failed."}
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-amber-900">
+                      {props.ux.messages_detail_analysis_failed_body ??
+                        "The message was received, but the AI analysis step did not complete. Please retry."}
+                    </p>
+                    {props.retryAnalysisErrorText ? (
+                      <p className="mt-2 text-sm text-red-700">
+                        {props.retryAnalysisErrorText}
+                      </p>
+                    ) : null}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="border-amber-300 bg-white text-amber-950 hover:bg-amber-100"
+                    disabled={props.isRetryAnalysisPending}
+                    onClick={() => props.onRetryAnalysis(props.selectedMessage!.message_id)}
+                  >
+                    {props.isRetryAnalysisPending ? (
+                      <LoaderCircleIcon className="size-4 animate-spin" />
+                    ) : null}
+                    {props.isRetryAnalysisPending
+                      ? (props.ux.messages_detail_retry_analysis_pending ?? "Retrying...")
+                      : (props.ux.messages_detail_retry_analysis_button ?? "Retry analysis")}
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+
             {shouldShowMessageSummary ? (
               <DcxMessageDetailBlock
                 label={props.ux.messages_detail_summary}
@@ -1189,6 +1284,12 @@ function readDcxMessageShouldPoll(processingStatus: string, analysisStatus: stri
   return ["queued", "pending", "processing", "partial"].includes(normalizedAnalysisStatus)
 }
 
+function readDcxMessageHasFailedAnalysis(processingStatus: string, analysisStatus: string): boolean {
+  const normalizedProcessingStatus = processingStatus.trim().toLowerCase()
+  const normalizedAnalysisStatus = analysisStatus.trim().toLowerCase()
+  return normalizedProcessingStatus === "failed" || normalizedAnalysisStatus === "failed"
+}
+
 function readDcxMessageOverallStatusSortValue(processingStatus: string, analysisStatus: string): string {
   const visual = readDcxMessageOverallStatusVisual(processingStatus, analysisStatus, {})
 
@@ -1214,7 +1315,20 @@ function readDcxMessageOverallStatusVisual(
   const normalizedProcessingStatus = processingStatus.trim().toLowerCase()
   const normalizedAnalysisStatus = analysisStatus.trim().toLowerCase()
 
-  if (normalizedProcessingStatus === "failed" || normalizedAnalysisStatus === "failed") {
+  if (normalizedAnalysisStatus === "failed") {
+    const failedLabel =
+      uxStrings.messages_status_analysis_failed ??
+      uxStrings.messages_status_failed ??
+      "Analysis failed"
+    return {
+      kind: "failed",
+      label: failedLabel,
+      tone: "danger" as const,
+      title: failedLabel,
+    }
+  }
+
+  if (normalizedProcessingStatus === "failed") {
     const failedLabel =
       uxStrings.messages_derivation_failed ??
       uxStrings.messages_status_failed ??
