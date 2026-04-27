@@ -186,9 +186,14 @@ export function DcxAppSendMessagePage(props: Props) {
     if (sendStage !== "success" && sendStage !== "error") {
       return
     }
-    const resetTimer = window.setTimeout(() => setSendStage("idle"), 6000)
+    const resetTimer = window.setTimeout(() => {
+      setSendStage("idle")
+      setLastCreatedMessageDetail(null)
+      createMessageMutation.reset()
+      retryMessageAnalysisMutation.reset()
+    }, 6000)
     return () => window.clearTimeout(resetTimer)
-  }, [sendStage])
+  }, [createMessageMutation, retryMessageAnalysisMutation, sendStage])
 
   return (
     <section className="flex min-h-[calc(100vh-5rem)] flex-col gap-4 text-slate-950">
