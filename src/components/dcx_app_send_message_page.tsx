@@ -40,6 +40,7 @@ type DcxAppSendStage =
   | "preparing"
   | "uploading"
   | "processing"
+  | "prohibited"
   | "analysis_failed"
   | "success"
   | "error"
@@ -91,7 +92,7 @@ export function DcxAppSendMessagePage(props: Props) {
       }),
     onSuccess: async (payload) => {
       setLastCreatedMessageDetail(payload.data)
-      setSendStage(payload.data.analysis_status === "failed" ? "analysis_failed" : "success")
+      setSendStage(readDcxSendStageFromCreatedMessageDetail(payload.data))
       await queryClient.invalidateQueries({
         queryKey: ["dcx_app_authenticated_user_messages_inbox"],
       })
@@ -118,11 +119,7 @@ export function DcxAppSendMessagePage(props: Props) {
       setMessageText("")
       setMessageFiles([])
       setFileInputResetKey((currentValue) => currentValue + 1)
-      setSendStage(
-        payload.context?.operation === "message_created_failed" || payload.data.analysis_status === "failed"
-          ? "analysis_failed"
-          : "success",
-      )
+      setSendStage(readDcxSendStageFromCreatedMessageDetail(payload.data))
       await queryClient.invalidateQueries({
         queryKey: ["dcx_app_authenticated_user_messages_inbox"],
       })
@@ -137,6 +134,7 @@ export function DcxAppSendMessagePage(props: Props) {
   const isSendingMessage = createMessageMutation.isPending
   const isRetryingAnalysis = retryMessageAnalysisMutation.isPending
   const hasFailedAnalysis = sendStage === "analysis_failed" && lastCreatedMessageDetail !== null
+  const hasProhibitedContent = sendStage === "prohibited" && lastCreatedMessageDetail !== null
   const sendCommentary = readDcxSendCommentary(sendStage, messageFilePreviews.length, ux)
   const analysisModelNote = lastCreatedMessageDetail?.analysis_model_name
     ? `${ux.messages_detail_analysis_model_label ?? "Analysis model"}: ${lastCreatedMessageDetail.analysis_model_name}`
@@ -256,6 +254,7 @@ export function DcxAppSendMessagePage(props: Props) {
             isSendingMessage ||
             createMessageMutation.isSuccess ||
             createMessageMutation.isError ||
+            hasProhibitedContent ||
             hasFailedAnalysis ||
             retryMessageAnalysisMutation.isPending ||
             retryMessageAnalysisMutation.isSuccess ||
@@ -263,6 +262,7 @@ export function DcxAppSendMessagePage(props: Props) {
           }
           isSuccess={sendStage === "success"}
           isError={createMessageMutation.isError}
+          isProhibited={hasProhibitedContent}
           isAnalysisFailed={hasFailedAnalysis}
           isRetryingAnalysis={isRetryingAnalysis}
           retryLabel={ux.messages_detail_retry_analysis_button ?? "Retry analysis"}
@@ -300,6 +300,7 @@ function DcxSendProgressPanel(props: {
   isVisible: boolean
   isSuccess: boolean
   isError: boolean
+  isProhibited: boolean
   isAnalysisFailed: boolean
   isRetryingAnalysis: boolean
   retryLabel: string
@@ -318,6 +319,8 @@ function DcxSendProgressPanel(props: {
         "mt-5 max-w-5xl rounded-lg border px-4 py-3",
         props.isError
           ? "border-red-200 bg-red-50/70"
+          : props.isProhibited
+            ? "border-red-200 bg-red-50/70"
           : props.isAnalysisFailed
             ? "border-amber-300 bg-amber-50/80"
           : props.isSuccess
@@ -331,6 +334,8 @@ function DcxSendProgressPanel(props: {
             <CheckCircle2Icon className="size-5 text-emerald-600" />
           ) : props.isError ? (
             <XIcon className="size-5 text-red-600" />
+          ) : props.isProhibited ? (
+            <AlertTriangleIcon className="size-5 text-red-600" />
           ) : props.isAnalysisFailed ? (
             <AlertTriangleIcon className="size-5 text-amber-600" />
           ) : (
@@ -462,6 +467,12 @@ function readDcxSendCommentary(
       body: uxStrings.messages_compose_progress_success_body ?? "Your message is now in the inbox and ready for review in Messages.",
     }
   }
+  if (sendStage === "prohibited") {
+    return {
+      title: uxStrings.messages_compose_progress_prohibited_title ?? "Prohibited content",
+      body: uxStrings.messages_compose_progress_prohibited_body ?? "This message was received but blocked by content policy.",
+    }
+  }
   if (sendStage === "analysis_failed") {
     return {
       title: uxStrings.messages_detail_analysis_failed_title ?? "LLM call failed.",
@@ -536,4 +547,25 @@ function formatDcxFileSizeLabel(fileSizeBytes: number): string {
     return `${(fileSizeBytes / 1024).toFixed(1)} KB`
   }
   return `${(fileSizeBytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function readDcxSendStageFromCreatedMessageDetail(
+  messageDetail: DcxAppAuthenticatedUserMessageDetail,
+): DcxAppSendStage {
+  if (readDcxMessageHasProhibitedContent(messageDetail.analysis_metadata_json)) {
+    return "prohibited"
+  }
+
+  if (messageDetail.analysis_status === "failed") {
+    return "analysis_failed"
+  }
+
+  return "success"
+}
+
+function readDcxMessageHasProhibitedContent(analysisMetadataJson: Record<string, unknown> | null | undefined): boolean {
+  if (!analysisMetadataJson || typeof analysisMetadataJson !== "object") {
+    return false
+  }
+  return String(analysisMetadataJson["moderation_status"] ?? "").trim().toLowerCase() === "prohibited"
 }

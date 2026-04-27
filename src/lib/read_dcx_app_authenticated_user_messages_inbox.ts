@@ -44,6 +44,7 @@ export type DcxAppAuthenticatedUserMessage = {
   processing_status: string
   derivation_status: string
   analysis_status: string
+  analysis_metadata_json: Record<string, unknown>
   detected_language_code: string | null
   received_at_ts_ms: number | null
   created_at_ts_ms: number

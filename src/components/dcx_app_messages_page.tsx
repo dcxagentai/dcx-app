@@ -230,12 +230,18 @@ export function DcxAppMessagesPage(props: Props) {
       },
       {
         id: "status",
-        accessorFn: (message) => readDcxMessageOverallStatusSortValue(message.processing_status, message.analysis_status),
+        accessorFn: (message) =>
+          readDcxMessageOverallStatusSortValue(
+            message.processing_status,
+            message.analysis_status,
+            message.analysis_metadata_json,
+          ),
         header: ({ column }) => <DcxMessageSortableHeader column={column} title={ux.messages_table_column_status} />,
         cell: ({ row }) => (
           <DcxMessageOverallStatusBadge
             processingStatus={row.original.processing_status}
             analysisStatus={row.original.analysis_status}
+            analysisMetadataJson={row.original.analysis_metadata_json}
             uxStrings={ux}
           />
         ),
@@ -622,11 +628,16 @@ function DcxMessageDetailInspector(props: {
   selectedMessageReceivedLabel: string
   ux: Record<string, string>
 }) {
+  const hasProhibitedContent = Boolean(
+    props.selectedMessage &&
+      readDcxMessageHasProhibitedContent(props.selectedMessage.analysis_metadata_json),
+  )
   const selectedMessageRawWordCount = props.selectedMessage
     ? countDcxWords(props.selectedMessage.raw_text_content)
     : 0
   const shouldShowMessageSummary = Boolean(
     props.selectedMessage &&
+      !hasProhibitedContent &&
       props.selectedMessage.analysis_summary_text.trim() !== "" &&
       (
         props.selectedMessage.attachments.length > 0 ||
@@ -636,18 +647,22 @@ function DcxMessageDetailInspector(props: {
   )
   const shouldShowMessageRawText = Boolean(
     props.selectedMessage &&
+      !hasProhibitedContent &&
       props.selectedMessage.raw_text_content.trim() !== "",
   )
   const shouldShowMessageSynthesis = Boolean(
     props.selectedMessage &&
+      !hasProhibitedContent &&
       props.selectedMessage.derived_text_content.trim() !== "",
   )
   const shouldShowAttachments = Boolean(
     props.selectedMessage &&
+      !hasProhibitedContent &&
       props.selectedMessage.attachments.length > 0,
   )
   const hasFailedAnalysis = Boolean(
     props.selectedMessage &&
+      !hasProhibitedContent &&
       readDcxMessageHasFailedAnalysis(
         props.selectedMessage.processing_status,
         props.selectedMessage.analysis_status,
@@ -655,7 +670,12 @@ function DcxMessageDetailInspector(props: {
   )
 
   const detailStatusBadge = props.selectedMessage
-    ? readDcxMessageOverallStatusVisual(props.selectedMessage.processing_status, props.selectedMessage.analysis_status, props.ux)
+    ? readDcxMessageOverallStatusVisual(
+        props.selectedMessage.processing_status,
+        props.selectedMessage.analysis_status,
+        props.selectedMessage.analysis_metadata_json,
+        props.ux,
+      )
     : null
 
   return (
@@ -677,6 +697,7 @@ function DcxMessageDetailInspector(props: {
                   <DcxMessageOverallStatusBadge
                     processingStatus={props.selectedMessage.processing_status}
                     analysisStatus={props.selectedMessage.analysis_status}
+                    analysisMetadataJson={props.selectedMessage.analysis_metadata_json}
                     uxStrings={props.ux}
                   />
                 ) : null}
@@ -717,6 +738,32 @@ function DcxMessageDetailInspector(props: {
 
         {props.selectedMessage ? (
           <div className="space-y-5">
+            {hasProhibitedContent ? (
+              <div className="rounded-lg border border-red-200 bg-red-50/70 px-4 py-3">
+                <p className="text-sm font-medium text-red-950">
+                  {props.ux.messages_detail_prohibited_title ?? "Prohibited content"}
+                </p>
+                <p className="mt-1 text-sm leading-6 text-red-900">
+                  {readDcxProhibitedContentReasonSummary(
+                    props.selectedMessage.analysis_metadata_json,
+                    props.ux,
+                  )}
+                </p>
+                {readDcxProhibitedContentReasonCodes(props.selectedMessage.analysis_metadata_json).length > 0 ? (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-red-900/80">
+                      {props.ux.messages_detail_prohibited_reasons_label ?? "Reasons"}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {readDcxProhibitedContentReasonCodes(props.selectedMessage.analysis_metadata_json).map((reasonCode) => (
+                        <DcxInlinePill key={reasonCode} label={reasonCode} tone="danger" />
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
             {hasFailedAnalysis ? (
               <div className="rounded-lg border border-amber-200 bg-amber-50/70 px-4 py-3">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -782,7 +829,7 @@ function DcxMessageDetailInspector(props: {
               />
             ) : null}
 
-            {shouldShowAttachments ? (
+            {!hasProhibitedContent && shouldShowAttachments ? (
               <DcxMessageAttachmentsPanel
                 apiBaseUrl={props.apiBaseUrl}
                 attachments={props.selectedMessage.attachments}
@@ -791,7 +838,7 @@ function DcxMessageDetailInspector(props: {
                 defaultOpen={false}
                 uxStrings={props.ux}
               />
-            ) : (
+            ) : !hasProhibitedContent ? (
               <DcxMessageAttachmentsPanel
                 apiBaseUrl={props.apiBaseUrl}
                 attachments={props.selectedMessage.attachments}
@@ -800,7 +847,7 @@ function DcxMessageDetailInspector(props: {
                 defaultOpen
                 uxStrings={props.ux}
               />
-            )}
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -864,9 +911,15 @@ function DcxCompactMetaPill(props: {
 function DcxMessageOverallStatusBadge(props: {
   processingStatus: string
   analysisStatus: string
+  analysisMetadataJson: Record<string, unknown>
   uxStrings: Record<string, string>
 }) {
-  const visual = readDcxMessageOverallStatusVisual(props.processingStatus, props.analysisStatus, props.uxStrings)
+  const visual = readDcxMessageOverallStatusVisual(
+    props.processingStatus,
+    props.analysisStatus,
+    props.analysisMetadataJson,
+    props.uxStrings,
+  )
 
   if (visual.kind === "success") {
     return (
@@ -1290,8 +1343,68 @@ function readDcxMessageHasFailedAnalysis(processingStatus: string, analysisStatu
   return normalizedProcessingStatus === "failed" || normalizedAnalysisStatus === "failed"
 }
 
-function readDcxMessageOverallStatusSortValue(processingStatus: string, analysisStatus: string): string {
-  const visual = readDcxMessageOverallStatusVisual(processingStatus, analysisStatus, {})
+function readDcxMessageHasProhibitedContent(analysisMetadataJson: Record<string, unknown> | null | undefined): boolean {
+  return readDcxMessageModerationStatus(analysisMetadataJson) === "prohibited"
+}
+
+function readDcxMessageModerationStatus(analysisMetadataJson: Record<string, unknown> | null | undefined): string {
+  if (!analysisMetadataJson || typeof analysisMetadataJson !== "object") {
+    return "not_reviewed"
+  }
+
+  const moderationStatus = analysisMetadataJson["moderation_status"]
+  if (typeof moderationStatus !== "string") {
+    return "not_reviewed"
+  }
+
+  const normalizedModerationStatus = moderationStatus.trim().toLowerCase()
+  if (normalizedModerationStatus === "allowed" || normalizedModerationStatus === "prohibited") {
+    return normalizedModerationStatus
+  }
+  return "not_reviewed"
+}
+
+function readDcxProhibitedContentReasonCodes(
+  analysisMetadataJson: Record<string, unknown> | null | undefined,
+): string[] {
+  if (!analysisMetadataJson || typeof analysisMetadataJson !== "object") {
+    return []
+  }
+
+  const reasonCodesValue = analysisMetadataJson["moderation_reason_codes"]
+  if (!Array.isArray(reasonCodesValue)) {
+    return []
+  }
+
+  return reasonCodesValue
+    .map((reasonCode) => typeof reasonCode === "string" ? reasonCode.trim() : "")
+    .filter((reasonCode) => reasonCode !== "")
+}
+
+function readDcxProhibitedContentReasonSummary(
+  analysisMetadataJson: Record<string, unknown> | null | undefined,
+  uxStrings: Record<string, string>,
+): string {
+  if (!analysisMetadataJson || typeof analysisMetadataJson !== "object") {
+    return uxStrings.messages_detail_prohibited_body ??
+      "This message was received but blocked by content policy."
+  }
+
+  const reasonSummary = analysisMetadataJson["moderation_reason_summary"]
+  if (typeof reasonSummary === "string" && reasonSummary.trim() !== "") {
+    return reasonSummary.trim()
+  }
+
+  return uxStrings.messages_detail_prohibited_body ??
+    "This message was received but blocked by content policy."
+}
+
+function readDcxMessageOverallStatusSortValue(
+  processingStatus: string,
+  analysisStatus: string,
+  analysisMetadataJson: Record<string, unknown>,
+): string {
+  const visual = readDcxMessageOverallStatusVisual(processingStatus, analysisStatus, analysisMetadataJson, {})
 
   if (visual.kind === "failed") {
     return "failed"
@@ -1305,6 +1418,7 @@ function readDcxMessageOverallStatusSortValue(processingStatus: string, analysis
 function readDcxMessageOverallStatusVisual(
   processingStatus: string,
   analysisStatus: string,
+  analysisMetadataJson: Record<string, unknown>,
   uxStrings: Record<string, string>,
 ): {
   kind: "success" | "processing" | "failed"
@@ -1312,6 +1426,16 @@ function readDcxMessageOverallStatusVisual(
   tone: "success" | "warning" | "danger"
   title: string
 } {
+  if (readDcxMessageHasProhibitedContent(analysisMetadataJson)) {
+    const prohibitedLabel = uxStrings.messages_status_prohibited ?? "Prohibited"
+    return {
+      kind: "failed",
+      label: prohibitedLabel,
+      tone: "danger" as const,
+      title: prohibitedLabel,
+    }
+  }
+
   const normalizedProcessingStatus = processingStatus.trim().toLowerCase()
   const normalizedAnalysisStatus = analysisStatus.trim().toLowerCase()
 
@@ -1466,6 +1590,10 @@ function readDcxMessagesMatchingFilters(params: {
 }
 
 function readDcxInboxMessageTitle(message: DcxAppAuthenticatedUserMessage, uxStrings: Record<string, string> = DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS): string {
+  if (readDcxMessageHasProhibitedContent(message.analysis_metadata_json)) {
+    return uxStrings.messages_title_fallback_prohibited ?? "Prohibited content"
+  }
+
   const messageSubject = message.message_subject.trim()
   if (messageSubject !== "") {
     return messageSubject
@@ -1505,6 +1633,10 @@ function readDcxInboxMessageTitle(message: DcxAppAuthenticatedUserMessage, uxStr
 }
 
 function readDcxSelectedMessageTitle(message: DcxSelectedMessageDetail, uxStrings: Record<string, string> = DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS): string {
+  if (readDcxMessageHasProhibitedContent(message.analysis_metadata_json)) {
+    return uxStrings.messages_title_fallback_prohibited ?? "Prohibited content"
+  }
+
   const messageSubject = message.message_subject.trim()
   if (messageSubject !== "") {
     return messageSubject
