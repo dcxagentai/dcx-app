@@ -15,10 +15,10 @@ import {
 } from "@/components/ui/sidebar"
 import {
   ContactRoundIcon,
-  FolderIcon,
   LandmarkIcon,
   ShieldUserIcon,
   MessageCircleMoreIcon,
+  SendHorizontalIcon,
 } from "lucide-react"
 import dcxLogo from "@/assets/dcx_logo.png"
 
@@ -46,43 +46,33 @@ export function AppSidebar({
 }: Props) {
   const navMain = [
     {
-      id: "chats",
-      title: uxStrings.nav_chats,
-      url: "#",
+      id: "send",
+      title: uxStrings.nav_send ?? "Send",
+      url: "/me/send",
+      icon: <SendHorizontalIcon />,
+      isActive: currentPathname === "/me/send",
+    },
+    {
+      id: "messages",
+      title: uxStrings.nav_messages ?? "Messages",
+      url: "/me/messages",
       icon: <MessageCircleMoreIcon />,
-      isDisabled: true,
-      items: [
-        {
-          title: uxStrings.nav_chats_inbox,
-          url: "#",
-          isDisabled: true,
-        },
-        {
-          title: uxStrings.nav_chats_humans,
-          url: "#",
-          isDisabled: true,
-        },
-        {
-          title: uxStrings.nav_chats_agents,
-          url: "#",
-          isDisabled: true,
-        },
-      ],
+      isActive: currentPathname.startsWith("/me/messages"),
     },
     {
       id: "trades",
-      title: uxStrings.nav_trades,
+      title: uxStrings.nav_trades ?? "Trades",
       url: "#",
       icon: <LandmarkIcon />,
       isDisabled: true,
       items: [
         {
-          title: uxStrings.nav_trades_market_watch,
+          title: uxStrings.nav_trades_market_watch ?? "Market Watch",
           url: "#",
           isDisabled: true,
         },
         {
-          title: uxStrings.nav_trades_my_trades,
+          title: uxStrings.nav_trades_my_trades ?? "My Trades",
           url: "#",
           isDisabled: true,
         },
@@ -90,35 +80,11 @@ export function AppSidebar({
     },
     {
       id: "contacts",
-      title: uxStrings.nav_contacts,
+      title: uxStrings.nav_contacts ?? "Contacts",
       url: "#",
       icon: <ContactRoundIcon />,
       isDisabled: true,
-      badge: uxStrings.nav_badge_soon,
-    },
-    {
-      id: "files",
-      title: uxStrings.nav_files,
-      url: "#",
-      icon: <FolderIcon />,
-      isDisabled: true,
-      items: [
-        {
-          title: uxStrings.nav_files_documents,
-          url: "#",
-          isDisabled: true,
-        },
-        {
-          title: uxStrings.nav_files_images,
-          url: "#",
-          isDisabled: true,
-        },
-        {
-          title: uxStrings.nav_files_audio,
-          url: "#",
-          isDisabled: true,
-        },
-      ],
+      badge: uxStrings.nav_badge_soon ?? "Soon",
     },
   ]
 

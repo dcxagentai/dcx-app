@@ -12,6 +12,8 @@ import { DcxAppAuthPasswordRequestResetPage } from "./components/dcx_app_auth_pa
 import { DcxAppAuthPasswordSetPage } from "./components/dcx_app_auth_password_set_page"
 import { DcxAppWhatsappPhoneVerifyPage } from "./components/dcx_app_whatsapp_phone_verify_page"
 import { DcxAppShell } from "./components/dcx_app_shell"
+import { DcxAppMessagesPage } from "./components/dcx_app_messages_page"
+import { DcxAppSendMessagePage } from "./components/dcx_app_send_message_page"
 import { DcxAppUserActivityLogPage } from "./components/dcx_app_user_activity_log_page"
 import { DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS } from "./components/dcx_app_user_account_shared"
 import { DcxAppUserAccountSummaryPage } from "./components/dcx_app_user_account_summary_page"
@@ -356,6 +358,7 @@ function App() {
   const isWhatsappPhoneVerifyRoute = authRoutePath === "/verify-whatsapp-phone"
   const isAuthSurfaceRoute = authRoutePath === "/login" || isPasswordRoute || isWhatsappPhoneVerifyRoute
   const protectedAppPathname = readProtectedAppPathname(pathname)
+  const protectedAppMessageFilter = readProtectedAppMessageFilter(pathname)
 
   useEffect(() => {
     if (authenticatedSessionSummary && (authRoutePath === "/login" || isPasswordRoute)) {
@@ -514,13 +517,21 @@ function App() {
       {protectedAppPathname === "/me/account" ? (
         <DcxAppUserAccountSummaryPage apiBaseUrl={apiBaseUrl} />
       ) : null}
+      {protectedAppPathname === "/me/messages" ? (
+        <DcxAppMessagesPage apiBaseUrl={apiBaseUrl} filter={protectedAppMessageFilter} />
+      ) : null}
+      {protectedAppPathname === "/me/send" ? (
+        <DcxAppSendMessagePage apiBaseUrl={apiBaseUrl} />
+      ) : null}
     </DcxAppShell>
   )
 }
 
 export default App
 
-function readProtectedAppPathname(pathname: string): "/me/account" | "/me/settings" | "/me/activity-log" {
+function readProtectedAppPathname(
+  pathname: string,
+): "/me/account" | "/me/settings" | "/me/activity-log" | "/me/messages" | "/me/send" {
   if (pathname === "/me/settings") {
     return "/me/settings"
   }
@@ -529,21 +540,61 @@ function readProtectedAppPathname(pathname: string): "/me/account" | "/me/settin
     return "/me/activity-log"
   }
 
+  if (
+    pathname === "/me/messages" ||
+    pathname === "/me/messages/text" ||
+    pathname === "/me/messages/images" ||
+    pathname === "/me/messages/audio" ||
+    pathname === "/me/messages/documents"
+  ) {
+    return "/me/messages"
+  }
+
+  if (pathname === "/me/send") {
+    return "/me/send"
+  }
+
   return "/me/account"
 }
 
 function readProtectedAppPageTitle(
-  pathname: "/me/account" | "/me/settings" | "/me/activity-log",
+  pathname: "/me/account" | "/me/settings" | "/me/activity-log" | "/me/messages" | "/me/send",
   uxStrings: Record<string, string>,
 ): string {
   if (pathname === "/me/settings") {
-    return uxStrings.page_title_settings
+    return uxStrings.page_title_settings ?? "Settings"
   }
 
   if (pathname === "/me/activity-log") {
-    return uxStrings.page_title_activity_log
+    return uxStrings.page_title_activity_log ?? "Activity Log"
   }
 
-  return uxStrings.page_title_account
+  if (pathname === "/me/messages") {
+    return uxStrings.page_title_messages ?? "Messages"
+  }
+
+  if (pathname === "/me/send") {
+    return uxStrings.page_title_send ?? "Send"
+  }
+
+  return uxStrings.page_title_account ?? "Account"
+}
+
+function readProtectedAppMessageFilter(
+  pathname: string,
+): "all" | "text" | "image" | "audio" | "document" {
+  if (pathname === "/me/messages/text") {
+    return "text"
+  }
+  if (pathname === "/me/messages/images") {
+    return "image"
+  }
+  if (pathname === "/me/messages/audio") {
+    return "audio"
+  }
+  if (pathname === "/me/messages/documents") {
+    return "document"
+  }
+  return "all"
 }
 

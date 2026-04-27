@@ -74,69 +74,90 @@ export function NavMain(props: {
     <SidebarGroup>
       <SidebarGroupLabel>{props.groupLabel}</SidebarGroupLabel>
       <SidebarMenu>
-        {props.items.map((item) => (
-          <Collapsible
-            key={item.id}
-            asChild
-            open={openStateById[item.id] ?? Boolean(item.isActive)}
-            onOpenChange={(nextOpenState) => {
-              setOpenStateById((previousState) => ({
-                ...previousState,
-                [item.id]: nextOpenState,
-              }))
-            }}
-          >
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                tooltip={item.title}
-                isActive={item.isActive}
-                className={item.isDisabled ? "opacity-70" : undefined}
-              >
-                <a
-                  href={item.url}
-                  aria-disabled={item.isDisabled ? "true" : undefined}
-                  className={item.isDisabled ? "pointer-events-none" : undefined}
+        {props.items.map((item) => {
+          if (!item.items?.length) {
+            return (
+              <SidebarMenuItem key={item.id}>
+                <SidebarMenuButton
+                  asChild
+                  tooltip={item.title}
+                  isActive={item.isActive}
+                  className={item.isDisabled ? "opacity-70" : undefined}
                 >
-                  {item.icon}
-                  <span>{item.title}</span>
-                </a>
-              </SidebarMenuButton>
-              {item.items?.length ? (
-                <>
-                  <CollapsibleTrigger asChild>
-                    <SidebarMenuAction className="data-[state=open]:rotate-90">
-                      <ChevronRightIcon />
-                      <span className="sr-only">{props.toggleSectionLabel}</span>
-                    </SidebarMenuAction>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <SidebarMenuSub>
-                      {item.items.map((subItem) => (
-                        <SidebarMenuSubItem key={subItem.title}>
-                          <SidebarMenuSubButton
-                            asChild
-                            isActive={subItem.isActive}
-                            className={subItem.isDisabled ? "opacity-60" : undefined}
+                  <a
+                    href={item.url}
+                    aria-disabled={item.isDisabled ? "true" : undefined}
+                    className={item.isDisabled ? "pointer-events-none" : undefined}
+                  >
+                    {item.icon}
+                    <span>{item.title}</span>
+                  </a>
+                </SidebarMenuButton>
+                {item.badge ? <SidebarMenuBadge>{item.badge}</SidebarMenuBadge> : null}
+              </SidebarMenuItem>
+            )
+          }
+
+          return (
+            <Collapsible
+              key={item.id}
+              asChild
+              open={openStateById[item.id] ?? Boolean(item.isActive)}
+              onOpenChange={(nextOpenState) => {
+                setOpenStateById((previousState) => ({
+                  ...previousState,
+                  [item.id]: nextOpenState,
+                }))
+              }}
+            >
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  tooltip={item.title}
+                  isActive={item.isActive}
+                  className={item.isDisabled ? "opacity-70" : undefined}
+                >
+                  <a
+                    href={item.url}
+                    aria-disabled={item.isDisabled ? "true" : undefined}
+                    className={item.isDisabled ? "pointer-events-none" : undefined}
+                  >
+                    {item.icon}
+                    <span>{item.title}</span>
+                  </a>
+                </SidebarMenuButton>
+                <CollapsibleTrigger asChild>
+                  <SidebarMenuAction className="data-[state=open]:rotate-90">
+                    <ChevronRightIcon />
+                    <span className="sr-only">{props.toggleSectionLabel}</span>
+                  </SidebarMenuAction>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <SidebarMenuSub>
+                    {item.items.map((subItem) => (
+                      <SidebarMenuSubItem key={subItem.title}>
+                        <SidebarMenuSubButton
+                          asChild
+                          isActive={subItem.isActive}
+                          className={subItem.isDisabled ? "opacity-60" : undefined}
+                        >
+                          <a
+                            href={subItem.url}
+                            aria-disabled={subItem.isDisabled ? "true" : undefined}
+                            className={subItem.isDisabled ? "pointer-events-none" : undefined}
                           >
-                            <a
-                              href={subItem.url}
-                              aria-disabled={subItem.isDisabled ? "true" : undefined}
-                              className={subItem.isDisabled ? "pointer-events-none" : undefined}
-                            >
-                              <span>{subItem.title}</span>
-                            </a>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      ))}
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
-                </>
-              ) : null}
-              {item.badge ? <SidebarMenuBadge>{item.badge}</SidebarMenuBadge> : null}
-            </SidebarMenuItem>
-          </Collapsible>
-        ))}
+                            <span>{subItem.title}</span>
+                          </a>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    ))}
+                  </SidebarMenuSub>
+                </CollapsibleContent>
+                {item.badge ? <SidebarMenuBadge>{item.badge}</SidebarMenuBadge> : null}
+              </SidebarMenuItem>
+            </Collapsible>
+          )
+        })}
       </SidebarMenu>
     </SidebarGroup>
   )
