@@ -55,6 +55,13 @@ type DcxSendProgressStep = {
   status: DcxSendProgressStepStatus
 }
 
+type DcxSendOutcomeLink = {
+  key: string
+  label: string
+  path: string
+  detail: string
+}
+
 export function DcxAppSendMessagePage(props: Props) {
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -153,8 +160,13 @@ export function DcxAppSendMessagePage(props: Props) {
         fileCount: messageFilePreviews.length,
         uxStrings: ux,
         isRetryingAnalysis,
+        createdMessageDetail: lastCreatedMessageDetail,
       }),
-    [isRetryingAnalysis, messageFilePreviews.length, sendStage, ux],
+    [isRetryingAnalysis, lastCreatedMessageDetail, messageFilePreviews.length, sendStage, ux],
+  )
+  const sendOutcomeLinks = useMemo(
+    () => readDcxSendOutcomeLinks(lastCreatedMessageDetail, ux),
+    [lastCreatedMessageDetail, ux],
   )
   const analysisModelNote = lastCreatedMessageDetail?.analysis_model_name
     ? `${ux.messages_detail_analysis_model_label ?? "Analysis model"}: ${lastCreatedMessageDetail.analysis_model_name}`
@@ -183,7 +195,7 @@ export function DcxAppSendMessagePage(props: Props) {
   }, [isSendingMessage, messageFiles.length])
 
   useEffect(() => {
-    if (sendStage !== "success" && sendStage !== "error") {
+    if (sendStage !== "error") {
       return
     }
     const resetTimer = window.setTimeout(() => {
@@ -301,6 +313,7 @@ export function DcxAppSendMessagePage(props: Props) {
           isRetryingAnalysis={isRetryingAnalysis}
           retryLabel={ux.messages_detail_retry_analysis_button ?? "Retry analysis"}
           retryPendingLabel={ux.messages_detail_retry_analysis_pending ?? "Retrying..."}
+          outcomeLinks={sendOutcomeLinks}
           onRetryAnalysis={hasFailedAnalysis && lastCreatedMessageDetail
             ? () => retryMessageAnalysisMutation.mutate(lastCreatedMessageDetail.message_id)
             : null}
@@ -340,6 +353,7 @@ function DcxSendProgressPanel(props: {
   isRetryingAnalysis: boolean
   retryLabel: string
   retryPendingLabel: string
+  outcomeLinks: DcxSendOutcomeLink[]
   onRetryAnalysis: (() => void) | null
   modelNote: string | null
   errorText: string | null
@@ -423,6 +437,23 @@ function DcxSendProgressPanel(props: {
           ) : null}
           {props.modelNote ? (
             <p className="mt-2 text-xs text-slate-500">{props.modelNote}</p>
+          ) : null}
+          {props.outcomeLinks.length > 0 ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {props.outcomeLinks.map((outcomeLink) => (
+                <Button
+                  key={outcomeLink.key}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="bg-white"
+                  title={outcomeLink.detail}
+                  onClick={() => navigateToDcxAppPath(outcomeLink.path)}
+                >
+                  {outcomeLink.label}
+                </Button>
+              ))}
+            </div>
           ) : null}
         </div>
         {props.isAnalysisFailed && props.onRetryAnalysis ? (
@@ -570,6 +601,7 @@ function readDcxSendProgressSteps(props: {
   fileCount: number
   uxStrings: Record<string, string>
   isRetryingAnalysis: boolean
+  createdMessageDetail: DcxAppAuthenticatedUserMessageDetail | null
 }): DcxSendProgressStep[] {
   const hasFiles = props.fileCount > 0
   const stepDefinitions = hasFiles
@@ -596,6 +628,13 @@ function readDcxSendProgressSteps(props: {
             "DCX is storing the message and preparing the first analysis pass.",
         },
         {
+          key: "route",
+          title: props.uxStrings.messages_compose_progress_routing_title ?? "Routing workflow...",
+          body:
+            props.uxStrings.messages_compose_progress_routing_body ??
+            "DCX is deciding whether this is a trade, market topic, other message, or prohibited content.",
+        },
+        {
           key: "final",
           title: props.uxStrings.messages_compose_progress_success_title ?? "Message sent.",
           body:
@@ -619,6 +658,13 @@ function readDcxSendProgressSteps(props: {
             "DCX is storing the message and preparing the first analysis pass.",
         },
         {
+          key: "route",
+          title: props.uxStrings.messages_compose_progress_routing_title ?? "Routing workflow...",
+          body:
+            props.uxStrings.messages_compose_progress_routing_body ??
+            "DCX is deciding whether this is a trade, market topic, other message, or prohibited content.",
+        },
+        {
           key: "final",
           title: props.uxStrings.messages_compose_progress_success_title ?? "Message sent.",
           body:
@@ -630,7 +676,7 @@ function readDcxSendProgressSteps(props: {
   const activeStepKey = readDcxSendActiveProgressStepKey(props.sendStage, hasFiles)
   const failureStepKey =
     props.sendStage === "analysis_failed" && !props.isRetryingAnalysis
-      ? "final"
+      ? "process"
       : props.sendStage === "error"
         ? activeStepKey
         : null
@@ -657,7 +703,14 @@ function readDcxSendProgressSteps(props: {
       key: stepDefinition.key,
       indexLabel: `${stepIndex + 1}/${stepDefinitions.length}`,
       title: readDcxSendProgressStepTitle(stepDefinition.key, props.sendStage, props.uxStrings, props.isRetryingAnalysis),
-      body: readDcxSendProgressStepBody(stepDefinition.key, stepDefinition.body, props.sendStage, props.uxStrings, hasFiles),
+      body: readDcxSendProgressStepBody(
+        stepDefinition.key,
+        stepDefinition.body,
+        props.sendStage,
+        props.uxStrings,
+        hasFiles,
+        props.createdMessageDetail,
+      ),
       status: isFailedStep ? "failed" : isCurrentStep ? "current" : isCompleteStep ? "complete" : "pending",
     }
   })
@@ -670,7 +723,7 @@ function readDcxSendActiveProgressStepKey(sendStage: DcxAppSendStage, hasFiles: 
   if (sendStage === "uploading" && hasFiles) {
     return "upload"
   }
-  if (sendStage === "processing") {
+  if (sendStage === "processing" || sendStage === "analysis_failed" || sendStage === "error") {
     return "process"
   }
   return "final"
@@ -684,7 +737,7 @@ function readDcxSendProgressStepTitle(
 ): string {
   if (stepKey === "final") {
     if (sendStage === "prohibited") {
-      return uxStrings.messages_compose_progress_prohibited_title ?? "Prohibited content"
+      return uxStrings.messages_compose_progress_message_blocked_title ?? "Message blocked"
     }
     if (sendStage === "analysis_failed") {
       return isRetryingAnalysis
@@ -694,6 +747,13 @@ function readDcxSendProgressStepTitle(
     if (sendStage === "error") {
       return uxStrings.messages_compose_progress_error_title ?? "We could not send that message."
     }
+  }
+
+  if (stepKey === "route") {
+    if (sendStage === "prohibited") {
+      return uxStrings.messages_compose_progress_prohibited_title ?? "Prohibited content"
+    }
+    return uxStrings.messages_compose_progress_routed_title ?? "Workflow routed."
   }
 
   if (stepKey === "process" && isRetryingAnalysis) {
@@ -718,7 +778,12 @@ function readDcxSendProgressStepBody(
   sendStage: DcxAppSendStage,
   uxStrings: Record<string, string>,
   hasFiles: boolean,
+  createdMessageDetail: DcxAppAuthenticatedUserMessageDetail | null,
 ): string {
+  if (stepKey === "route" && (sendStage === "success" || sendStage === "prohibited")) {
+    return readDcxSendWorkflowOutcomeSummary(createdMessageDetail, uxStrings)
+  }
+
   if (stepKey === "final") {
     if (sendStage === "prohibited") {
       return uxStrings.messages_compose_progress_prohibited_body ?? "This message was received but blocked by content policy."
@@ -729,6 +794,9 @@ function readDcxSendProgressStepBody(
     if (sendStage === "error") {
       return uxStrings.messages_compose_progress_error_body ?? "Please review the details below and retry when you are ready."
     }
+    if (sendStage === "success") {
+      return readDcxSendFinalOutcomeSummary(createdMessageDetail, uxStrings)
+    }
   }
 
   if (stepKey === "upload" && !hasFiles) {
@@ -736,6 +804,112 @@ function readDcxSendProgressStepBody(
   }
 
   return defaultBody
+}
+
+function readDcxSendWorkflowOutcomeSummary(
+  messageDetail: DcxAppAuthenticatedUserMessageDetail | null,
+  uxStrings: Record<string, string>,
+): string {
+  if (!messageDetail) {
+    return uxStrings.messages_compose_progress_routing_complete_body ?? "Workflow routing is complete."
+  }
+
+  if (readDcxMessageHasProhibitedContent(messageDetail.analysis_metadata_json)) {
+    return uxStrings.messages_compose_progress_prohibited_body ?? "This message was received but blocked by content policy."
+  }
+
+  const tradeCount = messageDetail.linked_trades.length
+  const topicCount = messageDetail.linked_market_topics.length
+  const hasOther = messageDetail.contains_other_items
+  const outcomeParts = []
+
+  if (tradeCount > 0) {
+    outcomeParts.push(
+      `${tradeCount} ${
+        tradeCount === 1
+          ? (uxStrings.messages_compose_progress_trade_candidate_singular ?? "trade candidate")
+          : (uxStrings.messages_compose_progress_trade_candidate_plural ?? "trade candidates")
+      }`,
+    )
+  }
+  if (topicCount > 0) {
+    outcomeParts.push(
+      `${topicCount} ${
+        topicCount === 1
+          ? (uxStrings.messages_compose_progress_market_topic_singular ?? "market topic")
+          : (uxStrings.messages_compose_progress_market_topic_plural ?? "market topics")
+      }`,
+    )
+  }
+  if (hasOther && tradeCount === 0 && topicCount === 0) {
+    outcomeParts.push(uxStrings.messages_compose_progress_other_label ?? "Other")
+  }
+
+  if (outcomeParts.length === 0) {
+    return uxStrings.messages_compose_progress_stored_for_review_body ?? "Stored in Messages for review."
+  }
+
+  return `${uxStrings.messages_compose_progress_routed_as_prefix ?? "Routed as"} ${outcomeParts.join(" and ")}.`
+}
+
+function readDcxSendFinalOutcomeSummary(
+  messageDetail: DcxAppAuthenticatedUserMessageDetail | null,
+  uxStrings: Record<string, string> = DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS,
+): string {
+  if (!messageDetail) {
+    return uxStrings.messages_compose_progress_open_message_default_body ?? "Open the message from Messages when you are ready."
+  }
+
+  const linkedOutputCount = messageDetail.linked_trades.length + messageDetail.linked_market_topics.length
+  if (linkedOutputCount > 0) {
+    return uxStrings.messages_compose_progress_open_outputs_body ?? "Open the message or jump straight to the created trade/topic output."
+  }
+  if (messageDetail.contains_other_items) {
+    return uxStrings.messages_compose_progress_open_other_body ?? "Open the message to review the stored Other item."
+  }
+  return uxStrings.messages_compose_progress_open_message_default_body ?? "Open the message from Messages when you are ready."
+}
+
+function readDcxSendOutcomeLinks(
+  messageDetail: DcxAppAuthenticatedUserMessageDetail | null,
+  uxStrings: Record<string, string> = DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS,
+): DcxSendOutcomeLink[] {
+  if (!messageDetail) {
+    return []
+  }
+
+  return [
+    {
+      key: `message-${messageDetail.message_id}`,
+      label: uxStrings.messages_compose_outcome_open_message ?? "Open message",
+      path: `/me/messages/${messageDetail.message_id}`,
+      detail: `Open message #${messageDetail.message_id}`,
+    },
+    ...messageDetail.linked_trades.map((linkedTrade, tradeIndex) => ({
+      key: `trade-${linkedTrade.trade_id}`,
+      label: messageDetail.linked_trades.length === 1
+        ? (uxStrings.messages_compose_outcome_open_trade ?? "Open trade")
+        : `${uxStrings.messages_compose_outcome_open_trade ?? "Open trade"} ${tradeIndex + 1}`,
+      path: `/me/trades/${linkedTrade.trade_id}`,
+      detail: linkedTrade.trade_summary_text || `Open trade #${linkedTrade.trade_id}`,
+    })),
+    ...messageDetail.linked_market_topics.map((linkedMarketTopic, topicIndex) => ({
+      key: `topic-${linkedMarketTopic.market_topic_id}`,
+      label: messageDetail.linked_market_topics.length === 1
+        ? (uxStrings.messages_compose_outcome_open_topic ?? "Open topic")
+        : `${uxStrings.messages_compose_outcome_open_topic ?? "Open topic"} ${topicIndex + 1}`,
+      path: `/me/topics/${linkedMarketTopic.market_topic_id}`,
+      detail: linkedMarketTopic.topic_title || `Open topic #${linkedMarketTopic.market_topic_id}`,
+    })),
+  ]
+}
+
+function navigateToDcxAppPath(pathnameWithSearch: string): void {
+  if (typeof window === "undefined") {
+    return
+  }
+  window.history.pushState({}, "", pathnameWithSearch)
+  window.dispatchEvent(new PopStateEvent("popstate"))
 }
 
 function readDcxSendAttachmentStatusLabel(

@@ -19,6 +19,7 @@ import {
   ShieldUserIcon,
   MessageCircleMoreIcon,
   SendHorizontalIcon,
+  MessagesSquareIcon,
 } from "lucide-react"
 import dcxLogo from "@/assets/dcx_logo.png"
 
@@ -62,21 +63,23 @@ export function AppSidebar({
     {
       id: "trades",
       title: uxStrings.nav_trades ?? "Trades",
-      url: "#",
+      url: "/me/trades",
       icon: <LandmarkIcon />,
-      isDisabled: true,
-      items: [
-        {
-          title: uxStrings.nav_trades_market_watch ?? "Market Watch",
-          url: "#",
-          isDisabled: true,
-        },
-        {
-          title: uxStrings.nav_trades_my_trades ?? "My Trades",
-          url: "#",
-          isDisabled: true,
-        },
-      ],
+      isActive: currentPathname.startsWith("/me/trades"),
+    },
+    {
+      id: "topics",
+      title: uxStrings.nav_topics ?? "Topics",
+      url: "/me/topics",
+      icon: <MessagesSquareIcon />,
+      isActive: currentPathname.startsWith("/me/topics"),
+    },
+    {
+      id: "other",
+      title: uxStrings.nav_other ?? "Other",
+      url: "/me/other",
+      icon: <MessageCircleMoreIcon />,
+      isActive: currentPathname.startsWith("/me/other"),
     },
     {
       id: "contacts",

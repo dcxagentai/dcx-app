@@ -13,7 +13,9 @@ import { DcxAppAuthPasswordSetPage } from "./components/dcx_app_auth_password_se
 import { DcxAppWhatsappPhoneVerifyPage } from "./components/dcx_app_whatsapp_phone_verify_page"
 import { DcxAppShell } from "./components/dcx_app_shell"
 import { DcxAppMessagesPage } from "./components/dcx_app_messages_page"
+import { DcxAppMarketTopicsPage } from "./components/dcx_app_market_topics_page"
 import { DcxAppSendMessagePage } from "./components/dcx_app_send_message_page"
+import { DcxAppTradesPage } from "./components/dcx_app_trades_page"
 import { DcxAppUserActivityLogPage } from "./components/dcx_app_user_activity_log_page"
 import { DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS } from "./components/dcx_app_user_account_shared"
 import { DcxAppUserAccountSummaryPage } from "./components/dcx_app_user_account_summary_page"
@@ -359,6 +361,9 @@ function App() {
   const isAuthSurfaceRoute = authRoutePath === "/login" || isPasswordRoute || isWhatsappPhoneVerifyRoute
   const protectedAppPathname = readProtectedAppPathname(pathname)
   const protectedAppMessageFilter = readProtectedAppMessageFilter(pathname)
+  const protectedAppMessageId = readProtectedAppMessageId(pathname)
+  const protectedAppTradeId = readProtectedAppTradeId(pathname)
+  const protectedAppMarketTopicId = readProtectedAppMarketTopicId(pathname)
 
   useEffect(() => {
     if (authenticatedSessionSummary && (authRoutePath === "/login" || isPasswordRoute)) {
@@ -518,7 +523,20 @@ function App() {
         <DcxAppUserAccountSummaryPage apiBaseUrl={apiBaseUrl} />
       ) : null}
       {protectedAppPathname === "/me/messages" ? (
-        <DcxAppMessagesPage apiBaseUrl={apiBaseUrl} filter={protectedAppMessageFilter} />
+        <DcxAppMessagesPage
+          apiBaseUrl={apiBaseUrl}
+          filter={protectedAppMessageFilter}
+          routeMessageId={protectedAppMessageId}
+        />
+      ) : null}
+      {protectedAppPathname === "/me/other" ? (
+        <DcxAppMessagesPage apiBaseUrl={apiBaseUrl} filter="all" workflowKindFilter="other" />
+      ) : null}
+      {protectedAppPathname === "/me/trades" ? (
+        <DcxAppTradesPage apiBaseUrl={apiBaseUrl} routeTradeId={protectedAppTradeId} />
+      ) : null}
+      {protectedAppPathname === "/me/topics" ? (
+        <DcxAppMarketTopicsPage apiBaseUrl={apiBaseUrl} routeMarketTopicId={protectedAppMarketTopicId} />
       ) : null}
       {protectedAppPathname === "/me/send" ? (
         <DcxAppSendMessagePage apiBaseUrl={apiBaseUrl} />
@@ -531,7 +549,7 @@ export default App
 
 function readProtectedAppPathname(
   pathname: string,
-): "/me/account" | "/me/settings" | "/me/activity-log" | "/me/messages" | "/me/send" {
+): "/me/account" | "/me/settings" | "/me/activity-log" | "/me/messages" | "/me/trades" | "/me/topics" | "/me/other" | "/me/send" {
   if (pathname === "/me/settings") {
     return "/me/settings"
   }
@@ -542,12 +560,25 @@ function readProtectedAppPathname(
 
   if (
     pathname === "/me/messages" ||
+    /^\/me\/messages\/\d+$/.test(pathname) ||
     pathname === "/me/messages/text" ||
     pathname === "/me/messages/images" ||
     pathname === "/me/messages/audio" ||
     pathname === "/me/messages/documents"
   ) {
     return "/me/messages"
+  }
+
+  if (pathname === "/me/trades" || /^\/me\/trades\/\d+$/.test(pathname)) {
+    return "/me/trades"
+  }
+
+  if (pathname === "/me/topics" || /^\/me\/topics\/\d+$/.test(pathname)) {
+    return "/me/topics"
+  }
+
+  if (pathname === "/me/other") {
+    return "/me/other"
   }
 
   if (pathname === "/me/send") {
@@ -558,7 +589,7 @@ function readProtectedAppPathname(
 }
 
 function readProtectedAppPageTitle(
-  pathname: "/me/account" | "/me/settings" | "/me/activity-log" | "/me/messages" | "/me/send",
+  pathname: "/me/account" | "/me/settings" | "/me/activity-log" | "/me/messages" | "/me/trades" | "/me/topics" | "/me/other" | "/me/send",
   uxStrings: Record<string, string>,
 ): string {
   if (pathname === "/me/settings") {
@@ -571,6 +602,18 @@ function readProtectedAppPageTitle(
 
   if (pathname === "/me/messages") {
     return uxStrings.page_title_messages ?? "Messages"
+  }
+
+  if (pathname === "/me/trades") {
+    return uxStrings.page_title_trades ?? "Trades"
+  }
+
+  if (pathname === "/me/topics") {
+    return uxStrings.page_title_topics ?? "Topics"
+  }
+
+  if (pathname === "/me/other") {
+    return uxStrings.page_title_other ?? "Other"
   }
 
   if (pathname === "/me/send") {
@@ -596,5 +639,32 @@ function readProtectedAppMessageFilter(
     return "document"
   }
   return "all"
+}
+
+function readProtectedAppTradeId(pathname: string): number | null {
+  const match = pathname.match(/^\/me\/trades\/(\d+)$/)
+  if (!match) {
+    return null
+  }
+  const parsedTradeId = Number.parseInt(match[1], 10)
+  return Number.isFinite(parsedTradeId) && parsedTradeId > 0 ? parsedTradeId : null
+}
+
+function readProtectedAppMessageId(pathname: string): number | null {
+  const match = pathname.match(/^\/me\/messages\/(\d+)$/)
+  if (!match) {
+    return null
+  }
+  const parsedMessageId = Number.parseInt(match[1], 10)
+  return Number.isFinite(parsedMessageId) && parsedMessageId > 0 ? parsedMessageId : null
+}
+
+function readProtectedAppMarketTopicId(pathname: string): number | null {
+  const match = pathname.match(/^\/me\/topics\/(\d+)$/)
+  if (!match) {
+    return null
+  }
+  const parsedMarketTopicId = Number.parseInt(match[1], 10)
+  return Number.isFinite(parsedMarketTopicId) && parsedMarketTopicId > 0 ? parsedMarketTopicId : null
 }
 

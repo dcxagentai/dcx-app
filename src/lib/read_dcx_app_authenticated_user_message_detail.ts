@@ -71,10 +71,47 @@ export type DcxAppAuthenticatedUserMessageDetail = {
   analysis_model_name: string
   analysis_metadata_json: Record<string, unknown>
   analysis_completed_at_ts_ms: number | null
+  workflow_classification_status: string
+  primary_workflow_kind: string | null
+  contains_trade_items: boolean
+  contains_market_topic_items: boolean
+  contains_other_items: boolean
+  workflow_reason_summary: string
+  workflow_metadata_json: Record<string, unknown>
+  requires_user_attention: boolean
   detected_language_code: string | null
   received_at_ts_ms: number | null
   created_at_ts_ms: number
   updated_at_ts_ms: number
+  workflow_items: Array<{
+    workflow_item_id: number
+    item_index: number
+    item_kind: string
+    item_status: string
+    item_title: string
+    item_summary_text: string
+    source_excerpt_text: string
+    referenced_attachment_ids_json: number[]
+    confidence_label: string
+    workflow_item_metadata_json: Record<string, unknown>
+    requires_user_attention: boolean
+  }>
+  linked_trades: Array<{
+    trade_id: number
+    source_workflow_item_id: number
+    trade_confirmation_status: string
+    trade_status: string
+    trade_summary_text: string
+    normalized_trade_side: string
+    normalized_material_name: string
+  }>
+  linked_market_topics: Array<{
+    market_topic_id: number
+    source_workflow_item_id: number
+    topic_status: string
+    topic_title: string
+    topic_summary_text: string
+  }>
   attachments: DcxAppAuthenticatedUserMessageAttachment[]
 }
 

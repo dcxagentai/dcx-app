@@ -72,6 +72,8 @@ type DcxSelectedMessageDetail = Awaited<
 type Props = {
   apiBaseUrl: string
   filter: DcxMessageFilter
+  workflowKindFilter?: "all" | "trade" | "market_topic" | "other"
+  routeMessageId?: number | null
 }
 
 export function DcxAppMessagesPage(props: Props) {
@@ -98,11 +100,12 @@ export function DcxAppMessagesPage(props: Props) {
   })
 
   const messagesInboxQuery = useQuery({
-    queryKey: ["dcx_app_authenticated_user_messages_inbox", props.filter],
+    queryKey: ["dcx_app_authenticated_user_messages_inbox", props.filter, props.workflowKindFilter ?? "all"],
     queryFn: async () =>
       readDcxAppAuthenticatedUserMessagesInbox({
         apiBaseUrl: props.apiBaseUrl,
         messageFormatFilter: props.filter,
+        workflowKindFilter: props.workflowKindFilter ?? "all",
       }),
     refetchInterval: (query) => {
       const inboxMessages = query.state.data?.data.messages ?? []
@@ -139,6 +142,14 @@ export function DcxAppMessagesPage(props: Props) {
     [channelFilter, identityFilter, languageFilter, messageSearchQuery, messages],
   )
   const firstVisibleMessageId = filteredMessages[0]?.message_id ?? null
+
+  useEffect(() => {
+    if (!props.routeMessageId) {
+      return
+    }
+    setSelectedMessageId(props.routeMessageId)
+  }, [props.routeMessageId])
+
   const selectedMessageIsVisible =
     selectedMessageId !== null && filteredMessages.some((message) => message.message_id === selectedMessageId)
   const effectiveSelectedMessageId = selectedMessageIsVisible ? selectedMessageId : firstVisibleMessageId
@@ -173,12 +184,20 @@ export function DcxAppMessagesPage(props: Props) {
         ["dcx_app_authenticated_user_message_detail", messageId],
         payload,
       )
-      await queryClient.invalidateQueries({
-        queryKey: ["dcx_app_authenticated_user_messages_inbox"],
-      })
-      await queryClient.invalidateQueries({
-        queryKey: ["dcx_app_authenticated_user_message_detail", messageId],
-      })
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["dcx_app_authenticated_user_messages_inbox"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["dcx_app_authenticated_user_message_detail", messageId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["dcx_app_authenticated_user_trades_catalog"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["dcx_app_authenticated_user_market_topics_catalog"],
+        }),
+      ])
     },
   })
 
@@ -231,17 +250,14 @@ export function DcxAppMessagesPage(props: Props) {
       {
         id: "status",
         accessorFn: (message) =>
-          readDcxMessageOverallStatusSortValue(
-            message.processing_status,
-            message.analysis_status,
-            message.analysis_metadata_json,
-          ),
+          readDcxMessageRowStatusSortValue(message),
         header: ({ column }) => <DcxMessageSortableHeader column={column} title={ux.messages_table_column_status} />,
         cell: ({ row }) => (
           <DcxMessageOverallStatusBadge
             processingStatus={row.original.processing_status}
             analysisStatus={row.original.analysis_status}
             analysisMetadataJson={row.original.analysis_metadata_json}
+            requiresAttention={readDcxMessageRowNeedsAttention(row.original)}
             uxStrings={ux}
           />
         ),
@@ -397,6 +413,7 @@ export function DcxAppMessagesPage(props: Props) {
             pageSize={25}
             onRowClick={(message) => {
               setSelectedMessageId(message.message_id)
+              navigateToDcxAppPath(`/me/messages/${message.message_id}`, { replace: true })
               if (isDetailSheetMode) {
                 setIsMobileDetailOpen(true)
               }
@@ -668,6 +685,11 @@ function DcxMessageDetailInspector(props: {
         props.selectedMessage.analysis_status,
       ),
   )
+  const hasIncompleteWorkflowProjection = Boolean(
+    props.selectedMessage &&
+      !hasProhibitedContent &&
+      props.selectedMessage.workflow_classification_status !== "completed",
+  )
 
   const detailStatusBadge = props.selectedMessage
     ? readDcxMessageOverallStatusVisual(
@@ -800,6 +822,50 @@ function DcxMessageDetailInspector(props: {
               </div>
             ) : null}
 
+            {hasIncompleteWorkflowProjection && !hasFailedAnalysis ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50/70 px-4 py-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-amber-950">
+                      Workflow review needed.
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-amber-900">
+                      This message is stored, but it still needs to be reviewed through the new trade/topic workflow pass.
+                    </p>
+                    {props.retryAnalysisErrorText ? (
+                      <p className="mt-2 text-sm text-red-700">
+                        {props.retryAnalysisErrorText}
+                      </p>
+                    ) : null}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="border-amber-300 bg-white text-amber-950 hover:bg-amber-100"
+                    disabled={props.isRetryAnalysisPending}
+                    onClick={() => props.onRetryAnalysis(props.selectedMessage!.message_id)}
+                  >
+                    {props.isRetryAnalysisPending ? (
+                      <LoaderCircleIcon className="size-4 animate-spin" />
+                    ) : null}
+                    {props.isRetryAnalysisPending
+                      ? (props.ux.messages_detail_retry_analysis_pending ?? "Retrying...")
+                      : (props.ux.messages_workflow_retry_button ?? "Retry workflow processing")}
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+
+            {props.selectedMessage.workflow_items.length > 0 ? (
+              <DcxMessageWorkflowItemsPanel
+                workflowItems={props.selectedMessage.workflow_items}
+                linkedTrades={props.selectedMessage.linked_trades}
+                linkedMarketTopics={props.selectedMessage.linked_market_topics}
+                ux={props.ux}
+              />
+            ) : null}
+
             {shouldShowMessageSummary ? (
               <DcxMessageDetailBlock
                 label={props.ux.messages_detail_summary}
@@ -912,6 +978,7 @@ function DcxMessageOverallStatusBadge(props: {
   processingStatus: string
   analysisStatus: string
   analysisMetadataJson: Record<string, unknown>
+  requiresAttention?: boolean
   uxStrings: Record<string, string>
 }) {
   const visual = readDcxMessageOverallStatusVisual(
@@ -921,28 +988,50 @@ function DcxMessageOverallStatusBadge(props: {
     props.uxStrings,
   )
 
+  if (visual.kind === "success" && props.requiresAttention) {
+    return (
+      <span
+        title="Action needed"
+        aria-label="Action needed"
+        className="inline-flex h-[1.125rem] w-[1.125rem] items-center justify-center rounded-full border border-amber-400 bg-white text-[11px] font-semibold text-amber-500"
+      >
+        !
+      </span>
+    )
+  }
+
   if (visual.kind === "success") {
     return (
       <span
         title={visual.title}
         aria-label={visual.title}
-        className="inline-flex h-[1.125rem] w-[1.125rem] items-center justify-center rounded-full bg-emerald-600 text-[11px] font-semibold text-white"
+        className="inline-flex h-[1.125rem] w-[1.125rem] items-center justify-center rounded-full border border-emerald-500 bg-emerald-500 text-[11px] font-semibold text-white"
       >
         ✓
       </span>
     )
   }
 
+  if (visual.kind === "processing") {
+    return (
+      <span
+        title={visual.title}
+        aria-label={visual.title}
+        className="inline-flex h-[1.125rem] w-[1.125rem] items-center justify-center rounded-full border border-amber-400 bg-white text-amber-500"
+      >
+        <LoaderCircleIcon className="size-3 animate-spin" />
+      </span>
+    )
+  }
+
   return (
-    <DcxInlinePill
-      label={visual.label}
-      tone={visual.tone}
-      icon={
-        visual.kind === "processing"
-          ? <LoaderCircleIcon className="size-3.5 animate-spin" />
-          : undefined
-      }
-    />
+    <span
+      title={visual.title}
+      aria-label={visual.title}
+      className="inline-flex h-[1.125rem] w-[1.125rem] items-center justify-center rounded-full border border-red-400 bg-white text-[11px] font-semibold text-red-500"
+    >
+      ×
+    </span>
   )
 }
 
@@ -1014,6 +1103,81 @@ function DcxMessageDetailValue(props: {
     <p className="mt-2 w-full whitespace-pre-wrap break-words text-sm leading-6 text-slate-900">
       {props.value}
     </p>
+  )
+}
+
+function DcxMessageWorkflowItemsPanel(props: {
+  workflowItems: DcxSelectedMessageDetail["workflow_items"]
+  linkedTrades: DcxSelectedMessageDetail["linked_trades"]
+  linkedMarketTopics: DcxSelectedMessageDetail["linked_market_topics"]
+  ux: Record<string, string>
+}) {
+  return (
+    <section className="w-full max-w-full min-w-0 border-t border-black/6 pt-4">
+      <h4 className="text-xs font-semibold uppercase text-slate-500">
+        {props.ux.messages_workflow_items_label ?? "Workflow items"}
+      </h4>
+      <div className="mt-3 space-y-3">
+        {props.workflowItems.map((workflowItem) => {
+          const linkedTrade = props.linkedTrades.find(
+            (trade) => trade.source_workflow_item_id === workflowItem.workflow_item_id,
+          )
+          const linkedMarketTopic = props.linkedMarketTopics.find(
+            (marketTopic) => marketTopic.source_workflow_item_id === workflowItem.workflow_item_id,
+          )
+
+          return (
+            <div key={workflowItem.workflow_item_id} className="rounded-lg border border-slate-200 bg-slate-50/70 px-4 py-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-slate-950">
+                    {workflowItem.item_title || (props.ux.messages_workflow_item_fallback ?? "Workflow item")}
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">
+                    {workflowItem.item_summary_text || workflowItem.source_excerpt_text || "—"}
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <DcxInlinePill
+                      label={workflowItem.item_kind.replaceAll("_", " ")}
+                      tone={workflowItem.requires_user_attention ? "warning" : "neutral"}
+                    />
+                    <DcxInlinePill
+                      label={workflowItem.item_status.replaceAll("_", " ")}
+                      tone={workflowItem.item_status === "failed" ? "danger" : "neutral"}
+                    />
+                    {workflowItem.requires_user_attention ? (
+                      <DcxInlinePill label={props.ux.messages_workflow_action_needed_label ?? "Action needed"} tone="warning" />
+                    ) : null}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {linkedTrade ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigateToDcxAppPath(`/me/trades/${linkedTrade.trade_id}`)}
+                    >
+                      {props.ux.messages_workflow_open_trade ?? "Open trade"}
+                    </Button>
+                  ) : null}
+                  {linkedMarketTopic ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigateToDcxAppPath(`/me/topics/${linkedMarketTopic.market_topic_id}`)}
+                    >
+                      {props.ux.messages_workflow_open_topic ?? "Open topic"}
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </section>
   )
 }
 
@@ -1322,6 +1486,18 @@ function DcxLanguageFlagBadge(props: { languageCode: string; showLabel?: boolean
   )
 }
 
+function navigateToDcxAppPath(pathnameWithSearch: string, options?: { replace?: boolean }): void {
+  if (typeof window === "undefined") {
+    return
+  }
+  if (options?.replace) {
+    window.history.replaceState({}, "", pathnameWithSearch)
+  } else {
+    window.history.pushState({}, "", pathnameWithSearch)
+  }
+  window.dispatchEvent(new PopStateEvent("popstate"))
+}
+
 function readDcxMessageShouldPoll(processingStatus: string, analysisStatus: string): boolean {
   const normalizedProcessingStatus = processingStatus.trim().toLowerCase()
   const normalizedAnalysisStatus = analysisStatus.trim().toLowerCase()
@@ -1413,6 +1589,25 @@ function readDcxMessageOverallStatusSortValue(
     return "processing"
   }
   return "ready"
+}
+
+function readDcxMessageRowStatusSortValue(message: DcxAppAuthenticatedUserMessage): string {
+  const baseStatus = readDcxMessageOverallStatusSortValue(
+    message.processing_status,
+    message.analysis_status,
+    message.analysis_metadata_json,
+  )
+  if (baseStatus !== "ready") {
+    return baseStatus
+  }
+  return readDcxMessageRowNeedsAttention(message) ? "attention" : "ready"
+}
+
+function readDcxMessageRowNeedsAttention(message: DcxAppAuthenticatedUserMessage): boolean {
+  if (message.requires_user_attention) {
+    return true
+  }
+  return ["partial", "failed", "not_started"].includes(message.workflow_classification_status)
 }
 
 function readDcxMessageOverallStatusVisual(

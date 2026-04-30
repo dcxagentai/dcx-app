@@ -45,6 +45,18 @@ export type DcxAppAuthenticatedUserMessage = {
   derivation_status: string
   analysis_status: string
   analysis_metadata_json: Record<string, unknown>
+  workflow_classification_status: string
+  primary_workflow_kind: string | null
+  contains_trade_items: boolean
+  contains_market_topic_items: boolean
+  contains_other_items: boolean
+  workflow_reason_summary: string
+  workflow_metadata_json: Record<string, unknown>
+  workflow_item_count: number
+  trade_item_count: number
+  market_topic_item_count: number
+  other_item_count: number
+  requires_user_attention: boolean
   detected_language_code: string | null
   received_at_ts_ms: number | null
   created_at_ts_ms: number
@@ -70,6 +82,7 @@ type DcxAppMessagesInboxSuccessResponse = {
   data: {
     messages: DcxAppAuthenticatedUserMessage[]
     selected_filter: string
+    selected_workflow_kind_filter: string
     total_message_count: number
   }
   context?: {
@@ -91,10 +104,14 @@ type DcxAppMessagesInboxErrorResponse = {
 export async function readDcxAppAuthenticatedUserMessagesInbox(params: {
   apiBaseUrl: string
   messageFormatFilter?: "all" | "text" | "image" | "audio" | "document"
+  workflowKindFilter?: "all" | "trade" | "market_topic" | "other"
 }): Promise<DcxAppMessagesInboxSuccessResponse> {
   const inboxUrl = new URL("/users/me/messages", params.apiBaseUrl)
   if (params.messageFormatFilter && params.messageFormatFilter !== "all") {
     inboxUrl.searchParams.set("message_format_filter", params.messageFormatFilter)
+  }
+  if (params.workflowKindFilter && params.workflowKindFilter !== "all") {
+    inboxUrl.searchParams.set("workflow_kind_filter", params.workflowKindFilter)
   }
 
   const response = await fetch(inboxUrl.toString(), {
