@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { Column, ColumnDef, SortingState } from "@tanstack/react-table"
 import {
   RefreshCwIcon,
   SearchIcon,
+  SendIcon,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -17,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 
 import {
@@ -34,6 +36,7 @@ import {
   readDcxAppAuthenticatedUserMarketTopicDetail,
 } from "../lib/read_dcx_app_authenticated_user_market_topic_detail"
 import { setDcxAppAuthenticatedUserMarketTopicVisibility } from "../lib/set_dcx_app_authenticated_user_market_topic_visibility"
+import { appendDcxAppAuthenticatedUserMarketTopicAiTurn } from "../lib/append_dcx_app_authenticated_user_market_topic_ai_turn"
 
 type Props = {
   apiBaseUrl: string
@@ -43,6 +46,12 @@ type Props = {
 type DcxTopicStatusFilter = "all" | "open" | "closed" | "archived"
 type DcxTopicVisibilityStatus = "private" | "shareable" | "public"
 
+type DcxPendingMarketTopicAiChatUserTurn = {
+  marketTopicId: number
+  turnText: string
+  createdAtTsMs: number
+}
+
 const DCX_TOPIC_VISIBILITY_OPTIONS: Array<{ value: DcxTopicVisibilityStatus; label: string }> = [
   { value: "private", label: "Private" },
   { value: "shareable", label: "Shareable" },
@@ -51,10 +60,14 @@ const DCX_TOPIC_VISIBILITY_OPTIONS: Array<{ value: DcxTopicVisibilityStatus; lab
 
 export function DcxAppMarketTopicsPage(props: Props) {
   const queryClient = useQueryClient()
+  const lastAppliedRouteMarketTopicIdRef = useRef<number | null>(null)
   const [selectedMarketTopicId, setSelectedMarketTopicId] = useState<number | null>(null)
   const [topicSearchQuery, setTopicSearchQuery] = useState("")
   const [topicStatusFilter, setTopicStatusFilter] = useState<DcxTopicStatusFilter>("all")
   const [topicSourceFilter, setTopicSourceFilter] = useState("all")
+  const [aiChatDraftText, setAiChatDraftText] = useState("")
+  const [pendingAiChatUserTurn, setPendingAiChatUserTurn] = useState<DcxPendingMarketTopicAiChatUserTurn | null>(null)
+  const [hasTopicChatReachedContextLimit, setHasTopicChatReachedContextLimit] = useState(false)
   const [topicSorting, setTopicSorting] = useState<SortingState>([
     { id: "updated", desc: true },
   ])
@@ -89,11 +102,22 @@ export function DcxAppMarketTopicsPage(props: Props) {
   )
 
   useEffect(() => {
-    if (props.routeMarketTopicId) {
+    if (
+      props.routeMarketTopicId &&
+      props.routeMarketTopicId !== lastAppliedRouteMarketTopicIdRef.current
+    ) {
+      lastAppliedRouteMarketTopicIdRef.current = props.routeMarketTopicId
       setSelectedMarketTopicId(props.routeMarketTopicId)
+      setAiChatDraftText("")
+      setPendingAiChatUserTurn(null)
+      setHasTopicChatReachedContextLimit(false)
+    }
+  }, [props.routeMarketTopicId])
+
+  useEffect(() => {
+    if (props.routeMarketTopicId) {
       return
     }
-
     if (selectedMarketTopicId !== null) {
       return
     }
@@ -138,6 +162,40 @@ export function DcxAppMarketTopicsPage(props: Props) {
         queryClient.invalidateQueries({ queryKey: ["dcx_app_authenticated_user_market_topics_catalog"] }),
         queryClient.invalidateQueries({ queryKey: ["dcx_app_market_forum_catalog"] }),
       ])
+    },
+  })
+  const appendMarketTopicAiTurnMutation = useMutation({
+    mutationFn: async (params: { marketTopicId: number; turnText: string }) =>
+      appendDcxAppAuthenticatedUserMarketTopicAiTurn({
+        apiBaseUrl: props.apiBaseUrl,
+        marketTopicId: params.marketTopicId,
+        turnText: params.turnText,
+        languageCode: selectedLanguageCode,
+      }),
+    onMutate: (variables) => {
+      setPendingAiChatUserTurn({
+        marketTopicId: variables.marketTopicId,
+        turnText: variables.turnText,
+        createdAtTsMs: Date.now(),
+      })
+      setAiChatDraftText("")
+    },
+    onSuccess: async (payload, variables) => {
+      queryClient.setQueryData(
+        ["dcx_app_authenticated_user_market_topic_detail", variables.marketTopicId],
+        payload,
+      )
+      setPendingAiChatUserTurn(null)
+      setHasTopicChatReachedContextLimit(false)
+      await queryClient.invalidateQueries({ queryKey: ["dcx_app_authenticated_user_market_topics_catalog"] })
+    },
+    onError: (error, variables) => {
+      setPendingAiChatUserTurn(null)
+      setAiChatDraftText((currentDraftText) => currentDraftText || variables.turnText)
+      const errorCode = (error as Error & { code?: string }).code
+      if (errorCode === "API_USERS_ME_MARKET_TOPIC_CHAT_CONTEXT_LIMIT_REACHED") {
+        setHasTopicChatReachedContextLimit(true)
+      }
     },
   })
 
@@ -293,6 +351,9 @@ export function DcxAppMarketTopicsPage(props: Props) {
                   pageSize={25}
                   onRowClick={(row) => {
                     setSelectedMarketTopicId(row.market_topic_id)
+                    setAiChatDraftText("")
+                    setPendingAiChatUserTurn(null)
+                    setHasTopicChatReachedContextLimit(false)
                     if (typeof window !== "undefined") {
                       window.history.replaceState({}, "", `/me/topics/${row.market_topic_id}`)
                     }
@@ -373,10 +434,87 @@ export function DcxAppMarketTopicsPage(props: Props) {
                   <p className="mt-1 text-sm text-slate-900">{selectedTopic.topic_tags_json.join(", ") || "—"}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{ux.topics_detail_opening_ai_response_label ?? "Opening AI response"}</p>
-                  <p className="mt-1 whitespace-pre-wrap text-sm text-slate-900">
-                    {selectedTopic.turns.find((turn) => turn.turn_role === "assistant")?.turn_text || "—"}
-                  </p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{ux.topics_detail_opening_ai_response_label ?? "AI chat"}</p>
+                  <div className="mt-3 space-y-3 rounded-lg border border-slate-200 bg-white p-4">
+                    {selectedTopic.turns.length === 0 ? (
+                      <p className="text-sm text-slate-500">No AI chat turns yet.</p>
+                    ) : (
+                      selectedTopic.turns.map((turn) => (
+                        <DcxMarketTopicAiChatTurn
+                          key={turn.market_topic_turn_id}
+                          role={turn.turn_role}
+                          text={turn.turn_text}
+                          createdAtTsMs={turn.created_at_ts_ms}
+                          languageCode={selectedLanguageCode}
+                          timezoneIanaName={selectedTimezoneIanaName}
+                        />
+                      ))
+                    )}
+                    {pendingAiChatUserTurn?.marketTopicId === selectedTopic.market_topic_id ? (
+                      <>
+                        <DcxMarketTopicAiChatTurn
+                          role="user"
+                          text={pendingAiChatUserTurn.turnText}
+                          createdAtTsMs={pendingAiChatUserTurn.createdAtTsMs}
+                          languageCode={selectedLanguageCode}
+                          timezoneIanaName={selectedTimezoneIanaName}
+                        />
+                        <DcxMarketTopicAiChatTurn
+                          role="assistant"
+                          text="DCX AI is thinking..."
+                          createdAtTsMs={pendingAiChatUserTurn.createdAtTsMs}
+                          languageCode={selectedLanguageCode}
+                          timezoneIanaName={selectedTimezoneIanaName}
+                          isPending
+                        />
+                      </>
+                    ) : null}
+                  </div>
+                  <form
+                    className="mt-4 rounded-lg border border-sky-200 bg-white p-4"
+                    onSubmit={(event) => {
+                      event.preventDefault()
+                      const trimmedDraftText = aiChatDraftText.trim()
+                      if (trimmedDraftText === "" || appendMarketTopicAiTurnMutation.isPending || hasTopicChatReachedContextLimit) {
+                        return
+                      }
+                      appendMarketTopicAiTurnMutation.mutate({
+                        marketTopicId: selectedTopic.market_topic_id,
+                        turnText: trimmedDraftText,
+                      })
+                    }}
+                  >
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Ask DCX AI</p>
+                    <Textarea
+                      value={aiChatDraftText}
+                      onChange={(event) => setAiChatDraftText(event.target.value)}
+                      rows={4}
+                      disabled={appendMarketTopicAiTurnMutation.isPending || hasTopicChatReachedContextLimit}
+                      placeholder="Ask a follow-up about this market topic..."
+                      className="mt-3"
+                    />
+                    {appendMarketTopicAiTurnMutation.isError ? (
+                      <p className="mt-3 text-sm text-red-600">
+                        {(
+                          appendMarketTopicAiTurnMutation.error as Error & { suggested_action?: string }
+                        )?.suggested_action ?? (appendMarketTopicAiTurnMutation.error as Error).message}
+                      </p>
+                    ) : null}
+                    {hasTopicChatReachedContextLimit ? (
+                      <p className="mt-3 text-sm text-amber-700">
+                        This MVP chat has reached its context limit. Start a new topic with the latest question.
+                      </p>
+                    ) : null}
+                    <div className="mt-3 flex justify-end">
+                      <Button
+                        type="submit"
+                        disabled={aiChatDraftText.trim() === "" || appendMarketTopicAiTurnMutation.isPending || hasTopicChatReachedContextLimit}
+                      >
+                        <SendIcon />
+                        {appendMarketTopicAiTurnMutation.isPending ? "Thinking..." : "Send"}
+                      </Button>
+                    </div>
+                  </form>
                 </div>
               </div>
             )}
@@ -385,6 +523,170 @@ export function DcxAppMarketTopicsPage(props: Props) {
       </ResizablePanelGroup>
     </div>
   )
+}
+
+function DcxMarketTopicAiChatTurn(props: {
+  role: string
+  text: string
+  createdAtTsMs: number
+  languageCode: string
+  timezoneIanaName: string | null
+  isPending?: boolean
+}) {
+  const normalizedRole = props.role.trim().toLowerCase()
+  const isAssistant = normalizedRole === "assistant"
+  const roleLabel = isAssistant ? "DCX AI" : normalizedRole === "system" ? "System" : "You"
+
+  return (
+    <article
+      className={cn(
+        "rounded-lg border px-4 py-3",
+        isAssistant ? "border-sky-100 bg-sky-50/60" : "border-slate-200 bg-white",
+        props.isPending ? "border-dashed text-slate-500" : "",
+      )}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{roleLabel}</p>
+        <p className="text-xs text-slate-400">
+          {formatDcxAppAccountTimestampLabel(
+            props.createdAtTsMs,
+            props.languageCode,
+            props.timezoneIanaName,
+            "—",
+          )}
+        </p>
+      </div>
+      <DcxSimpleMarkdownText
+        value={props.text}
+        className={props.isPending ? "text-slate-500" : "text-slate-900"}
+      />
+    </article>
+  )
+}
+
+type DcxSimpleMarkdownBlock =
+  | { kind: "paragraph"; lines: string[] }
+  | { kind: "ordered_list"; items: string[] }
+  | { kind: "unordered_list"; items: string[] }
+
+function DcxSimpleMarkdownText(props: { value: string; className?: string }) {
+  const markdownBlocks = readDcxSimpleMarkdownBlocks(props.value)
+
+  return (
+    <div className={cn("mt-2 space-y-3 text-sm leading-6", props.className)}>
+      {markdownBlocks.map((block, blockIndex) => {
+        if (block.kind === "ordered_list") {
+          return (
+            <ol key={`ordered-${blockIndex}`} className="list-decimal space-y-2 pl-5 marker:text-slate-500">
+              {block.items.map((item, itemIndex) => (
+                <li key={`${itemIndex}-${item}`}>
+                  <DcxSimpleMarkdownInlineText value={item} />
+                </li>
+              ))}
+            </ol>
+          )
+        }
+
+        if (block.kind === "unordered_list") {
+          return (
+            <ul key={`unordered-${blockIndex}`} className="list-disc space-y-2 pl-5 marker:text-slate-500">
+              {block.items.map((item, itemIndex) => (
+                <li key={`${itemIndex}-${item}`}>
+                  <DcxSimpleMarkdownInlineText value={item} />
+                </li>
+              ))}
+            </ul>
+          )
+        }
+
+        return (
+          <p key={`paragraph-${blockIndex}`} className="whitespace-pre-wrap">
+            <DcxSimpleMarkdownInlineText value={block.lines.join(" ")} />
+          </p>
+        )
+      })}
+    </div>
+  )
+}
+
+function DcxSimpleMarkdownInlineText(props: { value: string }) {
+  const inlineParts = props.value.split(/(\*\*[^*]+\*\*)/g)
+
+  return (
+    <>
+      {inlineParts.map((part, partIndex) => {
+        if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+          return (
+            <strong key={`${partIndex}-${part}`} className="font-semibold text-inherit">
+              {part.slice(2, -2)}
+            </strong>
+          )
+        }
+        return <span key={`${partIndex}-${part}`}>{part}</span>
+      })}
+    </>
+  )
+}
+
+function readDcxSimpleMarkdownBlocks(value: string): DcxSimpleMarkdownBlock[] {
+  const normalizedLines = value
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .split(/\r?\n/)
+
+  const blocks: DcxSimpleMarkdownBlock[] = []
+  let pendingParagraphLines: string[] = []
+  let pendingOrderedListItems: string[] = []
+  let pendingUnorderedListItems: string[] = []
+
+  function flushPendingBlocks(): void {
+    if (pendingParagraphLines.length > 0) {
+      blocks.push({ kind: "paragraph", lines: pendingParagraphLines })
+      pendingParagraphLines = []
+    }
+    if (pendingOrderedListItems.length > 0) {
+      blocks.push({ kind: "ordered_list", items: pendingOrderedListItems })
+      pendingOrderedListItems = []
+    }
+    if (pendingUnorderedListItems.length > 0) {
+      blocks.push({ kind: "unordered_list", items: pendingUnorderedListItems })
+      pendingUnorderedListItems = []
+    }
+  }
+
+  for (const rawLine of normalizedLines) {
+    const line = rawLine.trim()
+    if (line === "") {
+      flushPendingBlocks()
+      continue
+    }
+
+    const orderedListMatch = line.match(/^\d+[.)]\s+(.+)$/)
+    if (orderedListMatch) {
+      if (pendingParagraphLines.length > 0 || pendingUnorderedListItems.length > 0) {
+        flushPendingBlocks()
+      }
+      pendingOrderedListItems.push(orderedListMatch[1].trim())
+      continue
+    }
+
+    const unorderedListMatch = line.match(/^[-*]\s+(.+)$/)
+    if (unorderedListMatch) {
+      if (pendingParagraphLines.length > 0 || pendingOrderedListItems.length > 0) {
+        flushPendingBlocks()
+      }
+      pendingUnorderedListItems.push(unorderedListMatch[1].trim())
+      continue
+    }
+
+    if (pendingOrderedListItems.length > 0 || pendingUnorderedListItems.length > 0) {
+      flushPendingBlocks()
+    }
+    pendingParagraphLines.push(line)
+  }
+
+  flushPendingBlocks()
+  return blocks.length > 0 ? blocks : [{ kind: "paragraph", lines: [value] }]
 }
 
 function DcxTopicSortableHeader<TData>(props: {
