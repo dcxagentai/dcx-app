@@ -84,6 +84,8 @@ export function DcxAppMarketDealsPage(props: Props) {
           threadReferenceCode: payload.data.thread_reference_code,
         },
       }))
+      window.history.pushState({}, "", `/me/trade-threads/${payload.data.trade_thread_id}`)
+      window.dispatchEvent(new PopStateEvent("popstate"))
     },
   })
 
@@ -267,9 +269,7 @@ function DcxMarketTradeDetailPanel(props: {
             <CheckCircle2Icon className="mt-0.5 size-4 shrink-0 text-emerald-600" />
             <div>
               <p className="font-medium">Discussion started.</p>
-              <p className="mt-1 text-emerald-800">
-                Private trade thread {props.startedThread.threadReferenceCode} is ready. The full chat screen is coming next.
-              </p>
+              <p className="mt-1 text-emerald-800">Private trade thread {props.startedThread.threadReferenceCode} is ready.</p>
             </div>
           </div>
         </div>
@@ -281,7 +281,7 @@ function DcxMarketTradeDetailPanel(props: {
         </Button>
       ) : (
         <Button type="button" onClick={props.onStartThread} disabled={props.isStartingThread || Boolean(props.startedThread)}>
-          {props.isStartingThread ? "Starting..." : props.startedThread ? "Open discussion soon" : "Discuss this deal"}
+          {props.isStartingThread ? "Starting..." : props.startedThread ? "Discussion started" : "Discuss this deal"}
         </Button>
       )}
     </div>

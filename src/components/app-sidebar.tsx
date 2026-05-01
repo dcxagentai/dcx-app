@@ -77,6 +77,7 @@ export function AppSidebar({
       icon: <MessageCircleMoreIcon />,
       isActive:
         currentPathname.startsWith("/me/trades") ||
+        currentPathname.startsWith("/me/trade-threads") ||
         currentPathname.startsWith("/me/topics") ||
         currentPathname.startsWith("/me/other") ||
         currentPathname.startsWith("/me/messages"),
@@ -85,6 +86,11 @@ export function AppSidebar({
           title: uxStrings.nav_trades ?? "Trades",
           url: "/me/trades",
           isActive: currentPathname.startsWith("/me/trades"),
+        },
+        {
+          title: uxStrings.nav_trade_threads ?? "Chats",
+          url: "/me/trade-threads",
+          isActive: currentPathname.startsWith("/me/trade-threads"),
         },
         {
           title: uxStrings.nav_topics ?? "Topics",

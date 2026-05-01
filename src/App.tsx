@@ -17,6 +17,7 @@ import { DcxAppMarketDealsPage } from "./components/dcx_app_market_deals_page"
 import { DcxAppMarketForumPage } from "./components/dcx_app_market_forum_page"
 import { DcxAppMarketTopicsPage } from "./components/dcx_app_market_topics_page"
 import { DcxAppSendMessagePage } from "./components/dcx_app_send_message_page"
+import { DcxAppTradeThreadsPage } from "./components/dcx_app_trade_threads_page"
 import { DcxAppTradesPage } from "./components/dcx_app_trades_page"
 import { DcxAppUserActivityLogPage } from "./components/dcx_app_user_activity_log_page"
 import { DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS } from "./components/dcx_app_user_account_shared"
@@ -365,6 +366,7 @@ function App() {
   const protectedAppMessageFilter = readProtectedAppMessageFilter(pathname)
   const protectedAppMessageId = readProtectedAppMessageId(pathname)
   const protectedAppTradeId = readProtectedAppTradeId(pathname)
+  const protectedAppTradeThreadId = readProtectedAppTradeThreadId(pathname)
   const protectedAppMarketTopicId = readProtectedAppMarketTopicId(pathname)
   const protectedAppMarketTradePublicationId = readProtectedAppMarketTradePublicationId(pathname)
   const protectedAppForumPostId = readProtectedAppForumPostId(pathname)
@@ -539,6 +541,9 @@ function App() {
       {protectedAppPathname === "/me/trades" ? (
         <DcxAppTradesPage apiBaseUrl={apiBaseUrl} routeTradeId={protectedAppTradeId} />
       ) : null}
+      {protectedAppPathname === "/me/trade-threads" ? (
+        <DcxAppTradeThreadsPage apiBaseUrl={apiBaseUrl} routeTradeThreadId={protectedAppTradeThreadId} />
+      ) : null}
       {protectedAppPathname === "/me/topics" ? (
         <DcxAppMarketTopicsPage apiBaseUrl={apiBaseUrl} routeMarketTopicId={protectedAppMarketTopicId} />
       ) : null}
@@ -562,7 +567,7 @@ export default App
 
 function readProtectedAppPathname(
   pathname: string,
-): "/me/account" | "/me/settings" | "/me/activity-log" | "/me/messages" | "/me/trades" | "/me/topics" | "/me/market/deals" | "/me/market/forum" | "/me/other" | "/me/send" {
+): "/me/account" | "/me/settings" | "/me/activity-log" | "/me/messages" | "/me/trades" | "/me/trade-threads" | "/me/topics" | "/me/market/deals" | "/me/market/forum" | "/me/other" | "/me/send" {
   if (pathname === "/me/settings") {
     return "/me/settings"
   }
@@ -584,6 +589,10 @@ function readProtectedAppPathname(
 
   if (pathname === "/me/trades" || /^\/me\/trades\/\d+$/.test(pathname)) {
     return "/me/trades"
+  }
+
+  if (pathname === "/me/trade-threads" || /^\/me\/trade-threads\/\d+$/.test(pathname)) {
+    return "/me/trade-threads"
   }
 
   if (pathname === "/me/topics" || /^\/me\/topics\/\d+$/.test(pathname)) {
@@ -610,7 +619,7 @@ function readProtectedAppPathname(
 }
 
 function readProtectedAppPageTitle(
-  pathname: "/me/account" | "/me/settings" | "/me/activity-log" | "/me/messages" | "/me/trades" | "/me/topics" | "/me/market/deals" | "/me/market/forum" | "/me/other" | "/me/send",
+  pathname: "/me/account" | "/me/settings" | "/me/activity-log" | "/me/messages" | "/me/trades" | "/me/trade-threads" | "/me/topics" | "/me/market/deals" | "/me/market/forum" | "/me/other" | "/me/send",
   uxStrings: Record<string, string>,
 ): string {
   if (pathname === "/me/settings") {
@@ -627,6 +636,10 @@ function readProtectedAppPageTitle(
 
   if (pathname === "/me/trades") {
     return uxStrings.page_title_trades ?? "Trades"
+  }
+
+  if (pathname === "/me/trade-threads") {
+    return uxStrings.page_title_trade_threads ?? "Trade Chats"
   }
 
   if (pathname === "/me/topics") {
@@ -677,6 +690,15 @@ function readProtectedAppTradeId(pathname: string): number | null {
   }
   const parsedTradeId = Number.parseInt(match[1], 10)
   return Number.isFinite(parsedTradeId) && parsedTradeId > 0 ? parsedTradeId : null
+}
+
+function readProtectedAppTradeThreadId(pathname: string): number | null {
+  const match = pathname.match(/^\/me\/trade-threads\/(\d+)$/)
+  if (!match) {
+    return null
+  }
+  const parsedTradeThreadId = Number.parseInt(match[1], 10)
+  return Number.isFinite(parsedTradeThreadId) && parsedTradeThreadId > 0 ? parsedTradeThreadId : null
 }
 
 function readProtectedAppMessageId(pathname: string): number | null {
