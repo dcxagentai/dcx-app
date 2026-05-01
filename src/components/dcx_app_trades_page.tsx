@@ -47,6 +47,7 @@ import {
   updateDcxAppAuthenticatedUserTradeCandidate,
   type DcxAppTradeCandidatePatchPayload,
 } from "../lib/update_dcx_app_authenticated_user_trade_candidate"
+import { setDcxAppAuthenticatedUserTradeVisibility } from "../lib/set_dcx_app_authenticated_user_trade_visibility"
 
 type Props = {
   apiBaseUrl: string
@@ -78,6 +79,7 @@ type DcxTradeEditFormState = {
 type DcxTradeFormVisualState = "idle" | "editing" | "saving" | "saved" | "error"
 type DcxTradeSideFilter = "all" | "buy" | "sell"
 type DcxTradeStateFilter = "all" | "draft" | "needs_more_detail" | "pending_confirmation" | "confirmed" | "under_revision" | "rejected"
+type DcxTradeVisibilityStatus = "private" | "shareable" | "public"
 
 const DCX_TRADE_FORM_AUTOSAVE_DELAY_MS = 30000
 const DCX_TRADE_FORM_SAVED_VISIBLE_MS = 10000
@@ -89,6 +91,11 @@ const DCX_TRADE_STATE_OPTIONS = [
   { value: "confirmed", label: "Confirmed" },
   { value: "under_revision", label: "Under revision" },
   { value: "rejected", label: "Rejected" },
+]
+const DCX_TRADE_VISIBILITY_OPTIONS: Array<{ value: DcxTradeVisibilityStatus; label: string }> = [
+  { value: "private", label: "Private" },
+  { value: "shareable", label: "Shareable" },
+  { value: "public", label: "Public" },
 ]
 const DCX_TRADE_SIDE_OPTIONS = [
   { value: "sell", label: "Sell" },
@@ -297,14 +304,32 @@ export function DcxAppTradesPage(props: Props) {
       await refreshTradeRelatedQueries(variables.tradeId, variables.sourceMessageId)
     },
   })
+  const updateTradeVisibilityMutation = useMutation({
+    mutationFn: async (params: { tradeId: number; visibilityStatus: DcxTradeVisibilityStatus; sourceMessageId: number | null }) =>
+      setDcxAppAuthenticatedUserTradeVisibility({
+        apiBaseUrl: props.apiBaseUrl,
+        tradeId: params.tradeId,
+        visibilityStatus: params.visibilityStatus,
+      }),
+    onSuccess: async (payload, variables) => {
+      queryClient.setQueryData(
+        ["dcx_app_authenticated_user_trade_detail", variables.tradeId],
+        payload,
+      )
+      await Promise.all([
+        refreshTradeRelatedQueries(variables.tradeId, variables.sourceMessageId),
+        queryClient.invalidateQueries({ queryKey: ["dcx_app_market_trades_catalog"] }),
+      ])
+    },
+  })
 
   const currentFormSnapshot = buildTradeFormSnapshot(editFormState)
   const isDirty = selectedTrade !== null && currentFormSnapshot !== lastSavedSnapshot
   const effectiveVisualState = readDcxTradeEffectiveFormVisualState({
     visualState,
     isDirty,
-    isSaving: updateTradeMutation.isPending,
-    hasError: updateTradeMutation.isError,
+    isSaving: updateTradeMutation.isPending || updateTradeVisibilityMutation.isPending,
+    hasError: updateTradeMutation.isError || updateTradeVisibilityMutation.isError,
   })
 
   const mutationErrorText =
@@ -312,7 +337,13 @@ export function DcxAppTradesPage(props: Props) {
       updateTradeMutation.error as (Error & { suggested_action?: string }) | null
     )?.suggested_action ??
     (
+      updateTradeVisibilityMutation.error as (Error & { suggested_action?: string }) | null
+    )?.suggested_action ??
+    (
       updateTradeMutation.error as Error | null
+    )?.message ??
+    (
+      updateTradeVisibilityMutation.error as Error | null
     )?.message ??
     null
 
@@ -396,7 +427,35 @@ export function DcxAppTradesPage(props: Props) {
     [selectedLanguageCode, selectedTimezoneIanaName, ux],
   )
 
-  const isAnyTradeMutationPending = updateTradeMutation.isPending
+  const isAnyTradeMutationPending = updateTradeMutation.isPending || updateTradeVisibilityMutation.isPending
+
+  async function updateSelectedTradeVisibility(nextVisibilityStatus: DcxTradeVisibilityStatus): Promise<void> {
+    if (!selectedTrade || nextVisibilityStatus === selectedTrade.visibility_status) {
+      return
+    }
+    const savedBeforeVisibilityChange = await persistCurrentTradeForm()
+    if (!savedBeforeVisibilityChange) {
+      return
+    }
+    setVisualState("saving")
+    try {
+      await updateTradeVisibilityMutation.mutateAsync({
+        tradeId: selectedTrade.trade_id,
+        sourceMessageId: selectedTrade.source_message_id,
+        visibilityStatus: nextVisibilityStatus,
+      })
+      preserveSavedVisualStateRef.current = true
+      setVisualState("saved")
+      if (resetVisualStateTimeoutRef.current) {
+        clearTimeout(resetVisualStateTimeoutRef.current)
+      }
+      resetVisualStateTimeoutRef.current = setTimeout(() => {
+        setVisualState("idle")
+      }, DCX_TRADE_FORM_SAVED_VISIBLE_MS)
+    } catch {
+      setVisualState("error")
+    }
+  }
 
   async function persistCurrentTradeForm(): Promise<boolean> {
     if (!selectedTrade || !isDirty) {
@@ -645,6 +704,24 @@ export function DcxAppTradesPage(props: Props) {
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
+                      <Select
+                        value={(selectedTrade.visibility_status || "private") as DcxTradeVisibilityStatus}
+                        onValueChange={(nextVisibilityStatus) => {
+                          void updateSelectedTradeVisibility(nextVisibilityStatus as DcxTradeVisibilityStatus)
+                        }}
+                        disabled={isAnyTradeMutationPending}
+                      >
+                        <SelectTrigger className="h-9 w-[150px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {DCX_TRADE_VISIBILITY_OPTIONS.map((visibilityOption) => (
+                            <SelectItem key={visibilityOption.value} value={visibilityOption.value}>
+                              {readDcxTradeVisibilityLabel(visibilityOption.value, ux)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <Button
                         type="button"
                         variant="outline"
@@ -1535,6 +1612,20 @@ function readDcxTradePriceModeLabel(priceModeValue: string, ux: Record<string, s
     return ux.trades_price_mode_index_linked ?? "Index linked"
   }
   return normalizedPriceModeValue ? normalizedPriceModeValue.replaceAll("_", " ") : (ux.trades_not_specified_label ?? "Not specified")
+}
+
+function readDcxTradeVisibilityLabel(visibilityStatus: string, ux: Record<string, string>): string {
+  const normalizedVisibilityStatus = normalizeDcxTradeTextValue(visibilityStatus).toLowerCase()
+  if (normalizedVisibilityStatus === "private") {
+    return ux.trades_visibility_private ?? "Private"
+  }
+  if (normalizedVisibilityStatus === "shareable") {
+    return ux.trades_visibility_shareable ?? "Shareable"
+  }
+  if (normalizedVisibilityStatus === "public") {
+    return ux.trades_visibility_public ?? "Public"
+  }
+  return ux.trades_visibility_private ?? "Private"
 }
 
 function readDcxTradeOverallStatusSortValue(trade: DcxAppAuthenticatedUserTradeCatalogRow): "ready" | "attention" {

@@ -14,12 +14,10 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import {
-  ContactRoundIcon,
-  LandmarkIcon,
   ShieldUserIcon,
   MessageCircleMoreIcon,
   SendHorizontalIcon,
-  MessagesSquareIcon,
+  StoreIcon,
 } from "lucide-react"
 import dcxLogo from "@/assets/dcx_logo.png"
 
@@ -54,40 +52,56 @@ export function AppSidebar({
       isActive: currentPathname === "/me/send",
     },
     {
-      id: "messages",
-      title: uxStrings.nav_messages ?? "Messages",
-      url: "/me/messages",
-      icon: <MessageCircleMoreIcon />,
-      isActive: currentPathname.startsWith("/me/messages"),
-    },
-    {
-      id: "trades",
-      title: uxStrings.nav_trades ?? "Trades",
-      url: "/me/trades",
-      icon: <LandmarkIcon />,
-      isActive: currentPathname.startsWith("/me/trades"),
-    },
-    {
-      id: "topics",
-      title: uxStrings.nav_topics ?? "Topics",
-      url: "/me/topics",
-      icon: <MessagesSquareIcon />,
-      isActive: currentPathname.startsWith("/me/topics"),
-    },
-    {
-      id: "other",
-      title: uxStrings.nav_other ?? "Other",
-      url: "/me/other",
-      icon: <MessageCircleMoreIcon />,
-      isActive: currentPathname.startsWith("/me/other"),
-    },
-    {
-      id: "contacts",
-      title: uxStrings.nav_contacts ?? "Contacts",
+      id: "global_market",
+      title: uxStrings.nav_global_market ?? "Global Market",
       url: "#",
-      icon: <ContactRoundIcon />,
-      isDisabled: true,
-      badge: uxStrings.nav_badge_soon ?? "Soon",
+      icon: <StoreIcon />,
+      isActive: currentPathname.startsWith("/me/market"),
+      items: [
+        {
+          title: uxStrings.nav_market_deals ?? "Deals",
+          url: "/me/market/deals",
+          isActive: currentPathname.startsWith("/me/market/deals"),
+        },
+        {
+          title: uxStrings.nav_market_forum ?? "Forum",
+          url: "/me/market/forum",
+          isActive: currentPathname.startsWith("/me/market/forum"),
+        },
+      ],
+    },
+    {
+      id: "my_workspace",
+      title: uxStrings.nav_my ?? "My",
+      url: "#",
+      icon: <MessageCircleMoreIcon />,
+      isActive:
+        currentPathname.startsWith("/me/trades") ||
+        currentPathname.startsWith("/me/topics") ||
+        currentPathname.startsWith("/me/other") ||
+        currentPathname.startsWith("/me/messages"),
+      items: [
+        {
+          title: uxStrings.nav_trades ?? "Trades",
+          url: "/me/trades",
+          isActive: currentPathname.startsWith("/me/trades"),
+        },
+        {
+          title: uxStrings.nav_topics ?? "Topics",
+          url: "/me/topics",
+          isActive: currentPathname.startsWith("/me/topics"),
+        },
+        {
+          title: uxStrings.nav_other ?? "Other",
+          url: "/me/other",
+          isActive: currentPathname.startsWith("/me/other"),
+        },
+        {
+          title: uxStrings.nav_messages ?? "Messages",
+          url: "/me/messages",
+          isActive: currentPathname.startsWith("/me/messages"),
+        },
+      ],
     },
   ]
 

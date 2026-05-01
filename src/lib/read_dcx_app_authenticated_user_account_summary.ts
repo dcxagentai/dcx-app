@@ -86,6 +86,12 @@ export type DcxAppAuthenticatedUserAccountSummary = {
   } | null
   account_status: string
   email_communication_preference: string
+  public_identity: {
+    public_display_name: string
+    public_handle: string
+    public_identity_mode: string
+    public_identity_label: string
+  }
   last_seen_at_ts_ms: number | null
   created_at_ts_ms: number
   updated_at_ts_ms: number
@@ -117,6 +123,10 @@ export type DcxAppAuthenticatedUserAccountSummary = {
   }>
   ux_strings: Record<string, string>
   available_email_communication_preferences: Array<{
+    value: string
+    label: string
+  }>
+  available_public_identity_modes: Array<{
     value: string
     label: string
   }>

@@ -37,6 +37,11 @@ export type DcxAppAuthenticatedUserTradeDetail = {
   trade_extraction_notes_text: string
   missing_required_fields_json: string[]
   trade_metadata_json: Record<string, unknown>
+  visibility_status: string
+  trade_publication_id: number | null
+  public_reference_code: string | null
+  publication_visibility_status: string | null
+  publication_status: string | null
   requires_user_attention: boolean
   can_confirm: boolean
   can_reject: boolean

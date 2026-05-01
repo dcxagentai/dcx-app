@@ -11,7 +11,6 @@ import {
   type DcxAppEditableFieldVisualState,
   DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS,
   readDcxAppEditableFieldBorderClass,
-  readDcxAppEditableFieldCompactStatusLabel,
   readDcxAppEditableFieldStatusTextClass,
 } from "./dcx_app_user_account_shared"
 import { readDcxAppAuthenticatedUserAccountSummary } from "../lib/read_dcx_app_authenticated_user_account_summary"
@@ -33,15 +32,22 @@ import {
   ComboboxList,
   ComboboxTriggerIcon,
 } from "./ui/combobox"
+import { Input } from "./ui/input"
 import { DcxCountryFlagIcon } from "./ui/dcx_country_flag_icon"
 import { readDcxAppLanguageFlagRegionCode } from "../lib/dcx_app_language_flag_options"
 
 type EditableFieldKey =
+  | "public_display_name"
+  | "public_handle"
+  | "public_identity_mode"
   | "preferred_language"
   | "preferred_timezone"
   | "email_communication_preference"
 
 type EditableDraft = {
+  publicDisplayName: string
+  publicHandle: string
+  publicIdentityMode: string
   preferredLanguageId: number | null
   preferredTimezoneId: number | null
   emailCommunicationPreference: string
@@ -78,23 +84,63 @@ type EditableSelectFieldProps = {
   onSelectValue: (value: string) => void
 }
 
-function DcxAppEditableSelectField(props: EditableSelectFieldProps) {
-  const statusTextClass = readDcxAppEditableFieldStatusTextClass(props.visualState)
+type EditableTextFieldProps = {
+  label: string
+  uxStrings: Record<string, string>
+  visualState: DcxAppEditableFieldVisualState
+  statusText: string
+  isDisabled: boolean
+  value: string
+  placeholder: string
+  onBeginEditing: () => void
+  onCancelEditing: () => void
+  onChangeValue: (value: string) => void
+  onCommitValue: (value: string) => void
+}
+
+function DcxAppEditableTextField(props: EditableTextFieldProps) {
   const triggerBorderClass = readDcxAppEditableFieldBorderClass(props.visualState)
   const hasError = props.visualState === "error"
-  const compactStatusLabel = readDcxAppEditableFieldCompactStatusLabel(props.visualState, props.uxStrings)
+
+  return (
+    <Field data-invalid={hasError || undefined} className="gap-2">
+      <FieldLabel className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+        {props.label}
+      </FieldLabel>
+      <Input
+        aria-invalid={hasError || undefined}
+        className={[triggerBorderClass, "bg-slate-50"].join(" ")}
+        disabled={props.isDisabled}
+        value={props.value}
+        placeholder={props.placeholder}
+        onFocus={props.onBeginEditing}
+        onChange={(event) => props.onChangeValue(event.target.value)}
+        onBlur={(event) => props.onCommitValue(event.currentTarget.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.currentTarget.blur()
+          }
+          if (event.key === "Escape") {
+            props.onCancelEditing()
+            event.currentTarget.blur()
+          }
+        }}
+      />
+      {hasError ? <FieldError>{props.statusText}</FieldError> : null}
+    </Field>
+  )
+}
+
+function DcxAppEditableSelectField(props: EditableSelectFieldProps) {
+  const triggerBorderClass = readDcxAppEditableFieldBorderClass(props.visualState)
+  const hasError = props.visualState === "error"
   const selectedOption = props.options.find((option) => option.value === props.value) ?? null
 
   return (
     <Field data-invalid={hasError || undefined} className="gap-2">
-      <div className="flex items-center justify-between gap-4">
-        <FieldLabel className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
-          {props.label}
-        </FieldLabel>
-        <span className={["text-xs font-medium", statusTextClass].join(" ")}>
-          {compactStatusLabel}
-        </span>
-      </div>
+      <FieldLabel className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+        {props.label}
+      </FieldLabel>
       <div className="relative">
         {selectedOption?.regionCode ? (
           <div className="pointer-events-none absolute inset-y-0 left-4 z-10 flex items-center">
@@ -192,12 +238,18 @@ export function DcxAppUserSettingsPage(props: Props) {
         preferredLanguageId: nextDraft.preferredLanguageId,
         preferredTimezoneId: nextDraft.preferredTimezoneId,
         emailCommunicationPreference: nextDraft.emailCommunicationPreference,
+        publicDisplayName: nextDraft.publicDisplayName,
+        publicHandle: nextDraft.publicHandle,
+        publicIdentityMode: nextDraft.publicIdentityMode,
       }),
   })
 
   const accountSummary = accountSummaryQuery.data?.data ?? null
   const ux = accountSummary?.ux_strings ?? DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS
   const [editableDraft, setEditableDraft] = useState<EditableDraft>({
+    publicDisplayName: "",
+    publicHandle: "",
+    publicIdentityMode: "display_name",
     preferredLanguageId: null,
     preferredTimezoneId: null,
     emailCommunicationPreference: "newsletters",
@@ -205,6 +257,18 @@ export function DcxAppUserSettingsPage(props: Props) {
   const [editableFieldUiStateByKey, setEditableFieldUiStateByKey] = useState<
     Record<EditableFieldKey, EditableFieldUiState>
   >({
+    public_display_name: {
+      visualState: "idle",
+      statusText: DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS.editable_status_idle,
+    },
+    public_handle: {
+      visualState: "idle",
+      statusText: DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS.editable_status_idle,
+    },
+    public_identity_mode: {
+      visualState: "idle",
+      statusText: DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS.editable_status_idle,
+    },
     preferred_language: {
       visualState: "idle",
       statusText: DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS.editable_status_idle,
@@ -225,6 +289,9 @@ export function DcxAppUserSettingsPage(props: Props) {
     }
 
     setEditableDraft({
+      publicDisplayName: accountSummary.public_identity.public_display_name,
+      publicHandle: accountSummary.public_identity.public_handle,
+      publicIdentityMode: accountSummary.public_identity.public_identity_mode,
       preferredLanguageId: accountSummary.preferred_language?.id ?? null,
       preferredTimezoneId: accountSummary.preferred_timezone?.id ?? null,
       emailCommunicationPreference: accountSummary.email_communication_preference,
@@ -252,6 +319,9 @@ export function DcxAppUserSettingsPage(props: Props) {
     autoInitializedLanguageByUserIdRef.current[accountSummary.user_id] = true
 
     const nextDraft = {
+      publicDisplayName: editableDraft.publicDisplayName,
+      publicHandle: editableDraft.publicHandle,
+      publicIdentityMode: editableDraft.publicIdentityMode,
       preferredLanguageId: defaultLanguage.id,
       preferredTimezoneId: editableDraft.preferredTimezoneId,
       emailCommunicationPreference: editableDraft.emailCommunicationPreference,
@@ -266,7 +336,14 @@ export function DcxAppUserSettingsPage(props: Props) {
       },
     }))
     void saveEditableDraftWithRetries("preferred_language", nextDraft)
-  }, [accountSummary, editableDraft.emailCommunicationPreference, ux.editable_status_saving_default_language])
+  }, [
+    accountSummary,
+    editableDraft.emailCommunicationPreference,
+    editableDraft.publicDisplayName,
+    editableDraft.publicHandle,
+    editableDraft.publicIdentityMode,
+    ux.editable_status_saving_default_language,
+  ])
 
   useEffect(() => {
     return () => {
@@ -287,6 +364,9 @@ export function DcxAppUserSettingsPage(props: Props) {
         const savePayload = await saveAccountSettingsMutation.mutateAsync(nextDraft)
         queryClient.setQueryData(["dcx_app_authenticated_user_account_summary"], savePayload)
         setEditableDraft({
+          publicDisplayName: savePayload.data.public_identity.public_display_name,
+          publicHandle: savePayload.data.public_identity.public_handle,
+          publicIdentityMode: savePayload.data.public_identity.public_identity_mode,
           preferredLanguageId: savePayload.data.preferred_language?.id ?? null,
           preferredTimezoneId: savePayload.data.preferred_timezone?.id ?? null,
           emailCommunicationPreference: savePayload.data.email_communication_preference,
@@ -371,6 +451,10 @@ export function DcxAppUserSettingsPage(props: Props) {
   }
 
   const editableControlsDisabled = saveAccountSettingsMutation.isPending
+  const settingsSaveStatus = readDcxAppSettingsPageSaveStatus({
+    editableFieldUiStateByKey,
+    uxStrings: ux,
+  })
 
   return (
     <section className="flex flex-col gap-6 text-slate-950">
@@ -399,20 +483,135 @@ export function DcxAppUserSettingsPage(props: Props) {
       {accountSummary && !accountSummaryQuery.isError ? (
         <article className="rounded-none border border-black/6 bg-white px-6 py-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
           <div className="mb-6 space-y-2 border-b border-black/6 pb-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-              {ux.settings_eyebrow}
-            </p>
-            <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
-              {ux.settings_title}
-            </h2>
-            <p className="text-sm text-slate-600">
-              {ux.settings_subtitle}
-            </p>
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  {ux.settings_eyebrow}
+                </p>
+                <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
+                  {ux.settings_title}
+                </h2>
+                <p className="text-sm text-slate-600">
+                  {ux.settings_subtitle}
+                </p>
+              </div>
+              <div className="rounded-md border border-slate-200 px-3 py-2 text-right">
+                <p className={["text-xs font-medium", settingsSaveStatus.textClassName].join(" ")}>
+                  {settingsSaveStatus.label}
+                </p>
+              </div>
+            </div>
           </div>
 
           <FieldSet>
             <FieldLegend className="sr-only">{ux.settings_title}</FieldLegend>
             <FieldGroup className="gap-6">
+              <div className="grid gap-6 lg:grid-cols-3">
+                <DcxAppEditableTextField
+                  uxStrings={ux}
+                  label={ux.field_public_display_name ?? "Name"}
+                  visualState={editableFieldUiStateByKey.public_display_name.visualState}
+                  statusText={editableFieldUiStateByKey.public_display_name.statusText}
+                  isDisabled={editableControlsDisabled}
+                  value={editableDraft.publicDisplayName}
+                  placeholder={ux.field_public_display_name_placeholder ?? "Name shown on public forum posts"}
+                  onBeginEditing={() => beginEditingField("public_display_name")}
+                  onCancelEditing={() => cancelEditingField("public_display_name")}
+                  onChangeValue={(nextValue) => {
+                    setEditableDraft((previousDraft) => ({
+                      ...previousDraft,
+                      publicDisplayName: nextValue,
+                    }))
+                    beginEditingField("public_display_name")
+                  }}
+                  onCommitValue={(committedValue) => {
+                    const nextDraft = {
+                      ...editableDraft,
+                      publicDisplayName: committedValue.trim(),
+                    }
+                    setEditableDraft(nextDraft)
+                    setEditableFieldUiStateByKey((previousState) => ({
+                      ...previousState,
+                      public_display_name: {
+                        visualState: "saving",
+                        statusText: ux.editable_status_saving,
+                      },
+                    }))
+                    void saveEditableDraftWithRetries("public_display_name", nextDraft)
+                  }}
+                />
+                <DcxAppEditableTextField
+                  uxStrings={ux}
+                  label={ux.field_public_handle ?? "Nickname"}
+                  visualState={editableFieldUiStateByKey.public_handle.visualState}
+                  statusText={editableFieldUiStateByKey.public_handle.statusText}
+                  isDisabled={editableControlsDisabled}
+                  value={editableDraft.publicHandle}
+                  placeholder={ux.field_public_handle_placeholder ?? "trader_handle"}
+                  onBeginEditing={() => beginEditingField("public_handle")}
+                  onCancelEditing={() => cancelEditingField("public_handle")}
+                  onChangeValue={(nextValue) => {
+                    setEditableDraft((previousDraft) => ({
+                      ...previousDraft,
+                      publicHandle: nextValue,
+                    }))
+                    beginEditingField("public_handle")
+                  }}
+                  onCommitValue={(committedValue) => {
+                    const nextDraft = {
+                      ...editableDraft,
+                      publicHandle: committedValue.trim().replace(/^@/, ""),
+                    }
+                    setEditableDraft(nextDraft)
+                    setEditableFieldUiStateByKey((previousState) => ({
+                      ...previousState,
+                      public_handle: {
+                        visualState: "saving",
+                        statusText: ux.editable_status_saving,
+                      },
+                    }))
+                    void saveEditableDraftWithRetries("public_handle", nextDraft)
+                  }}
+                />
+                <DcxAppEditableSelectField
+                  uxStrings={ux}
+                  label={ux.field_public_identity_mode ?? "Public identity"}
+                  visualState={editableFieldUiStateByKey.public_identity_mode.visualState}
+                  statusText={editableFieldUiStateByKey.public_identity_mode.statusText}
+                  isDisabled={editableControlsDisabled}
+                  value={editableDraft.publicIdentityMode}
+                  placeholder={ux.field_public_identity_mode ?? "Public identity"}
+                  options={accountSummary.available_public_identity_modes
+                    .filter((availableMode) => availableMode.value !== "anonymous")
+                    .map((availableMode) => ({
+                      value: availableMode.value,
+                      label:
+                        availableMode.value === "display_name"
+                          ? "Name"
+                          : availableMode.value === "handle"
+                            ? "Nickname"
+                            : availableMode.label,
+                      searchLabel: availableMode.label,
+                    }))}
+                  onBeginEditing={() => beginEditingField("public_identity_mode")}
+                  onCancelEditing={() => cancelEditingField("public_identity_mode")}
+                  onSelectValue={(selectedValue) => {
+                    const nextDraft = {
+                      ...editableDraft,
+                      publicIdentityMode: selectedValue,
+                    }
+                    setEditableDraft(nextDraft)
+                    setEditableFieldUiStateByKey((previousState) => ({
+                      ...previousState,
+                      public_identity_mode: {
+                        visualState: "saving",
+                        statusText: ux.editable_status_saving,
+                      },
+                    }))
+                    void saveEditableDraftWithRetries("public_identity_mode", nextDraft)
+                  }}
+                />
+              </div>
               <DcxAppEditableSelectField
               uxStrings={ux}
               label={ux.field_preferred_language}
@@ -514,4 +713,47 @@ export function DcxAppUserSettingsPage(props: Props) {
       ) : null}
     </section>
   )
+}
+
+function readDcxAppSettingsPageSaveStatus(params: {
+  editableFieldUiStateByKey: Record<EditableFieldKey, EditableFieldUiState>
+  uxStrings: Record<string, string>
+}): {
+  label: string
+  textClassName: string
+} {
+  const visualStates = Object.values(params.editableFieldUiStateByKey).map((fieldState) => fieldState.visualState)
+
+  if (visualStates.includes("error")) {
+    return {
+      label: params.uxStrings.editable_status_compact_save_failed,
+      textClassName: readDcxAppEditableFieldStatusTextClass("error"),
+    }
+  }
+
+  if (visualStates.includes("saving")) {
+    return {
+      label: params.uxStrings.editable_status_saving,
+      textClassName: readDcxAppEditableFieldStatusTextClass("saving"),
+    }
+  }
+
+  if (visualStates.includes("editing")) {
+    return {
+      label: params.uxStrings.editable_status_compact_changed_unsaved,
+      textClassName: readDcxAppEditableFieldStatusTextClass("editing"),
+    }
+  }
+
+  if (visualStates.includes("saved")) {
+    return {
+      label: params.uxStrings.editable_status_compact_saved,
+      textClassName: readDcxAppEditableFieldStatusTextClass("saved"),
+    }
+  }
+
+  return {
+    label: params.uxStrings.editable_status_compact_idle,
+    textClassName: readDcxAppEditableFieldStatusTextClass("idle"),
+  }
 }

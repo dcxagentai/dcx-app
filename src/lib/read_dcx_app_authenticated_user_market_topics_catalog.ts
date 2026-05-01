@@ -6,6 +6,11 @@ export type DcxAppAuthenticatedUserMarketTopicCatalogRow = {
   topic_summary_text: string
   topic_scope_text: string
   topic_tags_json: string[]
+  visibility_status: string
+  forum_post_id: number | null
+  public_reference_code: string | null
+  forum_visibility_status: string | null
+  forum_post_status: string | null
   updated_at_ts_ms: number
   source_channel_type: string
   source_created_at_ts_ms: number

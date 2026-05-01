@@ -17,6 +17,11 @@ export type DcxAppAuthenticatedUserTradeCatalogRow = {
   normalized_destination_location: string
   missing_required_fields_json: string[]
   trade_metadata_json: Record<string, unknown>
+  visibility_status: string
+  trade_publication_id: number | null
+  public_reference_code: string | null
+  publication_visibility_status: string | null
+  publication_status: string | null
   requires_user_attention: boolean
   updated_at_ts_ms: number
   source_channel_type: string

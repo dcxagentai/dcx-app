@@ -7,6 +7,11 @@ export type DcxAppAuthenticatedUserMarketTopicDetail = {
   topic_scope_text: string
   topic_tags_json: string[]
   topic_metadata_json: Record<string, unknown>
+  visibility_status: string
+  forum_post_id: number | null
+  public_reference_code: string | null
+  forum_visibility_status: string | null
+  forum_post_status: string | null
   created_at_ts_ms: number
   updated_at_ts_ms: number
   turns: Array<{

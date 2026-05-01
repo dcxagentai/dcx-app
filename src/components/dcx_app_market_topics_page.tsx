@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { Column, ColumnDef, SortingState } from "@tanstack/react-table"
 import {
   RefreshCwIcon,
@@ -33,6 +33,7 @@ import {
 import {
   readDcxAppAuthenticatedUserMarketTopicDetail,
 } from "../lib/read_dcx_app_authenticated_user_market_topic_detail"
+import { setDcxAppAuthenticatedUserMarketTopicVisibility } from "../lib/set_dcx_app_authenticated_user_market_topic_visibility"
 
 type Props = {
   apiBaseUrl: string
@@ -40,6 +41,13 @@ type Props = {
 }
 
 type DcxTopicStatusFilter = "all" | "open" | "closed" | "archived"
+type DcxTopicVisibilityStatus = "private" | "shareable" | "public"
+
+const DCX_TOPIC_VISIBILITY_OPTIONS: Array<{ value: DcxTopicVisibilityStatus; label: string }> = [
+  { value: "private", label: "Private" },
+  { value: "shareable", label: "Shareable" },
+  { value: "public", label: "Public" },
+]
 
 export function DcxAppMarketTopicsPage(props: Props) {
   const queryClient = useQueryClient()
@@ -113,6 +121,24 @@ export function DcxAppMarketTopicsPage(props: Props) {
         apiBaseUrl: props.apiBaseUrl,
         marketTopicId: selectedMarketTopicId as number,
       }),
+  })
+  const updateMarketTopicVisibilityMutation = useMutation({
+    mutationFn: async (params: { marketTopicId: number; visibilityStatus: DcxTopicVisibilityStatus }) =>
+      setDcxAppAuthenticatedUserMarketTopicVisibility({
+        apiBaseUrl: props.apiBaseUrl,
+        marketTopicId: params.marketTopicId,
+        visibilityStatus: params.visibilityStatus,
+      }),
+    onSuccess: async (payload, variables) => {
+      queryClient.setQueryData(
+        ["dcx_app_authenticated_user_market_topic_detail", variables.marketTopicId],
+        payload,
+      )
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["dcx_app_authenticated_user_market_topics_catalog"] }),
+        queryClient.invalidateQueries({ queryKey: ["dcx_app_market_forum_catalog"] }),
+      ])
+    },
   })
 
   const columns = useMemo<Array<ColumnDef<DcxAppAuthenticatedUserMarketTopicCatalogRow>>>(
@@ -302,6 +328,46 @@ export function DcxAppMarketTopicsPage(props: Props) {
                   <h2 className="mt-2 text-xl font-semibold text-slate-950">{selectedTopic.topic_title || (ux.topics_detail_topic_label ?? "Topic")}</h2>
                   <p className="mt-2 text-sm text-slate-600">{selectedTopic.topic_summary_text}</p>
                 </div>
+                <section className="rounded-lg border border-sky-200 bg-white px-4 py-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                        {ux.topics_visibility_label ?? "Visibility"}
+                      </p>
+                      <p className="mt-1 text-sm text-sky-700">
+                        {readDcxTopicVisibilityLabel(selectedTopic.visibility_status, ux)}
+                      </p>
+                    </div>
+                    <Select
+                      value={(selectedTopic.visibility_status || "private") as DcxTopicVisibilityStatus}
+                      onValueChange={(nextVisibilityStatus) => {
+                        updateMarketTopicVisibilityMutation.mutate({
+                          marketTopicId: selectedTopic.market_topic_id,
+                          visibilityStatus: nextVisibilityStatus as DcxTopicVisibilityStatus,
+                        })
+                      }}
+                      disabled={updateMarketTopicVisibilityMutation.isPending}
+                    >
+                      <SelectTrigger className="w-[170px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DCX_TOPIC_VISIBILITY_OPTIONS.map((visibilityOption) => (
+                          <SelectItem key={visibilityOption.value} value={visibilityOption.value}>
+                            {readDcxTopicVisibilityLabel(visibilityOption.value, ux)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {updateMarketTopicVisibilityMutation.isError ? (
+                    <p className="mt-3 text-sm text-red-600">
+                      {(
+                        updateMarketTopicVisibilityMutation.error as Error & { suggested_action?: string }
+                      )?.suggested_action ?? (updateMarketTopicVisibilityMutation.error as Error).message}
+                    </p>
+                  ) : null}
+                </section>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{ux.topics_detail_tags_label ?? "Tags"}</p>
                   <p className="mt-1 text-sm text-slate-900">{selectedTopic.topic_tags_json.join(", ") || "—"}</p>
@@ -429,6 +495,20 @@ function readDcxTopicStatusLabel(statusValue: string, ux: Record<string, string>
     return ux.topics_status_archived ?? "Archived"
   }
   return readDcxTopicFriendlyLabel(statusValue)
+}
+
+function readDcxTopicVisibilityLabel(visibilityStatus: string, ux: Record<string, string>): string {
+  const normalizedVisibilityStatus = visibilityStatus.trim().toLowerCase()
+  if (normalizedVisibilityStatus === "private") {
+    return ux.topics_visibility_private ?? "Private"
+  }
+  if (normalizedVisibilityStatus === "shareable") {
+    return ux.topics_visibility_shareable ?? "Shareable"
+  }
+  if (normalizedVisibilityStatus === "public") {
+    return ux.topics_visibility_public ?? "Public"
+  }
+  return ux.topics_visibility_private ?? "Private"
 }
 
 function readDcxTopicTagsPreview(tags: string[]): string {

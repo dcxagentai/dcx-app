@@ -59,6 +59,9 @@ export async function saveDcxAppAuthenticatedUserAccountSettings(params: {
   preferredLanguageId: number | null
   preferredTimezoneId: number | null
   emailCommunicationPreference: string
+  publicDisplayName: string
+  publicHandle: string
+  publicIdentityMode: string
 }): Promise<DcxAppAccountSettingsSaveSuccessResponse> {
   const accountSettingsUrl = new URL("/users/me/account-settings", params.apiBaseUrl)
 
@@ -72,6 +75,9 @@ export async function saveDcxAppAuthenticatedUserAccountSettings(params: {
       preferred_language_id: params.preferredLanguageId,
       preferred_timezone_id: params.preferredTimezoneId,
       email_communication_preference: params.emailCommunicationPreference,
+      public_display_name: params.publicDisplayName,
+      public_handle: params.publicHandle,
+      public_identity_mode: params.publicIdentityMode,
     }),
   })
 

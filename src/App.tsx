@@ -13,6 +13,8 @@ import { DcxAppAuthPasswordSetPage } from "./components/dcx_app_auth_password_se
 import { DcxAppWhatsappPhoneVerifyPage } from "./components/dcx_app_whatsapp_phone_verify_page"
 import { DcxAppShell } from "./components/dcx_app_shell"
 import { DcxAppMessagesPage } from "./components/dcx_app_messages_page"
+import { DcxAppMarketDealsPage } from "./components/dcx_app_market_deals_page"
+import { DcxAppMarketForumPage } from "./components/dcx_app_market_forum_page"
 import { DcxAppMarketTopicsPage } from "./components/dcx_app_market_topics_page"
 import { DcxAppSendMessagePage } from "./components/dcx_app_send_message_page"
 import { DcxAppTradesPage } from "./components/dcx_app_trades_page"
@@ -364,6 +366,8 @@ function App() {
   const protectedAppMessageId = readProtectedAppMessageId(pathname)
   const protectedAppTradeId = readProtectedAppTradeId(pathname)
   const protectedAppMarketTopicId = readProtectedAppMarketTopicId(pathname)
+  const protectedAppMarketTradePublicationId = readProtectedAppMarketTradePublicationId(pathname)
+  const protectedAppForumPostId = readProtectedAppForumPostId(pathname)
 
   useEffect(() => {
     if (authenticatedSessionSummary && (authRoutePath === "/login" || isPasswordRoute)) {
@@ -538,6 +542,15 @@ function App() {
       {protectedAppPathname === "/me/topics" ? (
         <DcxAppMarketTopicsPage apiBaseUrl={apiBaseUrl} routeMarketTopicId={protectedAppMarketTopicId} />
       ) : null}
+      {protectedAppPathname === "/me/market/deals" ? (
+        <DcxAppMarketDealsPage
+          apiBaseUrl={apiBaseUrl}
+          routeTradePublicationId={protectedAppMarketTradePublicationId}
+        />
+      ) : null}
+      {protectedAppPathname === "/me/market/forum" ? (
+        <DcxAppMarketForumPage apiBaseUrl={apiBaseUrl} routeForumPostId={protectedAppForumPostId} />
+      ) : null}
       {protectedAppPathname === "/me/send" ? (
         <DcxAppSendMessagePage apiBaseUrl={apiBaseUrl} />
       ) : null}
@@ -549,7 +562,7 @@ export default App
 
 function readProtectedAppPathname(
   pathname: string,
-): "/me/account" | "/me/settings" | "/me/activity-log" | "/me/messages" | "/me/trades" | "/me/topics" | "/me/other" | "/me/send" {
+): "/me/account" | "/me/settings" | "/me/activity-log" | "/me/messages" | "/me/trades" | "/me/topics" | "/me/market/deals" | "/me/market/forum" | "/me/other" | "/me/send" {
   if (pathname === "/me/settings") {
     return "/me/settings"
   }
@@ -577,6 +590,14 @@ function readProtectedAppPathname(
     return "/me/topics"
   }
 
+  if (pathname === "/me/market/deals" || /^\/me\/market\/deals\/\d+$/.test(pathname)) {
+    return "/me/market/deals"
+  }
+
+  if (pathname === "/me/market/forum" || /^\/me\/market\/forum\/\d+$/.test(pathname)) {
+    return "/me/market/forum"
+  }
+
   if (pathname === "/me/other") {
     return "/me/other"
   }
@@ -589,7 +610,7 @@ function readProtectedAppPathname(
 }
 
 function readProtectedAppPageTitle(
-  pathname: "/me/account" | "/me/settings" | "/me/activity-log" | "/me/messages" | "/me/trades" | "/me/topics" | "/me/other" | "/me/send",
+  pathname: "/me/account" | "/me/settings" | "/me/activity-log" | "/me/messages" | "/me/trades" | "/me/topics" | "/me/market/deals" | "/me/market/forum" | "/me/other" | "/me/send",
   uxStrings: Record<string, string>,
 ): string {
   if (pathname === "/me/settings") {
@@ -610,6 +631,14 @@ function readProtectedAppPageTitle(
 
   if (pathname === "/me/topics") {
     return uxStrings.page_title_topics ?? "Topics"
+  }
+
+  if (pathname === "/me/market/deals") {
+    return uxStrings.page_title_market_deals ?? "Market Deals"
+  }
+
+  if (pathname === "/me/market/forum") {
+    return uxStrings.page_title_market_forum ?? "Forum"
   }
 
   if (pathname === "/me/other") {
@@ -666,5 +695,23 @@ function readProtectedAppMarketTopicId(pathname: string): number | null {
   }
   const parsedMarketTopicId = Number.parseInt(match[1], 10)
   return Number.isFinite(parsedMarketTopicId) && parsedMarketTopicId > 0 ? parsedMarketTopicId : null
+}
+
+function readProtectedAppMarketTradePublicationId(pathname: string): number | null {
+  const match = pathname.match(/^\/me\/market\/deals\/(\d+)$/)
+  if (!match) {
+    return null
+  }
+  const parsedTradePublicationId = Number.parseInt(match[1], 10)
+  return Number.isFinite(parsedTradePublicationId) && parsedTradePublicationId > 0 ? parsedTradePublicationId : null
+}
+
+function readProtectedAppForumPostId(pathname: string): number | null {
+  const match = pathname.match(/^\/me\/market\/forum\/(\d+)$/)
+  if (!match) {
+    return null
+  }
+  const parsedForumPostId = Number.parseInt(match[1], 10)
+  return Number.isFinite(parsedForumPostId) && parsedForumPostId > 0 ? parsedForumPostId : null
 }
 
