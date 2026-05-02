@@ -62,6 +62,7 @@ export async function saveDcxAppAuthenticatedUserAccountSettings(params: {
   publicDisplayName: string
   publicHandle: string
   publicIdentityMode: string
+  defaultInteractionChannel: string
 }): Promise<DcxAppAccountSettingsSaveSuccessResponse> {
   const accountSettingsUrl = new URL("/users/me/account-settings", params.apiBaseUrl)
 
@@ -78,6 +79,7 @@ export async function saveDcxAppAuthenticatedUserAccountSettings(params: {
       public_display_name: params.publicDisplayName,
       public_handle: params.publicHandle,
       public_identity_mode: params.publicIdentityMode,
+      default_interaction_channel: params.defaultInteractionChannel,
     }),
   })
 

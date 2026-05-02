@@ -86,6 +86,7 @@ export type DcxAppAuthenticatedUserAccountSummary = {
   } | null
   account_status: string
   email_communication_preference: string
+  default_interaction_channel: string
   public_identity: {
     public_display_name: string
     public_handle: string
@@ -127,6 +128,10 @@ export type DcxAppAuthenticatedUserAccountSummary = {
     label: string
   }>
   available_public_identity_modes: Array<{
+    value: string
+    label: string
+  }>
+  available_default_interaction_channels: Array<{
     value: string
     label: string
   }>

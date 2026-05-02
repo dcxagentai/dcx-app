@@ -43,6 +43,7 @@ type EditableFieldKey =
   | "preferred_language"
   | "preferred_timezone"
   | "email_communication_preference"
+  | "default_interaction_channel"
 
 type EditableDraft = {
   publicDisplayName: string
@@ -51,6 +52,7 @@ type EditableDraft = {
   preferredLanguageId: number | null
   preferredTimezoneId: number | null
   emailCommunicationPreference: string
+  defaultInteractionChannel: string
 }
 
 type EditableFieldUiState = {
@@ -241,6 +243,7 @@ export function DcxAppUserSettingsPage(props: Props) {
         publicDisplayName: nextDraft.publicDisplayName,
         publicHandle: nextDraft.publicHandle,
         publicIdentityMode: nextDraft.publicIdentityMode,
+        defaultInteractionChannel: nextDraft.defaultInteractionChannel,
       }),
   })
 
@@ -253,6 +256,7 @@ export function DcxAppUserSettingsPage(props: Props) {
     preferredLanguageId: null,
     preferredTimezoneId: null,
     emailCommunicationPreference: "newsletters",
+    defaultInteractionChannel: "app_only",
   })
   const [editableFieldUiStateByKey, setEditableFieldUiStateByKey] = useState<
     Record<EditableFieldKey, EditableFieldUiState>
@@ -281,6 +285,10 @@ export function DcxAppUserSettingsPage(props: Props) {
       visualState: "idle",
       statusText: DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS.editable_status_idle,
     },
+    default_interaction_channel: {
+      visualState: "idle",
+      statusText: DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS.editable_status_idle,
+    },
   })
 
   useEffect(() => {
@@ -295,6 +303,7 @@ export function DcxAppUserSettingsPage(props: Props) {
       preferredLanguageId: accountSummary.preferred_language?.id ?? null,
       preferredTimezoneId: accountSummary.preferred_timezone?.id ?? null,
       emailCommunicationPreference: accountSummary.email_communication_preference,
+      defaultInteractionChannel: accountSummary.default_interaction_channel,
     })
   }, [accountSummary])
 
@@ -325,6 +334,7 @@ export function DcxAppUserSettingsPage(props: Props) {
       preferredLanguageId: defaultLanguage.id,
       preferredTimezoneId: editableDraft.preferredTimezoneId,
       emailCommunicationPreference: editableDraft.emailCommunicationPreference,
+      defaultInteractionChannel: editableDraft.defaultInteractionChannel,
     }
 
     setEditableDraft(nextDraft)
@@ -339,6 +349,7 @@ export function DcxAppUserSettingsPage(props: Props) {
   }, [
     accountSummary,
     editableDraft.emailCommunicationPreference,
+    editableDraft.defaultInteractionChannel,
     editableDraft.publicDisplayName,
     editableDraft.publicHandle,
     editableDraft.publicIdentityMode,
@@ -370,6 +381,7 @@ export function DcxAppUserSettingsPage(props: Props) {
           preferredLanguageId: savePayload.data.preferred_language?.id ?? null,
           preferredTimezoneId: savePayload.data.preferred_timezone?.id ?? null,
           emailCommunicationPreference: savePayload.data.email_communication_preference,
+          defaultInteractionChannel: savePayload.data.default_interaction_channel,
         })
         setEditableFieldUiStateByKey((previousState) => ({
           ...previousState,
@@ -705,6 +717,37 @@ export function DcxAppUserSettingsPage(props: Props) {
                   },
                 }))
                 void saveEditableDraftWithRetries("email_communication_preference", nextDraft)
+              }}
+            />
+              <DcxAppEditableSelectField
+              uxStrings={ux}
+              label="Trade chat notifications"
+              visualState={editableFieldUiStateByKey.default_interaction_channel.visualState}
+              statusText={editableFieldUiStateByKey.default_interaction_channel.statusText}
+              isDisabled={editableControlsDisabled}
+              value={editableDraft.defaultInteractionChannel}
+              placeholder="Trade chat notifications"
+              options={accountSummary.available_default_interaction_channels.map((availableChannel) => ({
+                value: availableChannel.value,
+                label: availableChannel.label,
+                searchLabel: availableChannel.label,
+              }))}
+              onBeginEditing={() => beginEditingField("default_interaction_channel")}
+              onCancelEditing={() => cancelEditingField("default_interaction_channel")}
+              onSelectValue={(selectedValue) => {
+                const nextDraft = {
+                  ...editableDraft,
+                  defaultInteractionChannel: selectedValue,
+                }
+                setEditableDraft(nextDraft)
+                setEditableFieldUiStateByKey((previousState) => ({
+                  ...previousState,
+                  default_interaction_channel: {
+                    visualState: "saving",
+                    statusText: ux.editable_status_saving,
+                  },
+                }))
+                void saveEditableDraftWithRetries("default_interaction_channel", nextDraft)
               }}
             />
             </FieldGroup>
