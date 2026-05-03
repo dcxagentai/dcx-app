@@ -775,36 +775,93 @@ function DcxSimpleMarkdownText(props: { value: string; className?: string }) {
 }
 
 function DcxSimpleMarkdownInlineText(props: { value: string }) {
-  const inlineParts = props.value.split(/(\[[^\]]+\]\([^)]+\)|\*\*[^*]+\*\*)/g)
+  const inlineParts = readDcxSimpleMarkdownInlineParts(props.value)
 
   return (
     <>
       {inlineParts.map((part, partIndex) => {
-        const markdownLinkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
-        if (markdownLinkMatch) {
+        if (part.kind === "link") {
           return (
             <a
-              key={`${partIndex}-${part}`}
-              href={markdownLinkMatch[2]}
+              key={`${partIndex}-${part.href}`}
+              href={part.href}
               target="_blank"
               rel="noreferrer"
               className="break-all text-sky-700 underline decoration-sky-300 underline-offset-2 hover:text-sky-900"
             >
-              {markdownLinkMatch[1]}
+              {part.text}
             </a>
           )
         }
-        if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+        if (part.kind === "strong") {
           return (
-            <strong key={`${partIndex}-${part}`} className="font-semibold text-inherit">
-              {part.slice(2, -2)}
+            <strong key={`${partIndex}-${part.text}`} className="font-semibold text-inherit">
+              {part.text}
             </strong>
           )
         }
-        return <span key={`${partIndex}-${part}`}>{part}</span>
+        return <span key={`${partIndex}-${part.text}`}>{part.text}</span>
       })}
     </>
   )
+}
+
+type DcxSimpleMarkdownInlinePart =
+  | { kind: "text"; text: string }
+  | { kind: "strong"; text: string }
+  | { kind: "link"; text: string; href: string }
+
+function readDcxSimpleMarkdownInlineParts(value: string): DcxSimpleMarkdownInlinePart[] {
+  const inlineParts: DcxSimpleMarkdownInlinePart[] = []
+  let remainingText = value
+
+  while (remainingText.length > 0) {
+    const linkStartIndex = remainingText.indexOf("[")
+    const strongStartIndex = remainingText.indexOf("**")
+    const candidateIndexes = [linkStartIndex, strongStartIndex].filter((index) => index >= 0)
+    const nextTokenIndex = candidateIndexes.length > 0 ? Math.min(...candidateIndexes) : -1
+
+    if (nextTokenIndex < 0) {
+      inlineParts.push({ kind: "text", text: remainingText })
+      break
+    }
+
+    if (nextTokenIndex > 0) {
+      inlineParts.push({ kind: "text", text: remainingText.slice(0, nextTokenIndex) })
+      remainingText = remainingText.slice(nextTokenIndex)
+      continue
+    }
+
+    if (remainingText.startsWith("[")) {
+      const closingLabelIndex = remainingText.indexOf("]")
+      if (closingLabelIndex > 1 && remainingText.slice(closingLabelIndex, closingLabelIndex + 2) === "](") {
+        const closingHrefIndex = remainingText.indexOf(")", closingLabelIndex + 2)
+        if (closingHrefIndex > closingLabelIndex + 2) {
+          inlineParts.push({
+            kind: "link",
+            text: remainingText.slice(1, closingLabelIndex),
+            href: remainingText.slice(closingLabelIndex + 2, closingHrefIndex),
+          })
+          remainingText = remainingText.slice(closingHrefIndex + 1)
+          continue
+        }
+      }
+    }
+
+    if (remainingText.startsWith("**")) {
+      const closingStrongIndex = remainingText.indexOf("**", 2)
+      if (closingStrongIndex > 2) {
+        inlineParts.push({ kind: "strong", text: remainingText.slice(2, closingStrongIndex) })
+        remainingText = remainingText.slice(closingStrongIndex + 2)
+        continue
+      }
+    }
+
+    inlineParts.push({ kind: "text", text: remainingText[0] })
+    remainingText = remainingText.slice(1)
+  }
+
+  return inlineParts
 }
 
 function readDcxSimpleMarkdownBlocks(value: string): DcxSimpleMarkdownBlock[] {
