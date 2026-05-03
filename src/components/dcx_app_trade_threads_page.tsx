@@ -491,7 +491,7 @@ function DcxTradeThreadMessageBubble(props: {
 }) {
   const [hasCopiedOriginalText, setHasCopiedOriginalText] = useState(false)
   const sourceMetadata = readDcxTradeThreadMessageSourceMetadata(props.message.source_channel_type)
-  const showReceivedSourceIcon = !props.message.is_sent_by_authenticated_user && sourceMetadata.channel !== "app"
+  const showSourceIcon = sourceMetadata.channel !== "app"
   const originalMessageText = props.message.canonical_message_text.trim()
   const hasTranslatedDisplayText =
     Boolean(props.message.displayed_translation_language_code)
@@ -523,7 +523,7 @@ function DcxTradeThreadMessageBubble(props: {
       >
         <div className="flex items-center justify-between gap-3 text-[11px] font-semibold uppercase leading-4 tracking-[0.08em] text-slate-500">
           <span className="flex min-w-0 items-center gap-1.5">
-            {showReceivedSourceIcon ? (
+            {showSourceIcon ? (
               <span
                 className={cn(
                   "inline-flex size-5 shrink-0 items-center justify-center rounded-full border",
@@ -580,7 +580,7 @@ function readDcxTradeThreadMessageSourceMetadata(sourceChannelType: string): {
   if (normalizedSourceChannelType === "whatsapp") {
     return {
       channel: "whatsapp",
-      label: "Received from WhatsApp",
+      label: "WhatsApp",
       Icon: MessageCircleIcon,
       className: "border-emerald-200 bg-emerald-50 text-emerald-700",
     }
@@ -588,14 +588,14 @@ function readDcxTradeThreadMessageSourceMetadata(sourceChannelType: string): {
   if (normalizedSourceChannelType === "email") {
     return {
       channel: "email",
-      label: "Received from email",
+      label: "Email",
       Icon: MailIcon,
       className: "border-sky-200 bg-sky-50 text-sky-700",
     }
   }
   return {
     channel: "app",
-    label: "Received from DCX app",
+    label: "DCX app",
     Icon: MonitorIcon,
     className: "border-slate-200 bg-slate-50 text-slate-500",
   }
