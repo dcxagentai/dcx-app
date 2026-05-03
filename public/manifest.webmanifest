@@ -1,0 +1,18 @@
+{
+  "name": "DCX",
+  "short_name": "DCX",
+  "description": "DCX app for trader messages, trades, market deals, topics, and private trade chats.",
+  "start_url": "/me/account",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/dcx-home-icon.png",
+      "sizes": "195x195",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

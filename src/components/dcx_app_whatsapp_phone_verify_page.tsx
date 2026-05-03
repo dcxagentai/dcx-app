@@ -24,7 +24,7 @@ type Props = {
 
 export function DcxAppWhatsappPhoneVerifyPage(props: Props) {
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading")
-  const [message, setMessage] = useState("Verifying WhatsApp phone link...")
+  const [message, setMessage] = useState("Confirming your WhatsApp phone link...")
   const [suggestedAction, setSuggestedAction] = useState<string | null>(null)
   const verificationAttemptStartedRef = useRef(false)
 
@@ -55,15 +55,19 @@ export function DcxAppWhatsappPhoneVerifyPage(props: Props) {
         }
         clearStoredDcxWhatsappPhoneLinkToken()
         setStatus("success")
-        setMessage("Phone verified. Your DCX WhatsApp number is now linked.")
-        setSuggestedAction(null)
+        setMessage("Your WhatsApp phone number is now linked to DCX.")
 
         const nextPath = props.hasAuthenticatedSession
           ? "/me/account"
           : buildDcxAppPathWithLanguageCode("/login", props.languageCode)
+        setSuggestedAction(
+          props.hasAuthenticatedSession
+            ? "Returning you to your account page in 3 seconds."
+            : "Returning you to sign in in 3 seconds.",
+        )
         window.setTimeout(() => {
           window.location.replace(nextPath)
-        }, 900)
+        }, 3000)
       })
       .catch((error: Error & { suggested_action?: string; code?: string }) => {
         if (!isActive) {
@@ -75,10 +79,10 @@ export function DcxAppWhatsappPhoneVerifyPage(props: Props) {
         ) {
           setStatus("success")
           setMessage("This WhatsApp phone is already verified for your DCX account.")
-          setSuggestedAction(null)
+          setSuggestedAction("Returning you to your account page in 3 seconds.")
           window.setTimeout(() => {
             window.location.replace("/me/account")
-          }, 900)
+          }, 3000)
           return
         }
         setStatus("error")
@@ -106,7 +110,11 @@ export function DcxAppWhatsappPhoneVerifyPage(props: Props) {
 
           <div className="mt-8 space-y-2">
             <h1 className="text-2xl font-semibold tracking-tight text-white">
-              Verify WhatsApp phone
+              {status === "success"
+                ? "WhatsApp phone verified"
+                : status === "error"
+                  ? "WhatsApp phone not verified"
+                  : "Connect WhatsApp phone"}
             </h1>
             <p
               className={[
@@ -121,7 +129,7 @@ export function DcxAppWhatsappPhoneVerifyPage(props: Props) {
 
           <div className="mt-8">
             {status === "loading" ? (
-              <p className="text-sm text-slate-300">Please wait while we confirm this phone number.</p>
+              <p className="text-sm text-slate-300">Please wait while DCX confirms this phone number.</p>
             ) : (
               <Button
                 type="button"
