@@ -721,6 +721,7 @@ function readDcxMarketTopicTurnSourceMetadata(turnMetadata: Record<string, unkno
 }
 
 type DcxSimpleMarkdownBlock =
+  | { kind: "heading"; text: string }
   | { kind: "paragraph"; lines: string[] }
   | { kind: "ordered_list"; items: string[] }
   | { kind: "unordered_list"; items: string[] }
@@ -731,6 +732,14 @@ function DcxSimpleMarkdownText(props: { value: string; className?: string }) {
   return (
     <div className={cn("mt-2 space-y-3 text-sm leading-6", props.className)}>
       {markdownBlocks.map((block, blockIndex) => {
+        if (block.kind === "heading") {
+          return (
+            <p key={`heading-${blockIndex}`} className="font-semibold text-inherit">
+              <DcxSimpleMarkdownInlineText value={block.text} />
+            </p>
+          )
+        }
+
         if (block.kind === "ordered_list") {
           return (
             <ol key={`ordered-${blockIndex}`} className="list-decimal space-y-2 pl-5 marker:text-slate-500">
@@ -766,11 +775,25 @@ function DcxSimpleMarkdownText(props: { value: string; className?: string }) {
 }
 
 function DcxSimpleMarkdownInlineText(props: { value: string }) {
-  const inlineParts = props.value.split(/(\*\*[^*]+\*\*)/g)
+  const inlineParts = props.value.split(/(\[[^\]]+\]\([^)]+\)|\*\*[^*]+\*\*)/g)
 
   return (
     <>
       {inlineParts.map((part, partIndex) => {
+        const markdownLinkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
+        if (markdownLinkMatch) {
+          return (
+            <a
+              key={`${partIndex}-${part}`}
+              href={markdownLinkMatch[2]}
+              target="_blank"
+              rel="noreferrer"
+              className="break-all text-sky-700 underline decoration-sky-300 underline-offset-2 hover:text-sky-900"
+            >
+              {markdownLinkMatch[1]}
+            </a>
+          )
+        }
         if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
           return (
             <strong key={`${partIndex}-${part}`} className="font-semibold text-inherit">
@@ -814,6 +837,13 @@ function readDcxSimpleMarkdownBlocks(value: string): DcxSimpleMarkdownBlock[] {
     const line = rawLine.trim()
     if (line === "") {
       flushPendingBlocks()
+      continue
+    }
+
+    const headingMatch = line.match(/^#{1,6}\s+(.+)$/)
+    if (headingMatch) {
+      flushPendingBlocks()
+      blocks.push({ kind: "heading", text: headingMatch[1].trim() })
       continue
     }
 
