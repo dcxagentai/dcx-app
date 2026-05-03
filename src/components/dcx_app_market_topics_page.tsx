@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { Column, ColumnDef, SortingState } from "@tanstack/react-table"
 import {
+  MailIcon,
+  MessageCircleIcon,
+  MonitorIcon,
   RefreshCwIcon,
   SearchIcon,
   SendIcon,
@@ -398,7 +401,12 @@ export function DcxAppMarketTopicsPage(props: Props) {
               <div className="space-y-6">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">{ux.topics_detail_topic_label ?? "Topic"}</p>
-                  <h2 className="mt-2 text-xl font-semibold text-slate-950">{selectedTopic.topic_title || (ux.topics_detail_topic_label ?? "Topic")}</h2>
+                  <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <h2 className="text-xl font-semibold text-slate-950">{selectedTopic.topic_title || (ux.topics_detail_topic_label ?? "Topic")}</h2>
+                    <span className="inline-flex w-fit shrink-0 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-sky-700">
+                      #{readDcxMarketTopicReferenceCode(selectedTopic.market_topic_id)}
+                    </span>
+                  </div>
                   <p className="mt-2 text-sm text-slate-600">{selectedTopic.topic_summary_text}</p>
                 </div>
                 <section className="rounded-lg border border-sky-200 bg-white px-4 py-3">
@@ -459,6 +467,7 @@ export function DcxAppMarketTopicsPage(props: Props) {
                           createdAtTsMs={turn.created_at_ts_ms}
                           languageCode={selectedLanguageCode}
                           timezoneIanaName={selectedTimezoneIanaName}
+                          turnMetadata={turn.turn_metadata_json}
                         />
                       ))
                     )}
@@ -470,6 +479,7 @@ export function DcxAppMarketTopicsPage(props: Props) {
                           createdAtTsMs={pendingAiChatUserTurn.createdAtTsMs}
                           languageCode={selectedLanguageCode}
                           timezoneIanaName={selectedTimezoneIanaName}
+                          turnMetadata={{ source_channel_type: "app" }}
                         />
                         <DcxMarketTopicAiChatTurn
                           role="assistant"
@@ -477,6 +487,7 @@ export function DcxAppMarketTopicsPage(props: Props) {
                           createdAtTsMs={pendingAiChatUserTurn.createdAtTsMs}
                           languageCode={selectedLanguageCode}
                           timezoneIanaName={selectedTimezoneIanaName}
+                          turnMetadata={{}}
                           isPending
                         />
                       </>
@@ -585,11 +596,14 @@ function DcxMarketTopicAiChatTurn(props: {
   createdAtTsMs: number
   languageCode: string
   timezoneIanaName: string | null
+  turnMetadata: Record<string, unknown>
   isPending?: boolean
 }) {
   const normalizedRole = props.role.trim().toLowerCase()
   const isAssistant = normalizedRole === "assistant"
   const roleLabel = isAssistant ? "DCX AI" : normalizedRole === "system" ? "System" : "You"
+  const sourceMetadata = readDcxMarketTopicTurnSourceMetadata(props.turnMetadata)
+  const showSourceIcon = !isAssistant && sourceMetadata.channel !== "app"
 
   return (
     <article
@@ -600,7 +614,21 @@ function DcxMarketTopicAiChatTurn(props: {
       )}
     >
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{roleLabel}</p>
+        <p className="flex min-w-0 items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+          {showSourceIcon ? (
+            <span
+              className={cn(
+                "inline-flex size-5 shrink-0 items-center justify-center rounded-full border",
+                sourceMetadata.className,
+              )}
+              title={sourceMetadata.label}
+              aria-label={sourceMetadata.label}
+            >
+              <sourceMetadata.Icon className="size-3" aria-hidden="true" />
+            </span>
+          ) : null}
+          <span className="truncate">{roleLabel}</span>
+        </p>
         <p className="text-xs text-slate-400">
           {formatDcxAppAccountTimestampLabel(
             props.createdAtTsMs,
@@ -616,6 +644,43 @@ function DcxMarketTopicAiChatTurn(props: {
       />
     </article>
   )
+}
+
+function readDcxMarketTopicReferenceCode(marketTopicId: number): string {
+  return `T${marketTopicId}`
+}
+
+function readDcxMarketTopicTurnSourceMetadata(turnMetadata: Record<string, unknown>): {
+  channel: "app" | "email" | "whatsapp"
+  label: string
+  Icon: typeof MonitorIcon
+  className: string
+} {
+  const rawSourceChannelType = turnMetadata.source_channel_type
+  const normalizedSourceChannelType =
+    typeof rawSourceChannelType === "string" ? rawSourceChannelType.trim().toLowerCase() : "app"
+  if (normalizedSourceChannelType === "whatsapp") {
+    return {
+      channel: "whatsapp",
+      label: "WhatsApp",
+      Icon: MessageCircleIcon,
+      className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    }
+  }
+  if (normalizedSourceChannelType === "email") {
+    return {
+      channel: "email",
+      label: "Email",
+      Icon: MailIcon,
+      className: "border-sky-200 bg-sky-50 text-sky-700",
+    }
+  }
+  return {
+    channel: "app",
+    label: "DCX app",
+    Icon: MonitorIcon,
+    className: "border-slate-200 bg-slate-50 text-slate-500",
+  }
 }
 
 type DcxSimpleMarkdownBlock =
