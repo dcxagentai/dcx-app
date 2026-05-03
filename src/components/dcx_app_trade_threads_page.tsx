@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { Column, ColumnDef, SortingState } from "@tanstack/react-table"
-import { RefreshCwIcon, SearchIcon, SendIcon } from "lucide-react"
+import { MailIcon, MessageCircleIcon, MonitorIcon, RefreshCwIcon, SearchIcon, SendIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { DcxAppDataTable } from "@/components/ui/dcx_app_data_table"
@@ -391,8 +391,8 @@ function DcxTradeThreadDetailPanel(props: {
           ))}
           {matchingPendingMessage ? (
             <div className="flex justify-end">
-              <div className="max-w-[82%] rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-slate-950">
-                <div className="flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
+              <div className="w-[82%] rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-slate-950">
+                <div className="flex items-center justify-between gap-3 text-[11px] font-semibold uppercase leading-4 tracking-[0.08em] text-emerald-700">
                   <span>You</span>
                   <span>Sending...</span>
                 </div>
@@ -434,6 +434,8 @@ function DcxTradeThreadMessageBubble(props: {
   selectedTimezoneIanaName: string | null
 }) {
   const [hasCopiedOriginalText, setHasCopiedOriginalText] = useState(false)
+  const sourceMetadata = readDcxTradeThreadMessageSourceMetadata(props.message.source_channel_type)
+  const showReceivedSourceIcon = !props.message.is_sent_by_authenticated_user && sourceMetadata.channel !== "app"
   const originalMessageText = props.message.canonical_message_text.trim()
   const hasTranslatedDisplayText =
     Boolean(props.message.displayed_translation_language_code)
@@ -457,14 +459,30 @@ function DcxTradeThreadMessageBubble(props: {
     <div className={cn("flex", props.message.is_sent_by_authenticated_user ? "justify-end" : "justify-start")}>
       <div
         className={cn(
-          "max-w-[82%] rounded-lg border px-4 py-3 text-sm text-slate-950",
+          "w-[82%] rounded-lg border px-4 py-3 text-sm text-slate-950",
           props.message.is_sent_by_authenticated_user
             ? "border-emerald-200 bg-emerald-50"
             : "border-slate-200 bg-white",
         )}
       >
-        <div className="flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-          <span>{props.message.is_sent_by_authenticated_user ? "You" : props.message.sender_public_identity_label}</span>
+        <div className="flex items-center justify-between gap-3 text-[11px] font-semibold uppercase leading-4 tracking-[0.08em] text-slate-500">
+          <span className="flex min-w-0 items-center gap-1.5">
+            {showReceivedSourceIcon ? (
+              <span
+                className={cn(
+                  "inline-flex size-5 shrink-0 items-center justify-center rounded-full border",
+                  sourceMetadata.className,
+                )}
+                title={sourceMetadata.label}
+                aria-label={sourceMetadata.label}
+              >
+                <sourceMetadata.Icon className="size-3" aria-hidden="true" />
+              </span>
+            ) : null}
+            <span className="truncate">
+              {props.message.is_sent_by_authenticated_user ? "You" : props.message.sender_public_identity_label}
+            </span>
+          </span>
           <span>
             {formatDcxAppAccountTimestampLabel(
               props.message.created_at_ts_ms,
@@ -494,6 +512,37 @@ function DcxTradeThreadMessageBubble(props: {
       </div>
     </div>
   )
+}
+
+function readDcxTradeThreadMessageSourceMetadata(sourceChannelType: string): {
+  channel: "app" | "email" | "whatsapp"
+  label: string
+  Icon: typeof MonitorIcon
+  className: string
+} {
+  const normalizedSourceChannelType = sourceChannelType.trim().toLowerCase()
+  if (normalizedSourceChannelType === "whatsapp") {
+    return {
+      channel: "whatsapp",
+      label: "Received from WhatsApp",
+      Icon: MessageCircleIcon,
+      className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    }
+  }
+  if (normalizedSourceChannelType === "email") {
+    return {
+      channel: "email",
+      label: "Received from email",
+      Icon: MailIcon,
+      className: "border-sky-200 bg-sky-50 text-sky-700",
+    }
+  }
+  return {
+    channel: "app",
+    label: "Received from DCX app",
+    Icon: MonitorIcon,
+    className: "border-slate-200 bg-slate-50 text-slate-500",
+  }
 }
 
 function DcxThreadTradeField(props: { label: string; value: string | number | null | undefined }) {
