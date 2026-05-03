@@ -1,6 +1,7 @@
 export type DcxAppAuthenticatedUserTradeDetail = {
   trade_id: number
   source_message_id: number
+  source_first_image_attachment: DcxAppTradeSourceImageAttachment | null
   trade_projection_status: string
   trade_confirmation_status: string
   trade_status: string
@@ -48,6 +49,18 @@ export type DcxAppAuthenticatedUserTradeDetail = {
   created_at_ts_ms: number
   updated_at_ts_ms: number
   trade_versions: DcxAppAuthenticatedUserTradeVersion[]
+}
+
+export type DcxAppTradeSourceImageAttachment = {
+  attachment_id: number
+  file_object_id: number
+  sort_order: number
+  file_uuid: string | null
+  file_kind: string
+  content_type: string
+  file_size_bytes: number | null
+  original_filename: string
+  attachment_url_path: string
 }
 
 export type DcxAppAuthenticatedUserTradeVersion = {

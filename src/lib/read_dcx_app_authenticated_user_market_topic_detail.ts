@@ -1,6 +1,7 @@
 export type DcxAppAuthenticatedUserMarketTopicDetail = {
   market_topic_id: number
   source_message_id: number
+  source_first_image_attachment: DcxAppMarketTopicSourceImageAttachment | null
   topic_status: string
   topic_title: string
   topic_summary_text: string
@@ -22,6 +23,18 @@ export type DcxAppAuthenticatedUserMarketTopicDetail = {
     turn_metadata_json: Record<string, unknown>
     created_at_ts_ms: number
   }>
+}
+
+export type DcxAppMarketTopicSourceImageAttachment = {
+  attachment_id: number
+  file_object_id: number
+  sort_order: number
+  file_uuid: string | null
+  file_kind: string
+  content_type: string
+  file_size_bytes: number | null
+  original_filename: string
+  attachment_url_path: string
 }
 
 type DcxAppMarketTopicDetailSuccessResponse = {

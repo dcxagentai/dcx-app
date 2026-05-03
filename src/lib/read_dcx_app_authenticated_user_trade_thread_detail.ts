@@ -24,7 +24,21 @@ export type DcxAppTradeThreadMessage = {
 }
 
 export type DcxAppTradeThreadDetail = DcxAppTradeThreadCatalogRow & {
+  source_message_id: number
+  source_first_image_attachment: DcxAppTradeThreadSourceImageAttachment | null
   messages: DcxAppTradeThreadMessage[]
+}
+
+export type DcxAppTradeThreadSourceImageAttachment = {
+  attachment_id: number
+  file_object_id: number
+  sort_order: number
+  file_uuid: string | null
+  file_kind: string
+  content_type: string
+  file_size_bytes: number | null
+  original_filename: string
+  attachment_url_path: string
 }
 
 type DcxAppTradeThreadDetailSuccessResponse = {

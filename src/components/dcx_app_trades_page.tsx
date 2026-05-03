@@ -683,8 +683,16 @@ export function DcxAppTradesPage(props: Props) {
             ) : (
               <div className="space-y-6">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-                    {ux.trades_detail_summary_label ?? "Summary"}
+                  <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+                    <span>{ux.trades_detail_summary_label ?? "Summary"}</span>
+                    <span aria-hidden="true">|</span>
+                    <button
+                      type="button"
+                      onClick={() => navigateDcxAppToPath(`/me/messages/${selectedTrade.source_message_id}`)}
+                      className="tracking-[0.18em] text-sky-700 transition-colors hover:text-sky-950"
+                    >
+                      Message {selectedTrade.source_message_id}
+                    </button>
                   </p>
                   <h2 className="mt-2 text-xl font-semibold text-slate-950">
                     {selectedTrade.trade_summary_text || selectedTrade.normalized_material_name || "Trade"}
@@ -693,6 +701,12 @@ export function DcxAppTradesPage(props: Props) {
                     <p className="mt-2 text-sm text-slate-600">
                       Notification: {readDcxTradeConfirmationNotificationStatus(selectedTrade.trade_metadata_json)}
                     </p>
+                  ) : null}
+                  {selectedTrade.source_first_image_attachment ? (
+                    <DcxTradeSourceMessageImagePreview
+                      apiBaseUrl={props.apiBaseUrl}
+                      attachment={selectedTrade.source_first_image_attachment}
+                    />
                   ) : null}
                 </div>
 
@@ -978,10 +992,6 @@ export function DcxAppTradesPage(props: Props) {
                     <DcxTradeField label={ux.trades_raw_origin_label ?? "Raw origin"} value={selectedTrade.raw_origin_text} />
                     <DcxTradeField label={ux.trades_raw_destination_label ?? "Raw destination"} value={selectedTrade.raw_destination_text} />
                     <DcxTradeField label={ux.trades_trade_notes_label ?? "Trade notes"} value={selectedTrade.trade_extraction_notes_text} />
-                    <DcxTradeSourceMessageField
-                      label={ux.trades_source_message_label ?? "Source message"}
-                      sourceMessageId={selectedTrade.source_message_id}
-                    />
                   </div>
                 </section>
               </div>
@@ -1041,24 +1051,6 @@ function DcxTradeField(props: { label: string; value: string }) {
     <div className="space-y-1">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{props.label}</p>
       <p className="text-sm text-slate-900">{readDcxTradeDisplayText(props.value)}</p>
-    </div>
-  )
-}
-
-function DcxTradeSourceMessageField(props: { label: string; sourceMessageId: number | null }) {
-  return (
-    <div className="space-y-1">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{props.label}</p>
-      {props.sourceMessageId ? (
-        <a
-          href={`/me/messages/${props.sourceMessageId}`}
-          className="text-sm font-medium text-sky-700 underline-offset-4 hover:underline"
-        >
-          Message #{props.sourceMessageId}
-        </a>
-      ) : (
-        <p className="text-sm text-slate-900">—</p>
-      )}
     </div>
   )
 }
@@ -1301,6 +1293,27 @@ function writeDcxTradeIdToCurrentUrl(tradeId: number): void {
   }
   window.history.pushState({}, "", `/me/trades/${tradeId}`)
   window.dispatchEvent(new PopStateEvent("popstate"))
+}
+
+function navigateDcxAppToPath(nextPathname: string) {
+  window.history.pushState({}, "", nextPathname)
+  window.dispatchEvent(new PopStateEvent("popstate"))
+}
+
+function DcxTradeSourceMessageImagePreview(props: {
+  apiBaseUrl: string
+  attachment: { attachment_url_path: string; original_filename: string }
+}) {
+  const attachmentUrl = new URL(props.attachment.attachment_url_path, props.apiBaseUrl).toString()
+  return (
+    <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+      <img
+        src={attachmentUrl}
+        alt={props.attachment.original_filename || "Source message image"}
+        className="block max-h-[360px] w-full object-contain"
+      />
+    </div>
+  )
 }
 
 function buildEmptyTradeEditFormState(): DcxTradeEditFormState {

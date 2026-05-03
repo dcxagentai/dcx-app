@@ -400,7 +400,17 @@ export function DcxAppMarketTopicsPage(props: Props) {
             ) : (
               <div className="space-y-6">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">{ux.topics_detail_topic_label ?? "Topic"}</p>
+                  <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+                    <span>{ux.topics_detail_topic_label ?? "Topic"}</span>
+                    <span aria-hidden="true">|</span>
+                    <button
+                      type="button"
+                      onClick={() => navigateDcxAppToPath(`/me/messages/${selectedTopic.source_message_id}`)}
+                      className="tracking-[0.18em] text-sky-700 transition-colors hover:text-sky-950"
+                    >
+                      Message {selectedTopic.source_message_id}
+                    </button>
+                  </p>
                   <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <h2 className="text-xl font-semibold text-slate-950">{selectedTopic.topic_title || (ux.topics_detail_topic_label ?? "Topic")}</h2>
                     <span className="inline-flex w-fit shrink-0 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-sky-700">
@@ -408,6 +418,12 @@ export function DcxAppMarketTopicsPage(props: Props) {
                     </span>
                   </div>
                   <p className="mt-2 text-sm text-slate-600">{selectedTopic.topic_summary_text}</p>
+                  {selectedTopic.source_first_image_attachment ? (
+                    <DcxSourceMessageImagePreview
+                      apiBaseUrl={props.apiBaseUrl}
+                      attachment={selectedTopic.source_first_image_attachment}
+                    />
+                  ) : null}
                 </div>
                 <section className="rounded-lg border border-sky-200 bg-white px-4 py-3">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -648,6 +664,27 @@ function DcxMarketTopicAiChatTurn(props: {
 
 function readDcxMarketTopicReferenceCode(marketTopicId: number): string {
   return `T${marketTopicId}`
+}
+
+function DcxSourceMessageImagePreview(props: {
+  apiBaseUrl: string
+  attachment: { attachment_url_path: string; original_filename: string }
+}) {
+  const attachmentUrl = new URL(props.attachment.attachment_url_path, props.apiBaseUrl).toString()
+  return (
+    <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+      <img
+        src={attachmentUrl}
+        alt={props.attachment.original_filename || "Source message image"}
+        className="block max-h-[360px] w-full object-contain"
+      />
+    </div>
+  )
+}
+
+function navigateDcxAppToPath(nextPathname: string) {
+  window.history.pushState({}, "", nextPathname)
+  window.dispatchEvent(new PopStateEvent("popstate"))
 }
 
 function readDcxMarketTopicTurnSourceMetadata(turnMetadata: Record<string, unknown>): {

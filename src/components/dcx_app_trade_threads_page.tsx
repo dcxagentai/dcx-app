@@ -294,6 +294,7 @@ export function DcxAppTradeThreadsPage(props: Props) {
               <p className="text-sm text-slate-500">Choose a trade chat to inspect.</p>
             ) : (
               <DcxTradeThreadDetailPanel
+                apiBaseUrl={props.apiBaseUrl}
                 tradeThread={selectedTradeThread}
                 pendingMessage={pendingMessage}
                 draftMessageText={draftMessageText}
@@ -366,6 +367,7 @@ export function DcxAppTradeThreadsPage(props: Props) {
 }
 
 function DcxTradeThreadDetailPanel(props: {
+  apiBaseUrl: string
   tradeThread: DcxAppTradeThreadDetail
   pendingMessage: PendingTradeThreadMessage | null
   draftMessageText: string
@@ -383,13 +385,29 @@ function DcxTradeThreadDetailPanel(props: {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Trade chat</p>
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+          <span>Trade chat</span>
+          <span aria-hidden="true">|</span>
+          <button
+            type="button"
+            onClick={() => navigateDcxAppToPath(`/me/messages/${props.tradeThread.source_message_id}`)}
+            className="tracking-[0.18em] text-sky-700 transition-colors hover:text-sky-950"
+          >
+            Message {props.tradeThread.source_message_id}
+          </button>
+        </p>
         <h2 className="mt-2 text-xl font-semibold text-slate-950">
           {props.tradeThread.thread_reference_code}: {props.tradeThread.trade_summary_text || "Trade conversation"}
         </h2>
         <p className="mt-2 text-sm text-slate-500">
           With {props.tradeThread.other_participant_public_identity_label}
         </p>
+        {props.tradeThread.source_first_image_attachment ? (
+          <DcxTradeThreadSourceMessageImagePreview
+            apiBaseUrl={props.apiBaseUrl}
+            attachment={props.tradeThread.source_first_image_attachment}
+          />
+        ) : null}
       </div>
 
       <div className="rounded-lg border border-slate-200 bg-white p-4">
@@ -405,14 +423,16 @@ function DcxTradeThreadDetailPanel(props: {
           <DcxThreadTradeField label="Destination" value={props.tradeThread.normalized_destination_location} />
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => navigateDcxAppToPath(`/me/trades/${props.tradeThread.trade_id}`)}
-          >
-            Open trade
-          </Button>
+          {props.tradeThread.is_authenticated_user_owner ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => navigateDcxAppToPath(`/me/trades/${props.tradeThread.trade_id}`)}
+            >
+              Open trade
+            </Button>
+          ) : null}
           {props.tradeThread.trade_publication_id ? (
             <Button
               type="button"
@@ -637,6 +657,22 @@ function readThreadPriceLabel(
   const currencyCode = readThreadText(trade.normalized_currency_code)
   const unitBasis = readThreadText(trade.normalized_price_unit_basis)
   return `${trade.normalized_price_value}${currencyCode !== "—" ? ` ${currencyCode}` : ""}${unitBasis !== "—" ? ` / ${unitBasis}` : ""}`
+}
+
+function DcxTradeThreadSourceMessageImagePreview(props: {
+  apiBaseUrl: string
+  attachment: { attachment_url_path: string; original_filename: string }
+}) {
+  const attachmentUrl = new URL(props.attachment.attachment_url_path, props.apiBaseUrl).toString()
+  return (
+    <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+      <img
+        src={attachmentUrl}
+        alt={props.attachment.original_filename || "Source message image"}
+        className="block max-h-[360px] w-full object-contain"
+      />
+    </div>
+  )
 }
 
 function navigateDcxAppToPath(nextPathname: string) {
