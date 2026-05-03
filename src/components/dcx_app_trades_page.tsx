@@ -27,6 +27,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 
@@ -48,6 +55,10 @@ import {
   type DcxAppTradeCandidatePatchPayload,
 } from "../lib/update_dcx_app_authenticated_user_trade_candidate"
 import { setDcxAppAuthenticatedUserTradeVisibility } from "../lib/set_dcx_app_authenticated_user_trade_visibility"
+import {
+  useDcxAppBalancedDesktopSplitMode,
+  useDcxAppDetailSheetMode,
+} from "./use_dcx_app_master_detail_layout_mode"
 
 type Props = {
   apiBaseUrl: string
@@ -164,6 +175,9 @@ export function DcxAppTradesPage(props: Props) {
   const [tradeSideFilter, setTradeSideFilter] = useState<DcxTradeSideFilter>("all")
   const [tradeStateFilter, setTradeStateFilter] = useState<DcxTradeStateFilter>("all")
   const [tradeMaterialFilter, setTradeMaterialFilter] = useState("all")
+  const [isMobileDetailOpen, setIsMobileDetailOpen] = useState(false)
+  const isDetailSheetMode = useDcxAppDetailSheetMode()
+  const isBalancedDesktopSplitMode = useDcxAppBalancedDesktopSplitMode()
   const [tradeSorting, setTradeSorting] = useState<SortingState>([
     { id: "updated", desc: true },
   ])
@@ -521,12 +535,8 @@ export function DcxAppTradesPage(props: Props) {
     }
   }, [currentFormSnapshot, isAnyTradeMutationPending, isDirty, selectedTrade?.trade_id, visualState])
 
-  return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
-      <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1 rounded-lg border bg-white">
-        <ResizablePanel defaultSize={56} minSize={38}>
-          <div className="h-full overflow-hidden p-4">
-            <section className="overflow-hidden border border-black/6 bg-white shadow-[0_18px_55px_-48px_rgba(15,23,42,0.45)]">
+  const tradeListPanel = (
+    <section className="min-w-0 overflow-hidden border border-black/6 bg-white shadow-[0_18px_55px_-48px_rgba(15,23,42,0.45)]">
               <div className="flex flex-col gap-4 border-b border-black/6 px-4 py-3">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <label className="relative block w-full lg:flex-1">
@@ -632,6 +642,9 @@ export function DcxAppTradesPage(props: Props) {
                   onRowClick={(row) => {
                     setSelectedTradeId(row.trade_id)
                     writeDcxTradeIdToCurrentUrl(row.trade_id)
+                    if (isDetailSheetMode) {
+                      setIsMobileDetailOpen(true)
+                    }
                   }}
                   readRowClassName={(row) => row.trade_id === selectedTradeId ? "bg-sky-50 hover:bg-sky-50 ring-1 ring-inset ring-sky-200" : ""}
                   readColumnWidthClassName={(columnId) => {
@@ -658,12 +671,11 @@ export function DcxAppTradesPage(props: Props) {
                   emptyLabel={ux.trades_empty ?? "No structured trades match these filters."}
                 />
               ) : null}
-            </section>
-          </div>
-        </ResizablePanel>
-        <ResizableHandle withHandle />
-        <ResizablePanel defaultSize={44} minSize={30}>
-          <div className="h-full overflow-y-auto border-l p-6">
+    </section>
+  )
+
+  const tradeDetailPanel = (
+    <aside className="h-full min-w-0 overflow-y-auto border border-black/6 bg-white p-6 shadow-[0_18px_55px_-48px_rgba(15,23,42,0.45)]">
             {!selectedTrade ? (
               <p className="text-sm text-slate-500">
                 {ux.trades_detail_empty ?? "Choose a trade candidate to inspect, confirm, or correct it."}
@@ -974,10 +986,53 @@ export function DcxAppTradesPage(props: Props) {
                 </section>
               </div>
             )}
-          </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
-    </div>
+    </aside>
+  )
+
+  const selectedTradeTitle =
+    selectedTrade?.trade_summary_text || selectedTrade?.normalized_material_name || "Trade"
+
+  return (
+    <section className="flex min-h-[calc(100vh-5rem)] min-w-0 flex-col gap-4 overflow-x-hidden">
+      {isDetailSheetMode ? (
+        <main className="min-w-0 overflow-x-hidden">{tradeListPanel}</main>
+      ) : (
+        <ResizablePanelGroup
+          key={isBalancedDesktopSplitMode ? "balanced-desktop-split" : "wide-desktop-split"}
+          orientation="horizontal"
+          className="min-h-0 w-full max-w-full flex-1 overflow-hidden"
+        >
+          <ResizablePanel
+            className="min-w-0 overflow-hidden"
+            defaultSize={isBalancedDesktopSplitMode ? "50%" : "56%"}
+            minSize="42%"
+          >
+            <div className="h-full min-w-0 overflow-x-hidden pr-2">{tradeListPanel}</div>
+          </ResizablePanel>
+          <ResizableHandle withHandle className="mx-1 bg-transparent" />
+          <ResizablePanel
+            className="min-w-0 overflow-hidden"
+            defaultSize={isBalancedDesktopSplitMode ? "50%" : "44%"}
+            minSize={isBalancedDesktopSplitMode ? "50%" : "34%"}
+            maxSize="58%"
+          >
+            <div className="h-full min-w-0 overflow-x-hidden pl-2">{tradeDetailPanel}</div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      )}
+
+      {isDetailSheetMode ? (
+        <Sheet open={isMobileDetailOpen && selectedTradeId !== null} onOpenChange={setIsMobileDetailOpen}>
+          <SheetContent className="overflow-x-hidden overflow-y-auto p-0 data-[side=right]:w-[90vw] data-[side=right]:max-w-[90vw] data-[side=right]:sm:max-w-[90vw]">
+            <SheetHeader className="sr-only">
+              <SheetTitle>{selectedTradeTitle}</SheetTitle>
+              <SheetDescription>Trade detail</SheetDescription>
+            </SheetHeader>
+            {tradeDetailPanel}
+          </SheetContent>
+        </Sheet>
+      ) : null}
+    </section>
   )
 }
 

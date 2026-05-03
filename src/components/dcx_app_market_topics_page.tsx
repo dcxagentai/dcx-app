@@ -18,6 +18,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 
@@ -37,6 +44,10 @@ import {
 } from "../lib/read_dcx_app_authenticated_user_market_topic_detail"
 import { setDcxAppAuthenticatedUserMarketTopicVisibility } from "../lib/set_dcx_app_authenticated_user_market_topic_visibility"
 import { appendDcxAppAuthenticatedUserMarketTopicAiTurn } from "../lib/append_dcx_app_authenticated_user_market_topic_ai_turn"
+import {
+  useDcxAppBalancedDesktopSplitMode,
+  useDcxAppDetailSheetMode,
+} from "./use_dcx_app_master_detail_layout_mode"
 
 type Props = {
   apiBaseUrl: string
@@ -68,6 +79,9 @@ export function DcxAppMarketTopicsPage(props: Props) {
   const [aiChatDraftText, setAiChatDraftText] = useState("")
   const [pendingAiChatUserTurn, setPendingAiChatUserTurn] = useState<DcxPendingMarketTopicAiChatUserTurn | null>(null)
   const [hasTopicChatReachedContextLimit, setHasTopicChatReachedContextLimit] = useState(false)
+  const [isMobileDetailOpen, setIsMobileDetailOpen] = useState(false)
+  const isDetailSheetMode = useDcxAppDetailSheetMode()
+  const isBalancedDesktopSplitMode = useDcxAppBalancedDesktopSplitMode()
   const [topicSorting, setTopicSorting] = useState<SortingState>([
     { id: "updated", desc: true },
   ])
@@ -256,12 +270,8 @@ export function DcxAppMarketTopicsPage(props: Props) {
 
   const selectedTopic = selectedMarketTopicDetailQuery.data?.data ?? null
 
-  return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
-      <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1 rounded-lg border bg-white">
-        <ResizablePanel defaultSize={50} minSize={38}>
-          <div className="h-full overflow-hidden p-4">
-            <section className="overflow-hidden border border-black/6 bg-white shadow-[0_18px_55px_-48px_rgba(15,23,42,0.45)]">
+  const topicListPanel = (
+    <section className="min-w-0 overflow-hidden border border-black/6 bg-white shadow-[0_18px_55px_-48px_rgba(15,23,42,0.45)]">
               <div className="flex flex-col gap-4 border-b border-black/6 px-4 py-3">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <label className="relative block w-full lg:flex-1">
@@ -357,6 +367,9 @@ export function DcxAppMarketTopicsPage(props: Props) {
                     if (typeof window !== "undefined") {
                       window.history.replaceState({}, "", `/me/topics/${row.market_topic_id}`)
                     }
+                    if (isDetailSheetMode) {
+                      setIsMobileDetailOpen(true)
+                    }
                   }}
                   readRowClassName={(row) => row.market_topic_id === selectedMarketTopicId ? "bg-sky-50 hover:bg-sky-50 ring-1 ring-inset ring-sky-200" : ""}
                   readColumnWidthClassName={(columnId) => {
@@ -374,12 +387,11 @@ export function DcxAppMarketTopicsPage(props: Props) {
                   emptyLabel={ux.topics_empty ?? "No market topics match these filters."}
                 />
               ) : null}
-            </section>
-          </div>
-        </ResizablePanel>
-        <ResizableHandle withHandle />
-        <ResizablePanel defaultSize={50} minSize={30}>
-          <div className="h-full overflow-y-auto border-l p-6">
+    </section>
+  )
+
+  const topicDetailPanel = (
+    <aside className="h-full min-w-0 overflow-y-auto border border-black/6 bg-white p-6 shadow-[0_18px_55px_-48px_rgba(15,23,42,0.45)]">
             {!selectedTopic ? (
               <p className="text-sm text-slate-500">{ux.topics_detail_empty ?? "Choose a topic to inspect its seeded AI response."}</p>
             ) : (
@@ -518,10 +530,52 @@ export function DcxAppMarketTopicsPage(props: Props) {
                 </div>
               </div>
             )}
-          </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
-    </div>
+    </aside>
+  )
+
+  const selectedTopicTitle = selectedTopic?.topic_title || (ux.topics_detail_topic_label ?? "Topic")
+
+  return (
+    <section className="flex min-h-[calc(100vh-5rem)] min-w-0 flex-col gap-4 overflow-x-hidden">
+      {isDetailSheetMode ? (
+        <main className="min-w-0 overflow-x-hidden">{topicListPanel}</main>
+      ) : (
+        <ResizablePanelGroup
+          key={isBalancedDesktopSplitMode ? "balanced-desktop-split" : "wide-desktop-split"}
+          orientation="horizontal"
+          className="min-h-0 w-full max-w-full flex-1 overflow-hidden"
+        >
+          <ResizablePanel
+            className="min-w-0 overflow-hidden"
+            defaultSize={isBalancedDesktopSplitMode ? "50%" : "50%"}
+            minSize="42%"
+          >
+            <div className="h-full min-w-0 overflow-x-hidden pr-2">{topicListPanel}</div>
+          </ResizablePanel>
+          <ResizableHandle withHandle className="mx-1 bg-transparent" />
+          <ResizablePanel
+            className="min-w-0 overflow-hidden"
+            defaultSize={isBalancedDesktopSplitMode ? "50%" : "50%"}
+            minSize={isBalancedDesktopSplitMode ? "50%" : "34%"}
+            maxSize="58%"
+          >
+            <div className="h-full min-w-0 overflow-x-hidden pl-2">{topicDetailPanel}</div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      )}
+
+      {isDetailSheetMode ? (
+        <Sheet open={isMobileDetailOpen && selectedMarketTopicId !== null} onOpenChange={setIsMobileDetailOpen}>
+          <SheetContent className="overflow-x-hidden overflow-y-auto p-0 data-[side=right]:w-[90vw] data-[side=right]:max-w-[90vw] data-[side=right]:sm:max-w-[90vw]">
+            <SheetHeader className="sr-only">
+              <SheetTitle>{selectedTopicTitle}</SheetTitle>
+              <SheetDescription>Market topic detail</SheetDescription>
+            </SheetHeader>
+            {topicDetailPanel}
+          </SheetContent>
+        </Sheet>
+      ) : null}
+    </section>
   )
 }
 

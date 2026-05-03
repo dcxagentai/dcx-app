@@ -498,7 +498,7 @@ export function DcxAppMessagesPage(props: Props) {
 
       {isDetailSheetMode ? (
         <Sheet open={isMobileDetailOpen && effectiveSelectedMessageId !== null} onOpenChange={setIsMobileDetailOpen}>
-          <SheetContent className="w-[calc(100vw-1.5rem)] overflow-x-hidden overflow-y-auto p-0 sm:max-w-2xl">
+          <SheetContent className="overflow-x-hidden overflow-y-auto p-0 data-[side=right]:w-[90vw] data-[side=right]:max-w-[90vw] data-[side=right]:sm:max-w-[90vw]">
             <SheetHeader className="sr-only">
               <SheetTitle>{selectedMessageTitle}</SheetTitle>
               <SheetDescription>{ux.messages_detail_empty}</SheetDescription>

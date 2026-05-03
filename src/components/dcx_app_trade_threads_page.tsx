@@ -13,6 +13,13 @@ import { Button } from "@/components/ui/button"
 import { DcxAppDataTable } from "@/components/ui/dcx_app_data_table"
 import { Input } from "@/components/ui/input"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 
@@ -31,6 +38,10 @@ import {
   readDcxAppAuthenticatedUserTradeThreadsCatalog,
   type DcxAppTradeThreadCatalogRow,
 } from "../lib/read_dcx_app_authenticated_user_trade_threads_catalog"
+import {
+  useDcxAppBalancedDesktopSplitMode,
+  useDcxAppDetailSheetMode,
+} from "./use_dcx_app_master_detail_layout_mode"
 
 type Props = {
   apiBaseUrl: string
@@ -50,6 +61,9 @@ export function DcxAppTradeThreadsPage(props: Props) {
   const [searchQuery, setSearchQuery] = useState("")
   const [draftMessageText, setDraftMessageText] = useState("")
   const [pendingMessage, setPendingMessage] = useState<PendingTradeThreadMessage | null>(null)
+  const [isMobileDetailOpen, setIsMobileDetailOpen] = useState(false)
+  const isDetailSheetMode = useDcxAppDetailSheetMode()
+  const isBalancedDesktopSplitMode = useDcxAppBalancedDesktopSplitMode()
   const [sorting, setSorting] = useState<SortingState>([{ id: "updated", desc: true }])
 
   const accountSummaryQuery = useQuery({
@@ -218,12 +232,8 @@ export function DcxAppTradeThreadsPage(props: Props) {
   const threadErrorText =
     appendMessageMutation.isError ? (appendMessageMutation.error as Error).message : null
 
-  return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
-      <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1 rounded-lg border bg-white">
-        <ResizablePanel defaultSize={54} minSize={36}>
-          <div className="h-full overflow-hidden p-4">
-            <section className="overflow-hidden border border-black/6 bg-white shadow-[0_18px_55px_-48px_rgba(15,23,42,0.45)]">
+  const tradeThreadListPanel = (
+    <section className="min-w-0 overflow-hidden border border-black/6 bg-white shadow-[0_18px_55px_-48px_rgba(15,23,42,0.45)]">
               <div className="flex flex-col gap-3 border-b border-black/6 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
                 <label className="relative block w-full lg:flex-1">
                   <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
@@ -261,6 +271,9 @@ export function DcxAppTradeThreadsPage(props: Props) {
                   setDraftMessageText("")
                   setPendingMessage(null)
                   window.history.replaceState({}, "", `/me/trade-threads/${row.trade_thread_id}`)
+                  if (isDetailSheetMode) {
+                    setIsMobileDetailOpen(true)
+                  }
                 }}
                 readColumnWidthClassName={(columnId) => {
                   if (columnId === "thread") return "w-[86px]"
@@ -272,12 +285,11 @@ export function DcxAppTradeThreadsPage(props: Props) {
                 readRowClassName={(row) => row.trade_thread_id === selectedTradeThreadId ? "bg-sky-50 hover:bg-sky-50 ring-1 ring-inset ring-sky-200" : ""}
                 emptyLabel="No private trade chats yet."
               />
-            </section>
-          </div>
-        </ResizablePanel>
-        <ResizableHandle withHandle />
-        <ResizablePanel defaultSize={46} minSize={34}>
-          <div className="h-full overflow-y-auto border-l p-6">
+    </section>
+  )
+
+  const tradeThreadDetailPanel = (
+    <aside className="h-full min-w-0 overflow-y-auto border border-black/6 bg-white p-6 shadow-[0_18px_55px_-48px_rgba(15,23,42,0.45)]">
             {!selectedTradeThread ? (
               <p className="text-sm text-slate-500">Choose a trade chat to inspect.</p>
             ) : (
@@ -302,10 +314,54 @@ export function DcxAppTradeThreadsPage(props: Props) {
                 }}
               />
             )}
-          </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
-    </div>
+    </aside>
+  )
+
+  const selectedTradeThreadTitle = selectedTradeThread
+    ? `${selectedTradeThread.thread_reference_code}: ${selectedTradeThread.trade_summary_text || "Trade conversation"}`
+    : "Trade chat"
+
+  return (
+    <section className="flex min-h-[calc(100vh-5rem)] min-w-0 flex-col gap-4 overflow-x-hidden">
+      {isDetailSheetMode ? (
+        <main className="min-w-0 overflow-x-hidden">{tradeThreadListPanel}</main>
+      ) : (
+        <ResizablePanelGroup
+          key={isBalancedDesktopSplitMode ? "balanced-desktop-split" : "wide-desktop-split"}
+          orientation="horizontal"
+          className="min-h-0 w-full max-w-full flex-1 overflow-hidden"
+        >
+          <ResizablePanel
+            className="min-w-0 overflow-hidden"
+            defaultSize={isBalancedDesktopSplitMode ? "50%" : "54%"}
+            minSize="42%"
+          >
+            <div className="h-full min-w-0 overflow-x-hidden pr-2">{tradeThreadListPanel}</div>
+          </ResizablePanel>
+          <ResizableHandle withHandle className="mx-1 bg-transparent" />
+          <ResizablePanel
+            className="min-w-0 overflow-hidden"
+            defaultSize={isBalancedDesktopSplitMode ? "50%" : "46%"}
+            minSize={isBalancedDesktopSplitMode ? "50%" : "34%"}
+            maxSize="58%"
+          >
+            <div className="h-full min-w-0 overflow-x-hidden pl-2">{tradeThreadDetailPanel}</div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      )}
+
+      {isDetailSheetMode ? (
+        <Sheet open={isMobileDetailOpen && selectedTradeThreadId !== null} onOpenChange={setIsMobileDetailOpen}>
+          <SheetContent className="overflow-x-hidden overflow-y-auto p-0 data-[side=right]:w-[90vw] data-[side=right]:max-w-[90vw] data-[side=right]:sm:max-w-[90vw]">
+            <SheetHeader className="sr-only">
+              <SheetTitle>{selectedTradeThreadTitle}</SheetTitle>
+              <SheetDescription>Private trade chat detail</SheetDescription>
+            </SheetHeader>
+            {tradeThreadDetailPanel}
+          </SheetContent>
+        </Sheet>
+      ) : null}
+    </section>
   )
 }
 

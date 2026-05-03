@@ -7,6 +7,13 @@ import { Button } from "@/components/ui/button"
 import { DcxAppDataTable } from "@/components/ui/dcx_app_data_table"
 import { Input } from "@/components/ui/input"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
 
 import {
@@ -23,6 +30,10 @@ import {
   readDcxAppMarketForumPostDetail,
   type DcxAppMarketForumPostDetail,
 } from "../lib/read_dcx_app_market_forum_post_detail"
+import {
+  useDcxAppBalancedDesktopSplitMode,
+  useDcxAppDetailSheetMode,
+} from "./use_dcx_app_master_detail_layout_mode"
 
 type Props = {
   apiBaseUrl: string
@@ -34,6 +45,9 @@ export function DcxAppMarketForumPage(props: Props) {
   const [selectedForumPostId, setSelectedForumPostId] = useState<number | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [commentText, setCommentText] = useState("")
+  const [isMobileDetailOpen, setIsMobileDetailOpen] = useState(false)
+  const isDetailSheetMode = useDcxAppDetailSheetMode()
+  const isBalancedDesktopSplitMode = useDcxAppBalancedDesktopSplitMode()
   const [sorting, setSorting] = useState<SortingState>([{ id: "updated", desc: true }])
 
   const accountSummaryQuery = useQuery({
@@ -151,12 +165,8 @@ export function DcxAppMarketForumPage(props: Props) {
 
   const selectedPost = detailQuery.data?.data ?? null
 
-  return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
-      <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1 rounded-lg border bg-white">
-        <ResizablePanel defaultSize={52} minSize={38}>
-          <div className="h-full overflow-hidden p-4">
-            <section className="overflow-hidden border border-black/6 bg-white shadow-[0_18px_55px_-48px_rgba(15,23,42,0.45)]">
+  const forumListPanel = (
+    <section className="min-w-0 overflow-hidden border border-black/6 bg-white shadow-[0_18px_55px_-48px_rgba(15,23,42,0.45)]">
               <div className="flex flex-col gap-3 border-b border-black/6 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
                 <label className="relative block w-full lg:flex-1">
                   <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
@@ -180,16 +190,18 @@ export function DcxAppMarketForumPage(props: Props) {
                 onRowClick={(row) => {
                   setSelectedForumPostId(row.forum_post_id)
                   window.history.replaceState({}, "", `/me/market/forum/${row.forum_post_id}`)
+                  if (isDetailSheetMode) {
+                    setIsMobileDetailOpen(true)
+                  }
                 }}
                 readRowClassName={(row) => row.forum_post_id === selectedForumPostId ? "bg-sky-50 hover:bg-sky-50 ring-1 ring-inset ring-sky-200" : ""}
                 emptyLabel="No public forum posts yet."
               />
-            </section>
-          </div>
-        </ResizablePanel>
-        <ResizableHandle withHandle />
-        <ResizablePanel defaultSize={48} minSize={32}>
-          <div className="h-full overflow-y-auto border-l p-6">
+    </section>
+  )
+
+  const forumDetailPanel = (
+    <aside className="h-full min-w-0 overflow-y-auto border border-black/6 bg-white p-6 shadow-[0_18px_55px_-48px_rgba(15,23,42,0.45)]">
             {!selectedPost ? (
               <p className="text-sm text-slate-500">Choose a forum post to read.</p>
             ) : (
@@ -206,10 +218,52 @@ export function DcxAppMarketForumPage(props: Props) {
                 }}
               />
             )}
-          </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
-    </div>
+    </aside>
+  )
+
+  const selectedForumPostTitle = selectedPost?.forum_title || "Forum post"
+
+  return (
+    <section className="flex min-h-[calc(100vh-5rem)] min-w-0 flex-col gap-4 overflow-x-hidden">
+      {isDetailSheetMode ? (
+        <main className="min-w-0 overflow-x-hidden">{forumListPanel}</main>
+      ) : (
+        <ResizablePanelGroup
+          key={isBalancedDesktopSplitMode ? "balanced-desktop-split" : "wide-desktop-split"}
+          orientation="horizontal"
+          className="min-h-0 w-full max-w-full flex-1 overflow-hidden"
+        >
+          <ResizablePanel
+            className="min-w-0 overflow-hidden"
+            defaultSize={isBalancedDesktopSplitMode ? "50%" : "52%"}
+            minSize="42%"
+          >
+            <div className="h-full min-w-0 overflow-x-hidden pr-2">{forumListPanel}</div>
+          </ResizablePanel>
+          <ResizableHandle withHandle className="mx-1 bg-transparent" />
+          <ResizablePanel
+            className="min-w-0 overflow-hidden"
+            defaultSize={isBalancedDesktopSplitMode ? "50%" : "48%"}
+            minSize={isBalancedDesktopSplitMode ? "50%" : "34%"}
+            maxSize="58%"
+          >
+            <div className="h-full min-w-0 overflow-x-hidden pl-2">{forumDetailPanel}</div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      )}
+
+      {isDetailSheetMode ? (
+        <Sheet open={isMobileDetailOpen && selectedForumPostId !== null} onOpenChange={setIsMobileDetailOpen}>
+          <SheetContent className="overflow-x-hidden overflow-y-auto p-0 data-[side=right]:w-[90vw] data-[side=right]:max-w-[90vw] data-[side=right]:sm:max-w-[90vw]">
+            <SheetHeader className="sr-only">
+              <SheetTitle>{selectedForumPostTitle}</SheetTitle>
+              <SheetDescription>Forum post detail</SheetDescription>
+            </SheetHeader>
+            {forumDetailPanel}
+          </SheetContent>
+        </Sheet>
+      ) : null}
+    </section>
   )
 }
 
