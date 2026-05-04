@@ -830,6 +830,7 @@ export function DcxAppTradesPage(props: Props) {
                             ...current,
                             normalized_material_key: nextMaterialKey,
                           }))}
+                          onBeginEditing={() => setVisualState("editing")}
                         />
                       </DcxTradeEditField>
                       <DcxTradeEditField label={ux.trades_material_label ?? "Material"}>
@@ -1093,10 +1094,10 @@ function DcxTradeField(props: { label: string; value: string }) {
 
 function DcxTradeEditField(props: { label: string; children: ReactNode }) {
   return (
-    <label className="space-y-1">
+    <div className="space-y-1">
       <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{props.label}</span>
       {props.children}
-    </label>
+    </div>
   )
 }
 
@@ -1142,6 +1143,7 @@ function DcxTradeMaterialKeyCombobox(props: {
   optionGroups: DcxAppGroupedTradeMaterialOptionGroup[]
   disabled?: boolean
   onChange: (value: string) => void
+  onBeginEditing?: () => void
 }) {
   const normalizedValue = normalizeDcxTradeTextValue(props.value).toLowerCase()
   const flatOptions = readDcxAppFlatTradeMaterialOptions(props.optionGroups)
@@ -1157,6 +1159,7 @@ function DcxTradeMaterialKeyCombobox(props: {
         isItemEqualToValue={(left, right) => left.value === right.value}
         disabled={props.disabled}
         onValueChange={(nextOption) => {
+          props.onBeginEditing?.()
           props.onChange(nextOption?.value ?? "")
         }}
         autoHighlight
@@ -1172,7 +1175,14 @@ function DcxTradeMaterialKeyCombobox(props: {
                 <ComboboxGroupLabel>{optionGroup.label}</ComboboxGroupLabel>
                 <ComboboxCollection>
                   {(option: DcxAppGroupedTradeMaterialOption) => (
-                    <ComboboxItem key={option.value} value={option}>
+                    <ComboboxItem
+                      key={option.value}
+                      value={option}
+                      onClick={() => {
+                        props.onBeginEditing?.()
+                        props.onChange(option.value)
+                      }}
+                    >
                       <span className="truncate font-medium text-slate-950">{option.label}</span>
                     </ComboboxItem>
                   )}
