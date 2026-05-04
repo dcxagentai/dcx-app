@@ -21,6 +21,18 @@ import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import {
+  Combobox,
+  ComboboxCollection,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxGroup,
+  ComboboxGroupLabel,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxTriggerIcon,
+} from "@/components/ui/combobox"
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -59,6 +71,12 @@ import {
   useDcxAppBalancedDesktopSplitMode,
   useDcxAppDetailSheetMode,
 } from "./use_dcx_app_master_detail_layout_mode"
+import {
+  readDcxAppFlatTradeMaterialOptions,
+  readDcxAppGroupedTradeMaterialOptions,
+  type DcxAppGroupedTradeMaterialOption,
+  type DcxAppGroupedTradeMaterialOptionGroup,
+} from "../lib/dcx_app_trade_material_interest_options"
 
 type Props = {
   apiBaseUrl: string
@@ -70,6 +88,7 @@ type DcxTradeEditFormState = {
   trade_status: string
   normalized_trade_side: string
   normalized_material_name: string
+  normalized_material_key: string
   normalized_quantity_value: string
   normalized_quantity_unit: string
   normalized_price_mode: string
@@ -196,6 +215,9 @@ export function DcxAppTradesPage(props: Props) {
   const ux = accountSummary?.ux_strings ?? DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS
   const selectedTimezoneIanaName = accountSummary?.preferred_timezone?.iana_name ?? null
   const selectedLanguageCode = accountSummary?.preferred_language?.language_code ?? "en"
+  const tradeMaterialOptionGroups = readDcxAppGroupedTradeMaterialOptions(
+    accountSummary?.available_trade_interest_materials ?? [],
+  )
   const tradeStateOptions = useMemo(
     () => DCX_TRADE_STATE_OPTIONS.map((statusOption) => ({
       ...statusOption,
@@ -803,6 +825,17 @@ export function DcxAppTradesPage(props: Props) {
                         onChange={(event) => setEditFormState((current) => ({ ...current, normalized_material_name: event.target.value }))}
                       />
                     </DcxTradeEditField>
+                    <DcxTradeEditField label="Commodity">
+                      <DcxTradeMaterialKeyCombobox
+                        value={editFormState.normalized_material_key}
+                        optionGroups={tradeMaterialOptionGroups}
+                        disabled={isAnyTradeMutationPending}
+                        onChange={(nextMaterialKey) => setEditFormState((current) => ({
+                          ...current,
+                          normalized_material_key: nextMaterialKey,
+                        }))}
+                      />
+                    </DcxTradeEditField>
                     <DcxTradeEditField label={ux.trades_quantity_value_label ?? "Quantity"}>
                       <Input
                         value={editFormState.normalized_quantity_value}
@@ -1123,6 +1156,55 @@ function DcxTradeSelect(props: {
   )
 }
 
+function DcxTradeMaterialKeyCombobox(props: {
+  value: string
+  optionGroups: DcxAppGroupedTradeMaterialOptionGroup[]
+  disabled?: boolean
+  onChange: (value: string) => void
+}) {
+  const normalizedValue = normalizeDcxTradeTextValue(props.value).toLowerCase()
+  const flatOptions = readDcxAppFlatTradeMaterialOptions(props.optionGroups)
+  const selectedOption = flatOptions.find((option) => option.value === normalizedValue) ?? null
+
+  return (
+    <div className="relative">
+      <Combobox
+        items={props.optionGroups}
+        value={selectedOption ?? undefined}
+        itemToStringLabel={(option) => option.label}
+        itemToStringValue={(option) => option.searchLabel}
+        isItemEqualToValue={(left, right) => left.value === right.value}
+        disabled={props.disabled}
+        onValueChange={(nextOption) => {
+          props.onChange(nextOption?.value ?? "")
+        }}
+        autoHighlight
+        openOnInputClick
+      >
+        <ComboboxInput className="h-9 bg-white pr-10" placeholder="Commodity" disabled={props.disabled} />
+        <ComboboxTriggerIcon />
+        <ComboboxContent>
+          <ComboboxEmpty>No options found.</ComboboxEmpty>
+          <ComboboxList>
+            {props.optionGroups.map((optionGroup) => (
+              <ComboboxGroup key={optionGroup.label} items={optionGroup.items}>
+                <ComboboxGroupLabel>{optionGroup.label}</ComboboxGroupLabel>
+                <ComboboxCollection>
+                  {(option: DcxAppGroupedTradeMaterialOption) => (
+                    <ComboboxItem key={option.value} value={option}>
+                      <span className="truncate font-medium text-slate-950">{option.label}</span>
+                    </ComboboxItem>
+                  )}
+                </ComboboxCollection>
+              </ComboboxGroup>
+            ))}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
+    </div>
+  )
+}
+
 function DcxTradeDatePicker(props: {
   value: string
   selectedLanguageCode: string
@@ -1322,6 +1404,7 @@ function buildEmptyTradeEditFormState(): DcxTradeEditFormState {
     trade_status: "",
     normalized_trade_side: "",
     normalized_material_name: "",
+    normalized_material_key: "",
     normalized_quantity_value: "",
     normalized_quantity_unit: "",
     normalized_price_mode: "",
@@ -1346,6 +1429,7 @@ function buildTradeEditFormStateFromTradeDetail(trade: DcxAppAuthenticatedUserTr
     trade_status: normalizeDcxTradeTextValue(trade.trade_status),
     normalized_trade_side: normalizeDcxTradeTextValue(trade.normalized_trade_side),
     normalized_material_name: normalizeDcxTradeTextValue(trade.normalized_material_name),
+    normalized_material_key: normalizeDcxTradeTextValue(trade.normalized_material_key).toLowerCase(),
     normalized_quantity_value: trade.normalized_quantity_value === null ? "" : String(trade.normalized_quantity_value),
     normalized_quantity_unit: normalizeDcxTradeTextValue(trade.normalized_quantity_unit),
     normalized_price_mode: normalizeDcxTradeTextValue(trade.normalized_price_mode),
@@ -1370,6 +1454,7 @@ function buildTradePatchPayloadFromFormState(formState: DcxTradeEditFormState): 
     trade_status: formState.trade_status.trim(),
     normalized_trade_side: formState.normalized_trade_side.trim(),
     normalized_material_name: formState.normalized_material_name.trim(),
+    normalized_material_key: formState.normalized_material_key.trim().toLowerCase(),
     normalized_quantity_value: readOptionalNumberFromTradeFormValue(formState.normalized_quantity_value),
     normalized_quantity_unit: formState.normalized_quantity_unit.trim(),
     normalized_price_mode: formState.normalized_price_mode.trim(),

@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Combobox as ComboboxPrimitive } from "@base-ui/react/combobox"
-import { CheckIcon, ChevronDownIcon } from "lucide-react"
+import { CheckIcon, ChevronDownIcon, XIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -64,6 +64,33 @@ const ComboboxList = React.forwardRef<
 ))
 ComboboxList.displayName = "ComboboxList"
 
+const ComboboxCollection = ComboboxPrimitive.Collection
+const ComboboxValue = ComboboxPrimitive.Value
+
+const ComboboxGroup = React.forwardRef<
+  HTMLDivElement,
+  React.ComponentProps<typeof ComboboxPrimitive.Group>
+>(({ className, ...props }, ref) => (
+  <ComboboxPrimitive.Group
+    ref={ref}
+    className={cn("py-1", className)}
+    {...props}
+  />
+))
+ComboboxGroup.displayName = "ComboboxGroup"
+
+const ComboboxGroupLabel = React.forwardRef<
+  HTMLDivElement,
+  React.ComponentProps<typeof ComboboxPrimitive.GroupLabel>
+>(({ className, ...props }, ref) => (
+  <ComboboxPrimitive.GroupLabel
+    ref={ref}
+    className={cn("px-3 py-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-500", className)}
+    {...props}
+  />
+))
+ComboboxGroupLabel.displayName = "ComboboxGroupLabel"
+
 const ComboboxItem = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<typeof ComboboxPrimitive.Item>
@@ -86,6 +113,77 @@ const ComboboxItem = React.forwardRef<
 ))
 ComboboxItem.displayName = "ComboboxItem"
 
+const ComboboxInputGroup = React.forwardRef<
+  HTMLDivElement,
+  React.ComponentProps<typeof ComboboxPrimitive.InputGroup>
+>(({ className, ...props }, ref) => (
+  <ComboboxPrimitive.InputGroup
+    ref={ref}
+    className={cn(
+      "relative flex min-h-12 w-full flex-wrap items-center gap-1 rounded-none border border-black/8 bg-white px-2 py-1 pr-10 text-sm text-slate-950 shadow-none outline-none focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/20 data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50",
+      className,
+    )}
+    {...props}
+  />
+))
+ComboboxInputGroup.displayName = "ComboboxInputGroup"
+
+const ComboboxChipsInput = React.forwardRef<
+  HTMLInputElement,
+  React.ComponentProps<typeof ComboboxPrimitive.Input>
+>(({ className, ...props }, ref) => (
+  <ComboboxPrimitive.Input
+    ref={ref}
+    className={cn(
+      "min-h-7 min-w-28 flex-1 bg-transparent px-1 text-sm text-slate-950 outline-none placeholder:text-slate-400 disabled:cursor-not-allowed",
+      className,
+    )}
+    {...props}
+  />
+))
+ComboboxChipsInput.displayName = "ComboboxChipsInput"
+
+const ComboboxChips = React.forwardRef<
+  HTMLDivElement,
+  React.ComponentProps<typeof ComboboxPrimitive.Chips>
+>(({ className, ...props }, ref) => (
+  <ComboboxPrimitive.Chips
+    ref={ref}
+    className={cn("contents", className)}
+    {...props}
+  />
+))
+ComboboxChips.displayName = "ComboboxChips"
+
+const ComboboxChip = React.forwardRef<
+  HTMLDivElement,
+  React.ComponentProps<typeof ComboboxPrimitive.Chip>
+>(({ className, ...props }, ref) => (
+  <ComboboxPrimitive.Chip
+    ref={ref}
+    className={cn(
+      "inline-flex h-7 max-w-full items-center gap-1 rounded-md bg-slate-100 px-2 text-xs font-medium text-slate-800 outline-none data-[highlighted]:ring-2 data-[highlighted]:ring-sky-300",
+      className,
+    )}
+    {...props}
+  />
+))
+ComboboxChip.displayName = "ComboboxChip"
+
+const ComboboxChipRemove = React.forwardRef<
+  HTMLButtonElement,
+  React.ComponentProps<typeof ComboboxPrimitive.ChipRemove>
+>(({ className, children, ...props }, ref) => (
+  <ComboboxPrimitive.ChipRemove
+    ref={ref}
+    className={cn("inline-flex size-4 items-center justify-center rounded-sm text-slate-500 hover:text-slate-900", className)}
+    {...props}
+  >
+    {children ?? <XIcon className="size-3" />}
+  </ComboboxPrimitive.ChipRemove>
+))
+ComboboxChipRemove.displayName = "ComboboxChipRemove"
+
 function ComboboxTriggerIcon(props: React.ComponentProps<"span">) {
   return (
     <span
@@ -98,10 +196,19 @@ function ComboboxTriggerIcon(props: React.ComponentProps<"span">) {
 
 export {
   Combobox,
+  ComboboxChip,
+  ComboboxChipRemove,
+  ComboboxChipsInput,
+  ComboboxChips,
+  ComboboxCollection,
   ComboboxContent,
   ComboboxEmpty,
+  ComboboxGroup,
+  ComboboxGroupLabel,
   ComboboxInput,
+  ComboboxInputGroup,
   ComboboxItem,
   ComboboxList,
   ComboboxTriggerIcon,
+  ComboboxValue,
 }

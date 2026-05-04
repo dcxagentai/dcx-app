@@ -3,6 +3,7 @@ import type { DcxAppAuthenticatedUserTradeDetail } from "./read_dcx_app_authenti
 export type DcxAppTradeCandidatePatchPayload = Partial<{
   normalized_trade_side: string
   normalized_material_name: string
+  normalized_material_key: string
   normalized_quantity_value: number | null
   normalized_quantity_unit: string
   normalized_price_mode: string

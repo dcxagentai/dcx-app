@@ -25,16 +25,31 @@ import {
 } from "./ui/field"
 import {
   Combobox,
+  ComboboxChip,
+  ComboboxChipRemove,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxCollection,
   ComboboxContent,
   ComboboxEmpty,
+  ComboboxGroup,
+  ComboboxGroupLabel,
   ComboboxInput,
+  ComboboxInputGroup,
   ComboboxItem,
   ComboboxList,
   ComboboxTriggerIcon,
+  ComboboxValue,
 } from "./ui/combobox"
 import { Input } from "./ui/input"
 import { DcxCountryFlagIcon } from "./ui/dcx_country_flag_icon"
 import { readDcxAppLanguageFlagRegionCode } from "../lib/dcx_app_language_flag_options"
+import {
+  readDcxAppFlatTradeMaterialOptions,
+  readDcxAppGroupedTradeMaterialOptions,
+  type DcxAppGroupedTradeMaterialOption,
+  type DcxAppGroupedTradeMaterialOptionGroup,
+} from "../lib/dcx_app_trade_material_interest_options"
 
 type EditableFieldKey =
   | "public_display_name"
@@ -100,6 +115,18 @@ type EditableTextFieldProps = {
   onCancelEditing: () => void
   onChangeValue: (value: string) => void
   onCommitValue: (value: string) => void
+}
+
+type EditableTradeInterestMaterialsFieldProps = {
+  label: string
+  visualState: DcxAppEditableFieldVisualState
+  statusText: string
+  isDisabled: boolean
+  selectedMaterialKeys: string[]
+  optionGroups: DcxAppGroupedTradeMaterialOptionGroup[]
+  onBeginEditing: () => void
+  onCancelEditing: () => void
+  onSelectValues: (materialKeys: string[]) => void
 }
 
 function DcxAppEditableTextField(props: EditableTextFieldProps) {
@@ -220,6 +247,86 @@ function DcxAppEditableSelectField(props: EditableSelectFieldProps) {
   )
 }
 
+function DcxAppEditableTradeInterestMaterialsField(props: EditableTradeInterestMaterialsFieldProps) {
+  const triggerBorderClass = readDcxAppEditableFieldBorderClass(props.visualState)
+  const hasError = props.visualState === "error"
+  const flatOptions = readDcxAppFlatTradeMaterialOptions(props.optionGroups)
+  const selectedOptions = props.selectedMaterialKeys
+    .map((materialKey) => flatOptions.find((option) => option.value === materialKey))
+    .filter((option): option is DcxAppGroupedTradeMaterialOption => Boolean(option))
+
+  return (
+    <Field data-invalid={hasError || undefined} className="gap-2">
+      <FieldLabel className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+        {props.label}
+      </FieldLabel>
+      <Combobox
+        multiple
+        items={props.optionGroups}
+        value={selectedOptions}
+        itemToStringLabel={(option) => option.label}
+        itemToStringValue={(option) => option.searchLabel}
+        isItemEqualToValue={(left, right) => left.value === right.value}
+        disabled={props.isDisabled}
+        onOpenChange={(isOpen) => {
+          if (isOpen) {
+            props.onBeginEditing()
+            return
+          }
+          props.onCancelEditing()
+        }}
+        onValueChange={(nextOptions) => {
+          props.onSelectValues(nextOptions.map((option) => option.value))
+        }}
+        autoHighlight
+        openOnInputClick
+      >
+        <ComboboxInputGroup className={[triggerBorderClass, "bg-slate-50"].join(" ")}>
+          <ComboboxValue placeholder="Select commodities">
+            {(selectedValue) => {
+              const selectedChipOptions = Array.isArray(selectedValue) ? selectedValue : []
+              return (
+                <ComboboxChips>
+                  {selectedChipOptions.map((selectedOption) => (
+                    <ComboboxChip key={selectedOption.value}>
+                      <span className="max-w-36 truncate">{selectedOption.label}</span>
+                      <ComboboxChipRemove aria-label={`Remove ${selectedOption.label}`} />
+                    </ComboboxChip>
+                  ))}
+                </ComboboxChips>
+              )
+            }}
+          </ComboboxValue>
+          <ComboboxChipsInput
+            aria-invalid={hasError || undefined}
+            placeholder={selectedOptions.length === 0 ? "Select commodities" : ""}
+            disabled={props.isDisabled}
+          />
+          <ComboboxTriggerIcon />
+        </ComboboxInputGroup>
+        <ComboboxContent>
+          <ComboboxEmpty>No options found.</ComboboxEmpty>
+          <ComboboxList>
+            {props.optionGroups.map((optionGroup) => (
+              <ComboboxGroup key={optionGroup.label} items={optionGroup.items}>
+                <ComboboxGroupLabel>{optionGroup.label}</ComboboxGroupLabel>
+                <ComboboxCollection>
+                  {(option: DcxAppGroupedTradeMaterialOption) => (
+                    <ComboboxItem key={option.value} value={option}>
+                      <span className="truncate font-medium text-slate-950">{option.label}</span>
+                    </ComboboxItem>
+                  )}
+                </ComboboxCollection>
+              </ComboboxGroup>
+            ))}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
+      {hasError ? <FieldError>{props.statusText}</FieldError> : null}
+    </Field>
+  )
+}
+
 export function DcxAppUserSettingsPage(props: Props) {
   const queryClient = useQueryClient()
   const resetStatusTimeoutByFieldRef = useRef<
@@ -252,6 +359,9 @@ export function DcxAppUserSettingsPage(props: Props) {
 
   const accountSummary = accountSummaryQuery.data?.data ?? null
   const ux = accountSummary?.ux_strings ?? DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS
+  const tradeInterestMaterialOptionGroups = readDcxAppGroupedTradeMaterialOptions(
+    accountSummary?.available_trade_interest_materials ?? [],
+  )
   const [editableDraft, setEditableDraft] = useState<EditableDraft>({
     publicDisplayName: "",
     publicHandle: "",
@@ -480,10 +590,8 @@ export function DcxAppUserSettingsPage(props: Props) {
     uxStrings: ux,
   })
 
-  function toggleTradeInterestMaterial(materialKey: string): void {
-    const nextMaterialKeys = editableDraft.tradeInterestMaterialKeys.includes(materialKey)
-      ? editableDraft.tradeInterestMaterialKeys.filter((selectedMaterialKey) => selectedMaterialKey !== materialKey)
-      : [...editableDraft.tradeInterestMaterialKeys, materialKey]
+  function setTradeInterestMaterialKeys(materialKeys: string[]): void {
+    const nextMaterialKeys = Array.from(new Set(materialKeys.map((materialKey) => materialKey.trim().toLowerCase())))
     const nextDraft = {
       ...editableDraft,
       tradeInterestMaterialKeys: nextMaterialKeys,
@@ -781,40 +889,17 @@ export function DcxAppUserSettingsPage(props: Props) {
                 void saveEditableDraftWithRetries("default_interaction_channel", nextDraft)
               }}
             />
-              <Field data-invalid={editableFieldUiStateByKey.trade_interest_materials.visualState === "error" || undefined} className="gap-3">
-                <FieldLabel className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
-                  Trade alerts
-                </FieldLabel>
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {accountSummary.available_trade_interest_materials.map((materialOption) => {
-                    const isSelected = editableDraft.tradeInterestMaterialKeys.includes(materialOption.material_key)
-                    return (
-                      <label
-                        key={materialOption.material_key}
-                        className={[
-                          "flex cursor-pointer items-center gap-3 rounded-md border px-3 py-2 text-sm transition",
-                          isSelected
-                            ? "border-sky-300 bg-sky-50 text-slate-950"
-                            : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300",
-                          editableControlsDisabled ? "cursor-not-allowed opacity-60" : "",
-                        ].join(" ")}
-                      >
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4 accent-sky-600"
-                          disabled={editableControlsDisabled}
-                          checked={isSelected}
-                          onChange={() => toggleTradeInterestMaterial(materialOption.material_key)}
-                        />
-                        <span className="font-medium">{materialOption.display_label}</span>
-                      </label>
-                    )
-                  })}
-                </div>
-                {editableFieldUiStateByKey.trade_interest_materials.visualState === "error" ? (
-                  <FieldError>{editableFieldUiStateByKey.trade_interest_materials.statusText}</FieldError>
-                ) : null}
-              </Field>
+              <DcxAppEditableTradeInterestMaterialsField
+                label="Trade alerts"
+                visualState={editableFieldUiStateByKey.trade_interest_materials.visualState}
+                statusText={editableFieldUiStateByKey.trade_interest_materials.statusText}
+                isDisabled={editableControlsDisabled}
+                selectedMaterialKeys={editableDraft.tradeInterestMaterialKeys}
+                optionGroups={tradeInterestMaterialOptionGroups}
+                onBeginEditing={() => beginEditingField("trade_interest_materials")}
+                onCancelEditing={() => cancelEditingField("trade_interest_materials")}
+                onSelectValues={(nextMaterialKeys) => setTradeInterestMaterialKeys(nextMaterialKeys)}
+              />
             </FieldGroup>
           </FieldSet>
         </article>
