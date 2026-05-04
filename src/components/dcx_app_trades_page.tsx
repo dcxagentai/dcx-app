@@ -1147,11 +1147,21 @@ function DcxTradeMaterialKeyCombobox(props: {
 }) {
   const normalizedValue = normalizeDcxTradeTextValue(props.value).toLowerCase()
   const flatOptions = readDcxAppFlatTradeMaterialOptions(props.optionGroups)
-  const selectedOption = flatOptions.find((option) => option.value === normalizedValue) ?? null
+  const selectedOption = flatOptions.find((option) => option.value === normalizedValue) ??
+    (normalizedValue
+      ? {
+          value: normalizedValue,
+          label: formatDcxTradeMaterialKeyFallbackLabel(normalizedValue),
+          searchLabel: normalizedValue,
+          groupLabel: "",
+          sortOrder: 0,
+        }
+      : null)
 
   return (
     <div className="relative">
       <Combobox
+        key={`${normalizedValue}:${flatOptions.length}`}
         items={props.optionGroups}
         value={selectedOption ?? undefined}
         itemToStringLabel={(option) => option.label}
@@ -1194,6 +1204,14 @@ function DcxTradeMaterialKeyCombobox(props: {
       </Combobox>
     </div>
   )
+}
+
+function formatDcxTradeMaterialKeyFallbackLabel(materialKey: string): string {
+  return materialKey
+    .split("_")
+    .filter(Boolean)
+    .map((materialKeyPart) => materialKeyPart.charAt(0).toUpperCase() + materialKeyPart.slice(1))
+    .join(" ")
 }
 
 function DcxTradeDatePicker(props: {
