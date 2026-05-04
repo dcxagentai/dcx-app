@@ -698,7 +698,16 @@ export function DcxAppTradesPage(props: Props) {
 
   const tradeDetailPanel = (
     <aside className="h-full min-w-0 overflow-y-auto border border-black/6 bg-white p-6 shadow-[0_18px_55px_-48px_rgba(15,23,42,0.45)]">
-            {!selectedTrade ? (
+            {selectedTradeDetailQuery.isError ? (
+              <div className="rounded-lg border border-red-200 bg-red-50/70 px-4 py-3 text-sm text-red-700">
+                We could not load this trade detail. Apply the latest database migration if this started after the
+                commodity selector update, then refresh this trade.
+              </div>
+            ) : selectedTradeDetailQuery.isLoading || selectedTradeDetailQuery.isFetching ? (
+              <p className="text-sm text-slate-500">
+                {ux.loading_trade_detail ?? "Loading trade detail..."}
+              </p>
+            ) : !selectedTrade ? (
               <p className="text-sm text-slate-500">
                 {ux.trades_detail_empty ?? "Choose a trade candidate to inspect, confirm, or correct it."}
               </p>
@@ -791,15 +800,9 @@ export function DcxAppTradesPage(props: Props) {
                 <section className={[
                   "space-y-4 rounded-lg border border-slate-200 bg-white p-4",
                 ].join(" ")}>
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                        {ux.trades_trade_details_label ?? "Trade details"}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <DcxTradeSelectField
-                        label={ux.trades_trade_state_label ?? "Trade state"}
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <DcxTradeEditField label={ux.trades_trade_state_label ?? "Trade state"}>
+                      <DcxTradeSelect
                         value={readDcxTradeStateValue(editFormState.trade_confirmation_status, editFormState.trade_status)}
                         options={tradeStateOptions}
                         disabled={isAnyTradeMutationPending}
@@ -809,9 +812,7 @@ export function DcxAppTradesPage(props: Props) {
                           ...readDcxTradeStatusFieldsFromStateValue(nextStatus),
                         }))}
                       />
-                    </div>
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
+                    </DcxTradeEditField>
                     <DcxTradeEditField label={ux.trades_trade_side_label ?? "Trade side"}>
                       <DcxTradeSelect
                         value={editFormState.normalized_trade_side}
@@ -819,23 +820,25 @@ export function DcxAppTradesPage(props: Props) {
                         onChange={(nextValue) => setEditFormState((current) => ({ ...current, normalized_trade_side: nextValue }))}
                       />
                     </DcxTradeEditField>
-                    <DcxTradeEditField label={ux.trades_material_label ?? "Material"}>
-                      <Input
-                        value={editFormState.normalized_material_name}
-                        onChange={(event) => setEditFormState((current) => ({ ...current, normalized_material_name: event.target.value }))}
-                      />
-                    </DcxTradeEditField>
-                    <DcxTradeEditField label="Commodity">
-                      <DcxTradeMaterialKeyCombobox
-                        value={editFormState.normalized_material_key}
-                        optionGroups={tradeMaterialOptionGroups}
-                        disabled={isAnyTradeMutationPending}
-                        onChange={(nextMaterialKey) => setEditFormState((current) => ({
-                          ...current,
-                          normalized_material_key: nextMaterialKey,
-                        }))}
-                      />
-                    </DcxTradeEditField>
+                    <div className="grid gap-4 md:col-span-2 md:grid-cols-2">
+                      <DcxTradeEditField label="Commodity">
+                        <DcxTradeMaterialKeyCombobox
+                          value={editFormState.normalized_material_key}
+                          optionGroups={tradeMaterialOptionGroups}
+                          disabled={isAnyTradeMutationPending}
+                          onChange={(nextMaterialKey) => setEditFormState((current) => ({
+                            ...current,
+                            normalized_material_key: nextMaterialKey,
+                          }))}
+                        />
+                      </DcxTradeEditField>
+                      <DcxTradeEditField label={ux.trades_material_label ?? "Material"}>
+                        <Input
+                          value={editFormState.normalized_material_name}
+                          onChange={(event) => setEditFormState((current) => ({ ...current, normalized_material_name: event.target.value }))}
+                        />
+                      </DcxTradeEditField>
+                    </div>
                     <DcxTradeEditField label={ux.trades_quantity_value_label ?? "Quantity"}>
                       <Input
                         value={editFormState.normalized_quantity_value}
@@ -1094,28 +1097,6 @@ function DcxTradeEditField(props: { label: string; children: ReactNode }) {
       <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{props.label}</span>
       {props.children}
     </label>
-  )
-}
-
-function DcxTradeSelectField(props: {
-  label: string
-  value: string
-  options: Array<{ value: string; label: string }>
-  disabled?: boolean
-  allowBlank?: boolean
-  onChange: (value: string) => void
-}) {
-  return (
-    <div className="min-w-52 space-y-1">
-      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{props.label}</span>
-      <DcxTradeSelect
-        value={props.value}
-        options={props.options}
-        disabled={props.disabled}
-        allowBlank={props.allowBlank}
-        onChange={props.onChange}
-      />
-    </div>
   )
 }
 
