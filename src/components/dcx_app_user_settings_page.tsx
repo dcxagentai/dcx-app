@@ -44,6 +44,7 @@ type EditableFieldKey =
   | "preferred_timezone"
   | "email_communication_preference"
   | "default_interaction_channel"
+  | "trade_interest_materials"
 
 type EditableDraft = {
   publicDisplayName: string
@@ -53,6 +54,7 @@ type EditableDraft = {
   preferredTimezoneId: number | null
   emailCommunicationPreference: string
   defaultInteractionChannel: string
+  tradeInterestMaterialKeys: string[]
 }
 
 type EditableFieldUiState = {
@@ -244,6 +246,7 @@ export function DcxAppUserSettingsPage(props: Props) {
         publicHandle: nextDraft.publicHandle,
         publicIdentityMode: nextDraft.publicIdentityMode,
         defaultInteractionChannel: nextDraft.defaultInteractionChannel,
+        tradeInterestMaterialKeys: nextDraft.tradeInterestMaterialKeys,
       }),
   })
 
@@ -257,6 +260,7 @@ export function DcxAppUserSettingsPage(props: Props) {
     preferredTimezoneId: null,
     emailCommunicationPreference: "newsletters",
     defaultInteractionChannel: "app_only",
+    tradeInterestMaterialKeys: [],
   })
   const [editableFieldUiStateByKey, setEditableFieldUiStateByKey] = useState<
     Record<EditableFieldKey, EditableFieldUiState>
@@ -289,6 +293,10 @@ export function DcxAppUserSettingsPage(props: Props) {
       visualState: "idle",
       statusText: DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS.editable_status_idle,
     },
+    trade_interest_materials: {
+      visualState: "idle",
+      statusText: DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS.editable_status_idle,
+    },
   })
 
   useEffect(() => {
@@ -304,6 +312,7 @@ export function DcxAppUserSettingsPage(props: Props) {
       preferredTimezoneId: accountSummary.preferred_timezone?.id ?? null,
       emailCommunicationPreference: accountSummary.email_communication_preference,
       defaultInteractionChannel: accountSummary.default_interaction_channel,
+      tradeInterestMaterialKeys: accountSummary.selected_trade_interest_material_keys,
     })
   }, [accountSummary])
 
@@ -335,6 +344,7 @@ export function DcxAppUserSettingsPage(props: Props) {
       preferredTimezoneId: editableDraft.preferredTimezoneId,
       emailCommunicationPreference: editableDraft.emailCommunicationPreference,
       defaultInteractionChannel: editableDraft.defaultInteractionChannel,
+      tradeInterestMaterialKeys: editableDraft.tradeInterestMaterialKeys,
     }
 
     setEditableDraft(nextDraft)
@@ -353,6 +363,7 @@ export function DcxAppUserSettingsPage(props: Props) {
     editableDraft.publicDisplayName,
     editableDraft.publicHandle,
     editableDraft.publicIdentityMode,
+    editableDraft.tradeInterestMaterialKeys,
     ux.editable_status_saving_default_language,
   ])
 
@@ -382,6 +393,7 @@ export function DcxAppUserSettingsPage(props: Props) {
           preferredTimezoneId: savePayload.data.preferred_timezone?.id ?? null,
           emailCommunicationPreference: savePayload.data.email_communication_preference,
           defaultInteractionChannel: savePayload.data.default_interaction_channel,
+          tradeInterestMaterialKeys: savePayload.data.selected_trade_interest_material_keys,
         })
         setEditableFieldUiStateByKey((previousState) => ({
           ...previousState,
@@ -467,6 +479,25 @@ export function DcxAppUserSettingsPage(props: Props) {
     editableFieldUiStateByKey,
     uxStrings: ux,
   })
+
+  function toggleTradeInterestMaterial(materialKey: string): void {
+    const nextMaterialKeys = editableDraft.tradeInterestMaterialKeys.includes(materialKey)
+      ? editableDraft.tradeInterestMaterialKeys.filter((selectedMaterialKey) => selectedMaterialKey !== materialKey)
+      : [...editableDraft.tradeInterestMaterialKeys, materialKey]
+    const nextDraft = {
+      ...editableDraft,
+      tradeInterestMaterialKeys: nextMaterialKeys,
+    }
+    setEditableDraft(nextDraft)
+    setEditableFieldUiStateByKey((previousState) => ({
+      ...previousState,
+      trade_interest_materials: {
+        visualState: "saving",
+        statusText: ux.editable_status_saving,
+      },
+    }))
+    void saveEditableDraftWithRetries("trade_interest_materials", nextDraft)
+  }
 
   return (
     <section className="flex flex-col gap-6 text-slate-950">
@@ -750,6 +781,40 @@ export function DcxAppUserSettingsPage(props: Props) {
                 void saveEditableDraftWithRetries("default_interaction_channel", nextDraft)
               }}
             />
+              <Field data-invalid={editableFieldUiStateByKey.trade_interest_materials.visualState === "error" || undefined} className="gap-3">
+                <FieldLabel className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+                  Trade alerts
+                </FieldLabel>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {accountSummary.available_trade_interest_materials.map((materialOption) => {
+                    const isSelected = editableDraft.tradeInterestMaterialKeys.includes(materialOption.material_key)
+                    return (
+                      <label
+                        key={materialOption.material_key}
+                        className={[
+                          "flex cursor-pointer items-center gap-3 rounded-md border px-3 py-2 text-sm transition",
+                          isSelected
+                            ? "border-sky-300 bg-sky-50 text-slate-950"
+                            : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300",
+                          editableControlsDisabled ? "cursor-not-allowed opacity-60" : "",
+                        ].join(" ")}
+                      >
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 accent-sky-600"
+                          disabled={editableControlsDisabled}
+                          checked={isSelected}
+                          onChange={() => toggleTradeInterestMaterial(materialOption.material_key)}
+                        />
+                        <span className="font-medium">{materialOption.display_label}</span>
+                      </label>
+                    )
+                  })}
+                </div>
+                {editableFieldUiStateByKey.trade_interest_materials.visualState === "error" ? (
+                  <FieldError>{editableFieldUiStateByKey.trade_interest_materials.statusText}</FieldError>
+                ) : null}
+              </Field>
             </FieldGroup>
           </FieldSet>
         </article>

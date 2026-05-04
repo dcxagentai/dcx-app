@@ -135,6 +135,12 @@ export type DcxAppAuthenticatedUserAccountSummary = {
     value: string
     label: string
   }>
+  available_trade_interest_materials: Array<{
+    material_key: string
+    display_label: string
+    sort_order: number
+  }>
+  selected_trade_interest_material_keys: string[]
 }
 
 type DcxAppAccountSummarySuccessResponse = {

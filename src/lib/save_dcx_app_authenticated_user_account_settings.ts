@@ -63,6 +63,7 @@ export async function saveDcxAppAuthenticatedUserAccountSettings(params: {
   publicHandle: string
   publicIdentityMode: string
   defaultInteractionChannel: string
+  tradeInterestMaterialKeys: string[]
 }): Promise<DcxAppAccountSettingsSaveSuccessResponse> {
   const accountSettingsUrl = new URL("/users/me/account-settings", params.apiBaseUrl)
 
@@ -80,6 +81,7 @@ export async function saveDcxAppAuthenticatedUserAccountSettings(params: {
       public_handle: params.publicHandle,
       public_identity_mode: params.publicIdentityMode,
       default_interaction_channel: params.defaultInteractionChannel,
+      trade_interest_material_keys: params.tradeInterestMaterialKeys,
     }),
   })
 
