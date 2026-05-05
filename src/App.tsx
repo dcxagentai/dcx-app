@@ -20,6 +20,7 @@ import { DcxAppSendMessagePage } from "./components/dcx_app_send_message_page"
 import { DcxAppTradeThreadsPage } from "./components/dcx_app_trade_threads_page"
 import { DcxAppTradesPage } from "./components/dcx_app_trades_page"
 import { DcxAppUserActivityLogPage } from "./components/dcx_app_user_activity_log_page"
+import { DcxAppUserUsagePage } from "./components/dcx_app_user_usage_page"
 import { DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS } from "./components/dcx_app_user_account_shared"
 import { DcxAppUserAccountSummaryPage } from "./components/dcx_app_user_account_summary_page"
 import { DcxAppUserSettingsPage } from "./components/dcx_app_user_settings_page"
@@ -525,6 +526,9 @@ function App() {
       {protectedAppPathname === "/me/activity-log" ? (
         <DcxAppUserActivityLogPage apiBaseUrl={apiBaseUrl} />
       ) : null}
+      {protectedAppPathname === "/me/usage" ? (
+        <DcxAppUserUsagePage apiBaseUrl={apiBaseUrl} />
+      ) : null}
       {protectedAppPathname === "/me/account" ? (
         <DcxAppUserAccountSummaryPage apiBaseUrl={apiBaseUrl} />
       ) : null}
@@ -565,15 +569,21 @@ function App() {
 
 export default App
 
+type DcxProtectedAppPathname = "/me/account" | "/me/settings" | "/me/activity-log" | "/me/usage" | "/me/messages" | "/me/trades" | "/me/trade-threads" | "/me/topics" | "/me/market/deals" | "/me/market/forum" | "/me/other" | "/me/send"
+
 function readProtectedAppPathname(
   pathname: string,
-): "/me/account" | "/me/settings" | "/me/activity-log" | "/me/messages" | "/me/trades" | "/me/trade-threads" | "/me/topics" | "/me/market/deals" | "/me/market/forum" | "/me/other" | "/me/send" {
+): DcxProtectedAppPathname {
   if (pathname === "/me/settings") {
     return "/me/settings"
   }
 
   if (pathname === "/me/activity-log") {
     return "/me/activity-log"
+  }
+
+  if (pathname === "/me/usage") {
+    return "/me/usage"
   }
 
   if (
@@ -619,7 +629,7 @@ function readProtectedAppPathname(
 }
 
 function readProtectedAppPageTitle(
-  pathname: "/me/account" | "/me/settings" | "/me/activity-log" | "/me/messages" | "/me/trades" | "/me/trade-threads" | "/me/topics" | "/me/market/deals" | "/me/market/forum" | "/me/other" | "/me/send",
+  pathname: DcxProtectedAppPathname,
   uxStrings: Record<string, string>,
 ): string {
   if (pathname === "/me/settings") {
@@ -628,6 +638,10 @@ function readProtectedAppPageTitle(
 
   if (pathname === "/me/activity-log") {
     return uxStrings.page_title_activity_log ?? "Activity Log"
+  }
+
+  if (pathname === "/me/usage") {
+    return uxStrings.page_title_usage ?? "Usage"
   }
 
   if (pathname === "/me/messages") {

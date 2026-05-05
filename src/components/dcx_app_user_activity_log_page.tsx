@@ -7,10 +7,10 @@
 import { useQuery } from "@tanstack/react-query"
 
 import {
-  DcxAppAccountFieldRow,
   DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS,
   formatDcxAppAccountTimestampLabel,
 } from "./dcx_app_user_account_shared"
+import { readDcxAppAuthenticatedUserActivity } from "../lib/read_dcx_app_authenticated_user_activity"
 import { readDcxAppAuthenticatedUserAccountSummary } from "../lib/read_dcx_app_authenticated_user_account_summary"
 
 type Props = {
@@ -22,6 +22,13 @@ export function DcxAppUserActivityLogPage(props: Props) {
     queryKey: ["dcx_app_authenticated_user_account_summary"],
     queryFn: async () =>
       readDcxAppAuthenticatedUserAccountSummary({
+        apiBaseUrl: props.apiBaseUrl,
+      }),
+  })
+  const activityQuery = useQuery({
+    queryKey: ["dcx_app_authenticated_user_activity"],
+    queryFn: async () =>
+      readDcxAppAuthenticatedUserActivity({
         apiBaseUrl: props.apiBaseUrl,
       }),
   })
@@ -70,51 +77,38 @@ export function DcxAppUserActivityLogPage(props: Props) {
           </div>
 
           <dl>
-            <DcxAppAccountFieldRow
-              label={ux.field_email_confirmed_at}
-              value={formatDcxAppAccountTimestampLabel(
-                accountSummary.primary_email_confirmed_at_ts_ms,
-                selectedLanguageCode,
-                selectedTimezoneIanaName,
-                ux.field_not_set,
-              )}
-            />
-            <DcxAppAccountFieldRow
-              label={ux.field_phone_confirmed_at}
-              value={formatDcxAppAccountTimestampLabel(
-                accountSummary.primary_phone_confirmed_at_ts_ms,
-                selectedLanguageCode,
-                selectedTimezoneIanaName,
-                ux.field_not_set,
-              )}
-            />
-            <DcxAppAccountFieldRow
-              label={ux.field_last_seen_at}
-              value={formatDcxAppAccountTimestampLabel(
-                accountSummary.last_seen_at_ts_ms,
-                selectedLanguageCode,
-                selectedTimezoneIanaName,
-                ux.field_not_set,
-              )}
-            />
-            <DcxAppAccountFieldRow
-              label={ux.field_created_at}
-              value={formatDcxAppAccountTimestampLabel(
-                accountSummary.created_at_ts_ms,
-                selectedLanguageCode,
-                selectedTimezoneIanaName,
-                ux.field_not_set,
-              )}
-            />
-            <DcxAppAccountFieldRow
-              label={ux.field_updated_at}
-              value={formatDcxAppAccountTimestampLabel(
-                accountSummary.updated_at_ts_ms,
-                selectedLanguageCode,
-                selectedTimezoneIanaName,
-                ux.field_not_set,
-              )}
-            />
+            {activityQuery.isLoading ? (
+              <p className="text-sm text-slate-500">{ux.loading_account_summary}</p>
+            ) : null}
+            {activityQuery.isError ? (
+              <div className="space-y-2 text-sm text-red-700">
+                <p>{(activityQuery.error as Error).message}</p>
+                <p>{(activityQuery.error as Error & { suggested_action?: string }).suggested_action}</p>
+              </div>
+            ) : null}
+            {(activityQuery.data?.data.events ?? []).map((event) => (
+              <div key={event.activity_event_id} className="border-b border-slate-100 py-3">
+                <dt className="text-sm font-medium text-slate-950">
+                  {event.activity_summary || event.activity_kind}
+                </dt>
+                <dd className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+                  <span>
+                    {formatDcxAppAccountTimestampLabel(
+                      event.created_at_ts_ms,
+                      selectedLanguageCode,
+                      selectedTimezoneIanaName,
+                      ux.field_not_set,
+                    )}
+                  </span>
+                  <span>{event.surface}</span>
+                  <span>{event.entity_kind}</span>
+                  <span>{event.event_status}</span>
+                </dd>
+              </div>
+            ))}
+            {activityQuery.data?.data.events.length === 0 ? (
+              <p className="text-sm text-slate-500">No activity recorded yet.</p>
+            ) : null}
           </dl>
         </article>
       ) : null}

@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/sidebar"
 import {
   BadgeCheckIcon,
+  BarChart3Icon,
   ChevronsUpDownIcon,
   CreditCardIcon,
   LogOutIcon,
@@ -100,6 +101,18 @@ export function NavUser({
             <DropdownMenuItem disabled>
               <CreditCardIcon />
               {uxStrings.user_menu_subscription}
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <a
+                href="/me/usage"
+                onClick={(event) => {
+                  event.preventDefault()
+                  onNavigateWithinApp("/me/usage")
+                }}
+              >
+                <BarChart3Icon />
+                {uxStrings.user_menu_usage ?? "Usage"}
+              </a>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <a
