@@ -217,7 +217,7 @@ function DcxAppSidebarTradingClocks(props: {
     <SidebarGroup className="pt-2 group-data-[collapsible=icon]:hidden">
       <SidebarGroupContent>
         <div className="grid grid-cols-3 gap-1 px-1.5 pb-2 pt-1">
-          {clockTimezones.map((timezone, timezoneIndex) => (
+          {clockTimezones.map((timezone) => (
             <div
               key={`${timezone.kind}:${timezone.id}`}
               className="flex justify-center text-center"
