@@ -64,6 +64,7 @@ export async function saveDcxAppAuthenticatedUserAccountSettings(params: {
   publicIdentityMode: string
   defaultInteractionChannel: string
   tradeInterestMaterialKeys: string[]
+  sidebarClockTimezoneIds: number[]
 }): Promise<DcxAppAccountSettingsSaveSuccessResponse> {
   const accountSettingsUrl = new URL("/users/me/account-settings", params.apiBaseUrl)
 
@@ -82,6 +83,7 @@ export async function saveDcxAppAuthenticatedUserAccountSettings(params: {
       public_identity_mode: params.publicIdentityMode,
       default_interaction_channel: params.defaultInteractionChannel,
       trade_interest_material_keys: params.tradeInterestMaterialKeys,
+      sidebar_clock_timezone_ids: params.sidebarClockTimezoneIds,
     }),
   })
 

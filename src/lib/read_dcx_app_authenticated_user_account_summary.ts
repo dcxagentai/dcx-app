@@ -122,6 +122,13 @@ export type DcxAppAuthenticatedUserAccountSummary = {
     display_label: string
     region_label: string
   }>
+  selected_sidebar_clock_timezone_ids: number[]
+  selected_sidebar_clock_timezones: Array<{
+    id: number
+    iana_name: string
+    display_label: string
+    region_label: string
+  }>
   ux_strings: Record<string, string>
   available_email_communication_preferences: Array<{
     value: string

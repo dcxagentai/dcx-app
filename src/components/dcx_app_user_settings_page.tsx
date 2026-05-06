@@ -57,6 +57,7 @@ type EditableFieldKey =
   | "public_identity_mode"
   | "preferred_language"
   | "preferred_timezone"
+  | "sidebar_clock_timezones"
   | "email_communication_preference"
   | "default_interaction_channel"
   | "trade_interest_materials"
@@ -67,6 +68,7 @@ type EditableDraft = {
   publicIdentityMode: string
   preferredLanguageId: number | null
   preferredTimezoneId: number | null
+  sidebarClockTimezoneIds: number[]
   emailCommunicationPreference: string
   defaultInteractionChannel: string
   tradeInterestMaterialKeys: string[]
@@ -97,6 +99,7 @@ type EditableSelectFieldProps = {
     searchLabel?: string
     subtitle?: string
     regionCode?: string
+    groupLabel?: string
   }>
   onBeginEditing: () => void
   onCancelEditing: () => void
@@ -127,6 +130,14 @@ type EditableTradeInterestMaterialsFieldProps = {
   onBeginEditing: () => void
   onCancelEditing: () => void
   onSelectValues: (materialKeys: string[]) => void
+}
+
+type DcxAppGroupedTimezoneOption = {
+  value: string
+  label: string
+  searchLabel: string
+  subtitle: string
+  groupLabel: string
 }
 
 function DcxAppEditableTextField(props: EditableTextFieldProps) {
@@ -166,6 +177,8 @@ function DcxAppEditableSelectField(props: EditableSelectFieldProps) {
   const triggerBorderClass = readDcxAppEditableFieldBorderClass(props.visualState)
   const hasError = props.visualState === "error"
   const selectedOption = props.options.find((option) => option.value === props.value) ?? null
+  const groupedOptions = readDcxAppGroupedSelectOptions(props.options)
+  const hasGroupedOptions = groupedOptions.length > 0
 
   return (
     <Field data-invalid={hasError || undefined} className="gap-2">
@@ -221,27 +234,148 @@ function DcxAppEditableSelectField(props: EditableSelectFieldProps) {
           <ComboboxContent>
             <ComboboxEmpty>No options found.</ComboboxEmpty>
             <ComboboxList>
-              {(option) => (
-                <ComboboxItem key={option.value} value={option}>
-                  {option.regionCode ? (
-                    <DcxCountryFlagIcon
-                      regionCode={option.regionCode}
-                      title={option.label}
-                      fallbackLabel={option.regionCode}
-                    />
-                  ) : null}
-                  <div className="flex min-w-0 flex-col">
-                    <span className="truncate font-medium text-slate-950">{option.label}</span>
-                    {option.subtitle ? (
-                      <span className="text-xs text-slate-500">{option.subtitle}</span>
-                    ) : null}
-                  </div>
-                </ComboboxItem>
-              )}
+              {hasGroupedOptions
+                ? groupedOptions.map((optionGroup) => (
+                    <ComboboxGroup key={optionGroup.label} items={optionGroup.items}>
+                      <ComboboxGroupLabel>{optionGroup.label}</ComboboxGroupLabel>
+                      <ComboboxCollection>
+                        {(option: EditableSelectFieldProps["options"][number]) => (
+                          <ComboboxItem key={option.value} value={option}>
+                            {option.regionCode ? (
+                              <DcxCountryFlagIcon
+                                regionCode={option.regionCode}
+                                title={option.label}
+                                fallbackLabel={option.regionCode}
+                              />
+                            ) : null}
+                            <div className="flex min-w-0 flex-col">
+                              <span className="truncate font-medium text-slate-950">{option.label}</span>
+                              {option.subtitle ? (
+                                <span className="text-xs text-slate-500">{option.subtitle}</span>
+                              ) : null}
+                            </div>
+                          </ComboboxItem>
+                        )}
+                      </ComboboxCollection>
+                    </ComboboxGroup>
+                  ))
+                : (option) => (
+                    <ComboboxItem key={option.value} value={option}>
+                      {option.regionCode ? (
+                        <DcxCountryFlagIcon
+                          regionCode={option.regionCode}
+                          title={option.label}
+                          fallbackLabel={option.regionCode}
+                        />
+                      ) : null}
+                      <div className="flex min-w-0 flex-col">
+                        <span className="truncate font-medium text-slate-950">{option.label}</span>
+                        {option.subtitle ? (
+                          <span className="text-xs text-slate-500">{option.subtitle}</span>
+                        ) : null}
+                      </div>
+                    </ComboboxItem>
+                  )}
             </ComboboxList>
           </ComboboxContent>
         </Combobox>
       </div>
+      {hasError ? <FieldError>{props.statusText}</FieldError> : null}
+    </Field>
+  )
+}
+
+function DcxAppEditableSidebarClockTimezonesField(props: {
+  label: string
+  visualState: DcxAppEditableFieldVisualState
+  statusText: string
+  isDisabled: boolean
+  selectedTimezoneIds: number[]
+  optionGroups: Array<{
+    label: string
+    items: DcxAppGroupedTimezoneOption[]
+  }>
+  onBeginEditing: () => void
+  onCancelEditing: () => void
+  onSelectValues: (timezoneIds: number[]) => void
+}) {
+  const triggerBorderClass = readDcxAppEditableFieldBorderClass(props.visualState)
+  const hasError = props.visualState === "error"
+  const flatOptions = props.optionGroups.flatMap((optionGroup) => optionGroup.items)
+  const selectedOptions = props.selectedTimezoneIds
+    .map((timezoneId) => flatOptions.find((option) => option.value === String(timezoneId)))
+    .filter((option): option is DcxAppGroupedTimezoneOption => Boolean(option))
+
+  return (
+    <Field data-invalid={hasError || undefined} className="gap-2">
+      <FieldLabel className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+        {props.label}
+      </FieldLabel>
+      <Combobox
+        multiple
+        items={props.optionGroups}
+        value={selectedOptions}
+        itemToStringLabel={(option) => option.label}
+        itemToStringValue={(option) => option.searchLabel}
+        isItemEqualToValue={(left, right) => left.value === right.value}
+        disabled={props.isDisabled}
+        onOpenChange={(isOpen) => {
+          if (isOpen) {
+            props.onBeginEditing()
+            return
+          }
+          props.onCancelEditing()
+        }}
+        onValueChange={(nextOptions) => {
+          props.onSelectValues(nextOptions.slice(0, 2).map((option) => Number(option.value)))
+        }}
+        autoHighlight
+        openOnInputClick
+      >
+        <ComboboxInputGroup className={[triggerBorderClass, "bg-slate-50"].join(" ")}>
+          <ComboboxValue placeholder="Select clocks">
+            {(selectedValue) => {
+              const selectedChipOptions = Array.isArray(selectedValue) ? selectedValue : []
+              return (
+                <ComboboxChips>
+                  {selectedChipOptions.map((selectedOption) => (
+                    <ComboboxChip key={selectedOption.value}>
+                      <span className="max-w-40 truncate">{selectedOption.label}</span>
+                      <ComboboxChipRemove aria-label={`Remove ${selectedOption.label}`} />
+                    </ComboboxChip>
+                  ))}
+                </ComboboxChips>
+              )
+            }}
+          </ComboboxValue>
+          <ComboboxChipsInput
+            aria-invalid={hasError || undefined}
+            placeholder={selectedOptions.length === 0 ? "Select up to two timezones" : ""}
+            disabled={props.isDisabled}
+          />
+          <ComboboxTriggerIcon />
+        </ComboboxInputGroup>
+        <ComboboxContent>
+          <ComboboxEmpty>No options found.</ComboboxEmpty>
+          <ComboboxList>
+            {props.optionGroups.map((optionGroup) => (
+              <ComboboxGroup key={optionGroup.label} items={optionGroup.items}>
+                <ComboboxGroupLabel>{optionGroup.label}</ComboboxGroupLabel>
+                <ComboboxCollection>
+                  {(option: DcxAppGroupedTimezoneOption) => (
+                    <ComboboxItem key={option.value} value={option}>
+                      <div className="flex min-w-0 flex-col">
+                        <span className="truncate font-medium text-slate-950">{option.label}</span>
+                        <span className="text-xs text-slate-500">{option.subtitle}</span>
+                      </div>
+                    </ComboboxItem>
+                  )}
+                </ComboboxCollection>
+              </ComboboxGroup>
+            ))}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
       {hasError ? <FieldError>{props.statusText}</FieldError> : null}
     </Field>
   )
@@ -354,6 +488,7 @@ export function DcxAppUserSettingsPage(props: Props) {
         publicIdentityMode: nextDraft.publicIdentityMode,
         defaultInteractionChannel: nextDraft.defaultInteractionChannel,
         tradeInterestMaterialKeys: nextDraft.tradeInterestMaterialKeys,
+        sidebarClockTimezoneIds: nextDraft.sidebarClockTimezoneIds,
       }),
   })
 
@@ -362,12 +497,16 @@ export function DcxAppUserSettingsPage(props: Props) {
   const tradeInterestMaterialOptionGroups = readDcxAppGroupedTradeMaterialOptions(
     accountSummary?.available_trade_interest_materials ?? [],
   )
+  const timezoneOptionGroups = readDcxAppGroupedTimezoneOptions(
+    accountSummary?.available_timezones ?? [],
+  )
   const [editableDraft, setEditableDraft] = useState<EditableDraft>({
     publicDisplayName: "",
     publicHandle: "",
     publicIdentityMode: "display_name",
     preferredLanguageId: null,
     preferredTimezoneId: null,
+    sidebarClockTimezoneIds: [],
     emailCommunicationPreference: "newsletters",
     defaultInteractionChannel: "app_only",
     tradeInterestMaterialKeys: [],
@@ -392,6 +531,10 @@ export function DcxAppUserSettingsPage(props: Props) {
       statusText: DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS.editable_status_idle,
     },
     preferred_timezone: {
+      visualState: "idle",
+      statusText: DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS.editable_status_idle,
+    },
+    sidebar_clock_timezones: {
       visualState: "idle",
       statusText: DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS.editable_status_idle,
     },
@@ -420,6 +563,7 @@ export function DcxAppUserSettingsPage(props: Props) {
       publicIdentityMode: accountSummary.public_identity.public_identity_mode,
       preferredLanguageId: accountSummary.preferred_language?.id ?? null,
       preferredTimezoneId: accountSummary.preferred_timezone?.id ?? null,
+      sidebarClockTimezoneIds: accountSummary.selected_sidebar_clock_timezone_ids,
       emailCommunicationPreference: accountSummary.email_communication_preference,
       defaultInteractionChannel: accountSummary.default_interaction_channel,
       tradeInterestMaterialKeys: accountSummary.selected_trade_interest_material_keys,
@@ -452,6 +596,7 @@ export function DcxAppUserSettingsPage(props: Props) {
       publicIdentityMode: editableDraft.publicIdentityMode,
       preferredLanguageId: defaultLanguage.id,
       preferredTimezoneId: editableDraft.preferredTimezoneId,
+      sidebarClockTimezoneIds: editableDraft.sidebarClockTimezoneIds,
       emailCommunicationPreference: editableDraft.emailCommunicationPreference,
       defaultInteractionChannel: editableDraft.defaultInteractionChannel,
       tradeInterestMaterialKeys: editableDraft.tradeInterestMaterialKeys,
@@ -473,6 +618,7 @@ export function DcxAppUserSettingsPage(props: Props) {
     editableDraft.publicDisplayName,
     editableDraft.publicHandle,
     editableDraft.publicIdentityMode,
+    editableDraft.sidebarClockTimezoneIds,
     editableDraft.tradeInterestMaterialKeys,
     ux.editable_status_saving_default_language,
   ])
@@ -501,6 +647,7 @@ export function DcxAppUserSettingsPage(props: Props) {
           publicIdentityMode: savePayload.data.public_identity.public_identity_mode,
           preferredLanguageId: savePayload.data.preferred_language?.id ?? null,
           preferredTimezoneId: savePayload.data.preferred_timezone?.id ?? null,
+          sidebarClockTimezoneIds: savePayload.data.selected_sidebar_clock_timezone_ids,
           emailCommunicationPreference: savePayload.data.email_communication_preference,
           defaultInteractionChannel: savePayload.data.default_interaction_channel,
           tradeInterestMaterialKeys: savePayload.data.selected_trade_interest_material_keys,
@@ -605,6 +752,23 @@ export function DcxAppUserSettingsPage(props: Props) {
       },
     }))
     void saveEditableDraftWithRetries("trade_interest_materials", nextDraft)
+  }
+
+  function setSidebarClockTimezoneIds(timezoneIds: number[]): void {
+    const nextTimezoneIds = Array.from(new Set(timezoneIds.filter((timezoneId) => Number.isInteger(timezoneId) && timezoneId > 0))).slice(0, 2)
+    const nextDraft = {
+      ...editableDraft,
+      sidebarClockTimezoneIds: nextTimezoneIds,
+    }
+    setEditableDraft(nextDraft)
+    setEditableFieldUiStateByKey((previousState) => ({
+      ...previousState,
+      sidebar_clock_timezones: {
+        visualState: "saving",
+        statusText: ux.editable_status_saving,
+      },
+    }))
+    void saveEditableDraftWithRetries("sidebar_clock_timezones", nextDraft)
   }
 
   return (
@@ -807,7 +971,9 @@ export function DcxAppUserSettingsPage(props: Props) {
               options={accountSummary.available_timezones.map((availableTimezone) => ({
                 value: String(availableTimezone.id),
                 label: availableTimezone.display_label,
-                searchLabel: availableTimezone.display_label,
+                subtitle: availableTimezone.iana_name,
+                searchLabel: `${availableTimezone.display_label} ${availableTimezone.iana_name} ${availableTimezone.region_label}`,
+                groupLabel: availableTimezone.region_label,
               }))}
               onBeginEditing={() => beginEditingField("preferred_timezone")}
               onCancelEditing={() => cancelEditingField("preferred_timezone")}
@@ -827,6 +993,17 @@ export function DcxAppUserSettingsPage(props: Props) {
                 void saveEditableDraftWithRetries("preferred_timezone", nextDraft)
               }}
             />
+              <DcxAppEditableSidebarClockTimezonesField
+                label="Sidebar clocks"
+                visualState={editableFieldUiStateByKey.sidebar_clock_timezones.visualState}
+                statusText={editableFieldUiStateByKey.sidebar_clock_timezones.statusText}
+                isDisabled={editableControlsDisabled}
+                selectedTimezoneIds={editableDraft.sidebarClockTimezoneIds}
+                optionGroups={timezoneOptionGroups}
+                onBeginEditing={() => beginEditingField("sidebar_clock_timezones")}
+                onCancelEditing={() => cancelEditingField("sidebar_clock_timezones")}
+                onSelectValues={(nextTimezoneIds) => setSidebarClockTimezoneIds(nextTimezoneIds)}
+              />
               <DcxAppEditableSelectField
               uxStrings={ux}
               label={ux.field_email_preference}
@@ -949,4 +1126,61 @@ function readDcxAppSettingsPageSaveStatus(params: {
     label: params.uxStrings.editable_status_compact_idle,
     textClassName: readDcxAppEditableFieldStatusTextClass("idle"),
   }
+}
+
+function readDcxAppGroupedSelectOptions(
+  options: EditableSelectFieldProps["options"],
+): Array<{
+  label: string
+  items: EditableSelectFieldProps["options"]
+}> {
+  const groupedOptionsByLabel = new Map<string, EditableSelectFieldProps["options"]>()
+  for (const option of options) {
+    if (!option.groupLabel) {
+      continue
+    }
+    const existingOptions = groupedOptionsByLabel.get(option.groupLabel) ?? []
+    existingOptions.push(option)
+    groupedOptionsByLabel.set(option.groupLabel, existingOptions)
+  }
+
+  if (groupedOptionsByLabel.size === 0) {
+    return []
+  }
+
+  return Array.from(groupedOptionsByLabel.entries()).map(([label, items]) => ({
+    label,
+    items,
+  }))
+}
+
+function readDcxAppGroupedTimezoneOptions(
+  availableTimezones: Array<{
+    id: number
+    iana_name: string
+    display_label: string
+    region_label: string
+  }>,
+): Array<{
+  label: string
+  items: DcxAppGroupedTimezoneOption[]
+}> {
+  const groupedTimezoneOptionsByRegion = new Map<string, DcxAppGroupedTimezoneOption[]>()
+  for (const availableTimezone of availableTimezones) {
+    const groupLabel = availableTimezone.region_label || "Other"
+    const existingOptions = groupedTimezoneOptionsByRegion.get(groupLabel) ?? []
+    existingOptions.push({
+      value: String(availableTimezone.id),
+      label: availableTimezone.display_label,
+      subtitle: availableTimezone.iana_name,
+      groupLabel,
+      searchLabel: `${availableTimezone.display_label} ${availableTimezone.iana_name} ${groupLabel}`,
+    })
+    groupedTimezoneOptionsByRegion.set(groupLabel, existingOptions)
+  }
+
+  return Array.from(groupedTimezoneOptionsByRegion.entries()).map(([label, items]) => ({
+    label,
+    items,
+  }))
 }

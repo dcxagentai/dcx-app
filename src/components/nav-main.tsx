@@ -40,7 +40,7 @@ type NavMainItem = {
 
 export function NavMain(props: {
   items: NavMainItem[]
-  groupLabel: string
+  groupLabel?: string
   toggleSectionLabel: string
 }) {
   const [openStateById, setOpenStateById] = useState<Record<string, boolean>>(() => {
@@ -72,7 +72,7 @@ export function NavMain(props: {
 
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>{props.groupLabel}</SidebarGroupLabel>
+      {props.groupLabel ? <SidebarGroupLabel>{props.groupLabel}</SidebarGroupLabel> : null}
       <SidebarMenu>
         {props.items.map((item) => {
           if (!item.items?.length) {

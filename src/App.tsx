@@ -505,6 +505,7 @@ function App() {
 
   return (
     <DcxAppShell
+      apiBaseUrl={apiBaseUrl}
       title={readProtectedAppPageTitle(protectedAppPathname, protectedAppUxStrings)}
       currentPathname={pathname}
       userEmail={authenticatedSessionSummary?.primary_email ?? null}

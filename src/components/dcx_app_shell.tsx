@@ -17,6 +17,7 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip"
 
 type Props = {
+  apiBaseUrl: string
   title: string
   currentPathname: string
   userEmail: string | null
@@ -35,6 +36,7 @@ export function DcxAppShell(props: Props) {
       <SidebarProvider>
         <AppSidebar
           currentPathname={props.currentPathname}
+          apiBaseUrl={props.apiBaseUrl}
           userEmail={props.userEmail}
           userRole={props.userRole}
           adminHref={props.adminHref}
