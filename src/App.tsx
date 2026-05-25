@@ -151,6 +151,10 @@ function readDcxAppApiBaseUrl(): string {
 }
 
 function readDcxAdminSurfaceUrl(): string {
+  if (import.meta.env.VITE_ADMIN_BASE_URL) {
+    return import.meta.env.VITE_ADMIN_BASE_URL
+  }
+
   const currentProtocol = window.location.protocol
   const currentHostname = window.location.hostname
 
