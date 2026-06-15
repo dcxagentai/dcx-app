@@ -72,6 +72,24 @@ export type DcxAppAuthenticatedUserAccountSummary = {
     is_active: boolean
     last_used_at_ts_ms: number | null
     channel: string | null
+    current_channel_origin: {
+      id: number
+      channel_type: string
+      provider_type: string
+      provider_sender_id: string
+      sender_display_handle: string
+      sender_display_name: string
+      environment_key: string
+      origin_status: string
+    } | null
+    current_channel_confirmation: {
+      id: number
+      confirmation_status: string
+      confirmation_purpose: string
+      sent_at_ts_ms: number | null
+      confirmed_at_ts_ms: number | null
+    } | null
+    requires_current_channel_confirmation: boolean
   }>
   pending_whatsapp_phone_link: {
     phone_e164: string

@@ -31,6 +31,8 @@ export async function requestDcxAppAuthenticatedUserWhatsappPhoneLink(params: {
   apiBaseUrl: string
   phoneE164: string
   languageCode: string
+  confirmationPurpose?: "contact_verification" | "sender_reconfirmation"
+  forceSend?: boolean
 }): Promise<DcxAppAccountPhoneRequestWhatsappLinkSuccessResponse> {
   const requestUrl = new URL("/users/me/account-phone/request-whatsapp-verification-link", params.apiBaseUrl)
 
@@ -43,6 +45,8 @@ export async function requestDcxAppAuthenticatedUserWhatsappPhoneLink(params: {
     body: JSON.stringify({
       phone_e164: params.phoneE164,
       language_code: params.languageCode,
+      confirmation_purpose: params.confirmationPurpose ?? "contact_verification",
+      force_send: params.forceSend === true,
     }),
   })
 

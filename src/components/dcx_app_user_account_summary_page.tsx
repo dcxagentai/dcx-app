@@ -10,6 +10,7 @@ import { useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { ColumnDef } from "@tanstack/react-table"
 
+import { removeDcxAppAuthenticatedUserPhoneContactMethod } from "../lib/account_phone/remove_dcx_app_authenticated_user_phone_contact_method"
 import { requestDcxAppAuthenticatedUserWhatsappPhoneLink } from "../lib/account_phone/request_dcx_app_authenticated_user_whatsapp_phone_link"
 import { setDcxAppAuthenticatedUserPrimaryPhoneContactMethod } from "../lib/account_phone/set_dcx_app_authenticated_user_primary_phone_contact_method"
 import {
@@ -189,11 +190,18 @@ export function DcxAppUserAccountSummaryPage(props: Props) {
   })
 
   const phoneLinkRequestMutation = useMutation({
-    mutationFn: async (requestPayload: { phoneE164: string; languageCode: string }) =>
+    mutationFn: async (requestPayload: {
+      phoneE164: string
+      languageCode: string
+      confirmationPurpose?: "contact_verification" | "sender_reconfirmation"
+      forceSend?: boolean
+    }) =>
       requestDcxAppAuthenticatedUserWhatsappPhoneLink({
         apiBaseUrl: props.apiBaseUrl,
         phoneE164: requestPayload.phoneE164,
         languageCode: requestPayload.languageCode,
+        confirmationPurpose: requestPayload.confirmationPurpose,
+        forceSend: requestPayload.forceSend,
       }),
     onSuccess: (payload) => {
       queryClient.setQueryData(["dcx_app_authenticated_user_account_summary"], payload)
@@ -206,7 +214,9 @@ export function DcxAppUserAccountSummaryPage(props: Props) {
       syncPhoneDraftFromE164(nextDraftPhoneE164)
       setPhoneEditorStatusText(
         payload.context?.operation === "account_phone_whatsapp_already_confirmed"
-          ? "This phone is already verified for your DCX account."
+          ? "This phone is already confirmed for the current DCX WhatsApp number."
+          : payload.context?.operation === "account_phone_whatsapp_reverification_link_sent"
+            ? "Reverification link sent"
           : readDcxCurrentPhoneUxString(
               payload.data.ux_strings,
               "field_phone_pending_status",
@@ -236,6 +246,22 @@ export function DcxAppUserAccountSummaryPage(props: Props) {
       setPhoneEditorStatusText(primarySetError.suggested_action ?? primarySetError.message)
     },
   })
+  const removePhoneMutation = useMutation({
+    mutationFn: async (phoneContactMethodId: number) =>
+      removeDcxAppAuthenticatedUserPhoneContactMethod({
+        apiBaseUrl: props.apiBaseUrl,
+        phoneContactMethodId,
+      }),
+    onSuccess: (payload) => {
+      queryClient.setQueryData(["dcx_app_authenticated_user_account_summary"], payload)
+      closePhoneEditor()
+    },
+    onError: (error) => {
+      const removeError = error as Error & { suggested_action?: string }
+      setPhoneEditorVisualState("error")
+      setPhoneEditorStatusText(removeError.suggested_action ?? removeError.message)
+    },
+  })
 
   const accountSummary = accountSummaryQuery.data?.data ?? null
   const uxStrings = accountSummary?.ux_strings ?? DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS
@@ -263,6 +289,14 @@ export function DcxAppUserAccountSummaryPage(props: Props) {
   const editActionLabel = uxStrings["action_edit_contact_method"] ?? "Edit"
   const setPrimaryActionLabel = uxStrings["action_set_primary_contact_method"] ?? "Set primary"
   const cancelActionLabel = uxStrings["action_cancel_contact_method_edit"] ?? "Cancel"
+  const verifyPhoneActionLabel = uxStrings["action_verify_phone_contact_method"] ?? "Verify"
+  const reverifyWhatsappActionLabel =
+    uxStrings["action_reverify_whatsapp_contact_method"] ?? "Reverify WhatsApp"
+  const removePhoneActionLabel = uxStrings["action_remove_phone_contact_method"] ?? "Remove"
+  const currentSenderConfirmedLabel =
+    uxStrings["contact_method_current_sender_confirmed_badge"] ?? "Sender confirmed"
+  const currentSenderPendingLabel =
+    uxStrings["contact_method_current_sender_pending_badge"] ?? "Confirm sender"
   const primaryBadgeLabel = uxStrings["contact_method_primary_badge"] ?? "Primary"
   const unverifiedBadgeLabel = uxStrings["contact_method_unverified_badge"] ?? "Unverified"
   const noEmailsLabel = uxStrings["empty_email_contact_methods"] ?? "No email contact methods yet."
@@ -388,6 +422,14 @@ export function DcxAppUserAccountSummaryPage(props: Props) {
             {row.original.channel ? (
               <DcxAppContactChip label={row.original.channel} tone="neutral" />
             ) : null}
+            {row.original.channel === "whatsapp" && row.original.is_verified ? (
+              row.original.current_channel_confirmation?.confirmation_status === "confirmed"
+                && row.original.current_channel_confirmation.confirmed_at_ts_ms !== null ? (
+                <DcxAppContactChip label={currentSenderConfirmedLabel} tone="verified" />
+              ) : (
+                <DcxAppContactChip label={currentSenderPendingLabel} tone="neutral" />
+              )
+            ) : null}
           </div>
         ),
       },
@@ -396,12 +438,58 @@ export function DcxAppUserAccountSummaryPage(props: Props) {
         header: "Actions",
         cell: ({ row }) => (
           <div className="flex flex-wrap justify-end gap-2">
+            {!row.original.is_verified ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={
+                  setPrimaryPhoneMutation.isPending
+                  || phoneLinkRequestMutation.isPending
+                  || removePhoneMutation.isPending
+                }
+                onClick={() =>
+                  requestExistingPhoneWhatsappLink({
+                    phoneE164: row.original.normalized_value,
+                    confirmationPurpose: "contact_verification",
+                    forceSend: false,
+                  })
+                }
+              >
+                {verifyPhoneActionLabel}
+              </Button>
+            ) : null}
+            {row.original.is_verified && row.original.channel === "whatsapp" ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={
+                  setPrimaryPhoneMutation.isPending
+                  || phoneLinkRequestMutation.isPending
+                  || removePhoneMutation.isPending
+                }
+                onClick={() =>
+                  requestExistingPhoneWhatsappLink({
+                    phoneE164: row.original.normalized_value,
+                    confirmationPurpose: "sender_reconfirmation",
+                    forceSend: true,
+                  })
+                }
+              >
+                {reverifyWhatsappActionLabel}
+              </Button>
+            ) : null}
             {row.original.is_verified && !row.original.is_primary ? (
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={setPrimaryPhoneMutation.isPending || phoneLinkRequestMutation.isPending}
+                disabled={
+                  setPrimaryPhoneMutation.isPending
+                  || phoneLinkRequestMutation.isPending
+                  || removePhoneMutation.isPending
+                }
                 onClick={() => {
                   setPhoneEditorVisualState("idle")
                   setPhoneEditorStatusText(null)
@@ -415,23 +503,48 @@ export function DcxAppUserAccountSummaryPage(props: Props) {
               type="button"
               variant="outline"
               size="sm"
-              disabled={setPrimaryPhoneMutation.isPending || phoneLinkRequestMutation.isPending}
+              disabled={
+                setPrimaryPhoneMutation.isPending
+                || phoneLinkRequestMutation.isPending
+                || removePhoneMutation.isPending
+              }
               onClick={() => openPhoneEditorForExistingPhone(row.original)}
             >
               {editActionLabel}
             </Button>
+            {!row.original.is_verified && !row.original.is_primary ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={
+                  setPrimaryPhoneMutation.isPending
+                  || phoneLinkRequestMutation.isPending
+                  || removePhoneMutation.isPending
+                }
+                onClick={() => removePhoneMutation.mutate(row.original.id)}
+              >
+                {removePhoneActionLabel}
+              </Button>
+            ) : null}
           </div>
         ),
       },
     ],
     [
       editActionLabel,
+      currentSenderConfirmedLabel,
+      currentSenderPendingLabel,
       phoneLinkRequestMutation.isPending,
       primaryBadgeLabel,
       readRenderablePhoneValue,
+      removePhoneActionLabel,
+      removePhoneMutation,
+      reverifyWhatsappActionLabel,
       setPrimaryActionLabel,
       setPrimaryPhoneMutation.isPending,
       unverifiedBadgeLabel,
+      verifyPhoneActionLabel,
       uxStrings.field_phone_confirmed_badge,
     ],
   )
@@ -602,10 +715,6 @@ export function DcxAppUserAccountSummaryPage(props: Props) {
 
   function submitPhoneLinkRequest(): void {
     const trimmedNationalNumberDraft = phoneDraftNationalNumber.replace(/[^0-9]/g, "")
-    const preferredLanguageCode =
-      accountSummary?.preferred_language?.language_code
-      ?? accountSummary?.available_languages[0]?.language_code
-      ?? "en"
 
     if (trimmedNationalNumberDraft.length < 6) {
       setPhoneEditorVisualState("error")
@@ -624,8 +733,34 @@ export function DcxAppUserAccountSummaryPage(props: Props) {
     setPhoneEditorStatusText(null)
     phoneLinkRequestMutation.mutate({
       phoneE164: nextPhoneE164,
-      languageCode: preferredLanguageCode,
+      languageCode: readPreferredPhoneVerificationLanguageCode(),
+      confirmationPurpose: "contact_verification",
+      forceSend: false,
     })
+  }
+
+  function requestExistingPhoneWhatsappLink(requestPayload: {
+    phoneE164: string
+    confirmationPurpose: "contact_verification" | "sender_reconfirmation"
+    forceSend: boolean
+  }): void {
+    setPhoneEditorVisualState("idle")
+    setPhoneEditorStatusText(null)
+    setLocalDebugVerificationLinkUrl(null)
+    phoneLinkRequestMutation.mutate({
+      phoneE164: requestPayload.phoneE164,
+      languageCode: readPreferredPhoneVerificationLanguageCode(),
+      confirmationPurpose: requestPayload.confirmationPurpose,
+      forceSend: requestPayload.forceSend,
+    })
+  }
+
+  function readPreferredPhoneVerificationLanguageCode(): string {
+    return (
+      accountSummary?.preferred_language?.language_code
+      ?? accountSummary?.available_languages[0]?.language_code
+      ?? "en"
+    )
   }
 
   function submitSetPrimaryPhone(): void {
@@ -753,6 +888,17 @@ export function DcxAppUserAccountSummaryPage(props: Props) {
           ) : (
             <p className="text-sm text-slate-500">{noPhonesLabel}</p>
           )}
+
+          {phoneEditorMode === "hidden" && phoneEditorStatusText ? (
+            <p
+              className={[
+                "text-sm font-medium",
+                phoneEditorVisualState === "error" ? "text-red-600" : "text-emerald-700",
+              ].join(" ")}
+            >
+              {phoneEditorStatusText}
+            </p>
+          ) : null}
 
           {phoneEditorMode !== "hidden" ? (
             <section className="space-y-3 border border-sky-200 bg-sky-50/40 px-4 py-4">
