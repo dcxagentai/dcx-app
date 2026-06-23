@@ -1016,27 +1016,27 @@ export function DcxAppUserSettingsPage(props: Props) {
                 />
               </div>
               <DcxAppEditableOrderedReferenceField
-                label={ux.field_preferred_language}
+                label="Languages"
                 visualState={editableFieldUiStateByKey.selected_languages.visualState}
                 statusText={editableFieldUiStateByKey.selected_languages.statusText}
                 isDisabled={editableControlsDisabled}
                 selectedIds={editableDraft.selectedLanguageIds}
                 optionGroups={languageOptionGroups}
                 maxSelectedCount={5}
-                placeholder={ux.field_preferred_language}
+                placeholder="Languages"
                 onBeginEditing={() => beginEditingField("selected_languages")}
                 onCancelEditing={() => cancelEditingField("selected_languages")}
                 onSelectValues={(nextLanguageIds) => setSelectedLanguageIds(nextLanguageIds)}
               />
               <DcxAppEditableOrderedReferenceField
-                label={ux.field_timezone}
+                label="Timezones"
                 visualState={editableFieldUiStateByKey.selected_timezones.visualState}
                 statusText={editableFieldUiStateByKey.selected_timezones.statusText}
                 isDisabled={editableControlsDisabled}
                 selectedIds={editableDraft.selectedTimezoneIds}
                 optionGroups={timezoneOptionGroups}
                 maxSelectedCount={3}
-                placeholder={ux.field_timezone}
+                placeholder="Timezones"
                 onBeginEditing={() => beginEditingField("selected_timezones")}
                 onCancelEditing={() => cancelEditingField("selected_timezones")}
                 onSelectValues={(nextTimezoneIds) => setSelectedTimezoneIds(nextTimezoneIds)}
@@ -1053,6 +1053,17 @@ export function DcxAppUserSettingsPage(props: Props) {
                 onBeginEditing={() => beginEditingField("selected_countries")}
                 onCancelEditing={() => cancelEditingField("selected_countries")}
                 onSelectValues={(nextCountryIds) => setSelectedCountryIds(nextCountryIds)}
+              />
+              <DcxAppEditableTradeInterestMaterialsField
+                label="Commodities"
+                visualState={editableFieldUiStateByKey.trade_interest_materials.visualState}
+                statusText={editableFieldUiStateByKey.trade_interest_materials.statusText}
+                isDisabled={editableControlsDisabled}
+                selectedMaterialKeys={editableDraft.tradeInterestMaterialKeys}
+                optionGroups={tradeInterestMaterialOptionGroups}
+                onBeginEditing={() => beginEditingField("trade_interest_materials")}
+                onCancelEditing={() => cancelEditingField("trade_interest_materials")}
+                onSelectValues={(nextMaterialKeys) => setTradeInterestMaterialKeys(nextMaterialKeys)}
               />
               <DcxAppEditableSelectField
               uxStrings={ux}
@@ -1116,17 +1127,6 @@ export function DcxAppUserSettingsPage(props: Props) {
                 void saveEditableDraftWithRetries("default_interaction_channel", nextDraft)
               }}
             />
-              <DcxAppEditableTradeInterestMaterialsField
-                label="Trade alerts"
-                visualState={editableFieldUiStateByKey.trade_interest_materials.visualState}
-                statusText={editableFieldUiStateByKey.trade_interest_materials.statusText}
-                isDisabled={editableControlsDisabled}
-                selectedMaterialKeys={editableDraft.tradeInterestMaterialKeys}
-                optionGroups={tradeInterestMaterialOptionGroups}
-                onBeginEditing={() => beginEditingField("trade_interest_materials")}
-                onCancelEditing={() => cancelEditingField("trade_interest_materials")}
-                onSelectValues={(nextMaterialKeys) => setTradeInterestMaterialKeys(nextMaterialKeys)}
-              />
             </FieldGroup>
           </FieldSet>
         </article>
