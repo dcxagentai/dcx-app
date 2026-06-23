@@ -334,7 +334,7 @@ function DcxAppEditableOrderedReferenceField(props: {
       </FieldLabel>
       <Combobox
         multiple
-        items={flatOptions}
+        items={props.optionGroups}
         value={selectedOptions}
         itemToStringLabel={(option) => option.label}
         itemToStringValue={(option) => option.searchLabel}
@@ -389,24 +389,31 @@ function DcxAppEditableOrderedReferenceField(props: {
         <ComboboxContent>
           <ComboboxEmpty>No options found.</ComboboxEmpty>
           <ComboboxList>
-            {(option: DcxAppOrderedReferenceOption) => (
-              <ComboboxItem
-                key={option.value}
-                value={option}
-                disabled={isSelectionFull && !selectedValueSet.has(option.value)}
-              >
-                {option.regionCode ? (
-                  <DcxCountryFlagIcon
-                    regionCode={option.regionCode}
-                    title={option.label}
-                    fallbackLabel={option.regionCode}
-                  />
-                ) : null}
-                <div className="flex min-w-0 flex-col">
-                  <span className="truncate font-medium text-slate-950">{option.label}</span>
-                  <span className="text-xs text-slate-500">{option.subtitle}</span>
-                </div>
-              </ComboboxItem>
+            {(optionGroup: DcxAppOrderedReferenceOptionGroup) => (
+              <ComboboxGroup key={optionGroup.label} items={optionGroup.items}>
+                <ComboboxGroupLabel>{optionGroup.label}</ComboboxGroupLabel>
+                <ComboboxCollection>
+                  {(option: DcxAppOrderedReferenceOption) => (
+                    <ComboboxItem
+                      key={option.value}
+                      value={option}
+                      disabled={isSelectionFull && !selectedValueSet.has(option.value)}
+                    >
+                      {option.regionCode ? (
+                        <DcxCountryFlagIcon
+                          regionCode={option.regionCode}
+                          title={option.label}
+                          fallbackLabel={option.regionCode}
+                        />
+                      ) : null}
+                      <div className="flex min-w-0 flex-col">
+                        <span className="truncate font-medium text-slate-950">{option.label}</span>
+                        <span className="text-xs text-slate-500">{option.subtitle}</span>
+                      </div>
+                    </ComboboxItem>
+                  )}
+                </ComboboxCollection>
+              </ComboboxGroup>
             )}
           </ComboboxList>
         </ComboboxContent>
@@ -431,7 +438,7 @@ function DcxAppEditableTradeInterestMaterialsField(props: EditableTradeInterestM
       </FieldLabel>
       <Combobox
         multiple
-        items={flatOptions}
+        items={props.optionGroups}
         value={selectedOptions}
         itemToStringLabel={(option) => option.label}
         itemToStringValue={(option) => option.searchLabel}
@@ -478,10 +485,17 @@ function DcxAppEditableTradeInterestMaterialsField(props: EditableTradeInterestM
         <ComboboxContent>
           <ComboboxEmpty>No options found.</ComboboxEmpty>
           <ComboboxList>
-            {(option: DcxAppGroupedTradeMaterialOption) => (
-              <ComboboxItem key={option.value} value={option}>
-                <span className="truncate font-medium text-slate-950">{option.label}</span>
-              </ComboboxItem>
+            {(optionGroup: DcxAppGroupedTradeMaterialOptionGroup) => (
+              <ComboboxGroup key={optionGroup.label} items={optionGroup.items}>
+                <ComboboxGroupLabel>{optionGroup.label}</ComboboxGroupLabel>
+                <ComboboxCollection>
+                  {(option: DcxAppGroupedTradeMaterialOption) => (
+                    <ComboboxItem key={option.value} value={option}>
+                      <span className="truncate font-medium text-slate-950">{option.label}</span>
+                    </ComboboxItem>
+                  )}
+                </ComboboxCollection>
+              </ComboboxGroup>
             )}
           </ComboboxList>
         </ComboboxContent>
