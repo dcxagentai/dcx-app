@@ -324,6 +324,8 @@ function DcxAppEditableOrderedReferenceField(props: {
   const selectedOptions = props.selectedIds
     .map((selectedId) => flatOptions.find((option) => option.value === String(selectedId)))
     .filter((option): option is DcxAppOrderedReferenceOption => Boolean(option))
+  const selectedValueSet = new Set(selectedOptions.map((selectedOption) => selectedOption.value))
+  const isSelectionFull = selectedOptions.length >= props.maxSelectedCount
 
   return (
     <Field data-invalid={hasError || undefined} className="gap-2">
@@ -332,7 +334,7 @@ function DcxAppEditableOrderedReferenceField(props: {
       </FieldLabel>
       <Combobox
         multiple
-        items={props.optionGroups}
+        items={flatOptions}
         value={selectedOptions}
         itemToStringLabel={(option) => option.label}
         itemToStringValue={(option) => option.searchLabel}
@@ -352,11 +354,12 @@ function DcxAppEditableOrderedReferenceField(props: {
         openOnInputClick
       >
         <ComboboxInputGroup className={[triggerBorderClass, "bg-slate-50"].join(" ")}>
-          <ComboboxValue placeholder={props.placeholder}>
-            {(selectedValue) => {
-              const selectedChipOptions = Array.isArray(selectedValue) ? selectedValue : []
-              return (
-                <ComboboxChips>
+          <ComboboxChips>
+            <ComboboxValue placeholder={props.placeholder}>
+              {(selectedValue) => {
+                const selectedChipOptions = Array.isArray(selectedValue) ? selectedValue : []
+                return (
+                  <>
                   {selectedChipOptions.map((selectedOption) => (
                     <ComboboxChip key={selectedOption.value}>
                       {selectedOption.regionCode ? (
@@ -371,42 +374,40 @@ function DcxAppEditableOrderedReferenceField(props: {
                       <ComboboxChipRemove aria-label={`Remove ${selectedOption.label}`} />
                     </ComboboxChip>
                   ))}
-                </ComboboxChips>
-              )
-            }}
-          </ComboboxValue>
-          <ComboboxChipsInput
-            aria-invalid={hasError || undefined}
-            placeholder={selectedOptions.length === 0 ? props.placeholder : ""}
-            disabled={props.isDisabled}
-          />
+                  </>
+                )
+              }}
+            </ComboboxValue>
+            <ComboboxChipsInput
+              aria-invalid={hasError || undefined}
+              placeholder={selectedOptions.length === 0 ? props.placeholder : ""}
+              disabled={props.isDisabled}
+            />
+          </ComboboxChips>
           <ComboboxTriggerIcon />
         </ComboboxInputGroup>
         <ComboboxContent>
           <ComboboxEmpty>No options found.</ComboboxEmpty>
           <ComboboxList>
-            {props.optionGroups.map((optionGroup) => (
-              <ComboboxGroup key={optionGroup.label} items={optionGroup.items}>
-                <ComboboxGroupLabel>{optionGroup.label}</ComboboxGroupLabel>
-                <ComboboxCollection>
-                  {(option: DcxAppOrderedReferenceOption) => (
-                    <ComboboxItem key={option.value} value={option}>
-                      {option.regionCode ? (
-                        <DcxCountryFlagIcon
-                          regionCode={option.regionCode}
-                          title={option.label}
-                          fallbackLabel={option.regionCode}
-                        />
-                      ) : null}
-                      <div className="flex min-w-0 flex-col">
-                        <span className="truncate font-medium text-slate-950">{option.label}</span>
-                        <span className="text-xs text-slate-500">{option.subtitle}</span>
-                      </div>
-                    </ComboboxItem>
-                  )}
-                </ComboboxCollection>
-              </ComboboxGroup>
-            ))}
+            {(option: DcxAppOrderedReferenceOption) => (
+              <ComboboxItem
+                key={option.value}
+                value={option}
+                disabled={isSelectionFull && !selectedValueSet.has(option.value)}
+              >
+                {option.regionCode ? (
+                  <DcxCountryFlagIcon
+                    regionCode={option.regionCode}
+                    title={option.label}
+                    fallbackLabel={option.regionCode}
+                  />
+                ) : null}
+                <div className="flex min-w-0 flex-col">
+                  <span className="truncate font-medium text-slate-950">{option.label}</span>
+                  <span className="text-xs text-slate-500">{option.subtitle}</span>
+                </div>
+              </ComboboxItem>
+            )}
           </ComboboxList>
         </ComboboxContent>
       </Combobox>
@@ -430,7 +431,7 @@ function DcxAppEditableTradeInterestMaterialsField(props: EditableTradeInterestM
       </FieldLabel>
       <Combobox
         multiple
-        items={props.optionGroups}
+        items={flatOptions}
         value={selectedOptions}
         itemToStringLabel={(option) => option.label}
         itemToStringValue={(option) => option.searchLabel}
@@ -450,43 +451,38 @@ function DcxAppEditableTradeInterestMaterialsField(props: EditableTradeInterestM
         openOnInputClick
       >
         <ComboboxInputGroup className={[triggerBorderClass, "bg-slate-50"].join(" ")}>
-          <ComboboxValue placeholder="Select commodities">
-            {(selectedValue) => {
-              const selectedChipOptions = Array.isArray(selectedValue) ? selectedValue : []
-              return (
-                <ComboboxChips>
+          <ComboboxChips>
+            <ComboboxValue placeholder="Select commodities">
+              {(selectedValue) => {
+                const selectedChipOptions = Array.isArray(selectedValue) ? selectedValue : []
+                return (
+                  <>
                   {selectedChipOptions.map((selectedOption) => (
                     <ComboboxChip key={selectedOption.value}>
                       <span className="max-w-36 truncate">{selectedOption.label}</span>
                       <ComboboxChipRemove aria-label={`Remove ${selectedOption.label}`} />
                     </ComboboxChip>
                   ))}
-                </ComboboxChips>
-              )
-            }}
-          </ComboboxValue>
-          <ComboboxChipsInput
-            aria-invalid={hasError || undefined}
-            placeholder={selectedOptions.length === 0 ? "Select commodities" : ""}
-            disabled={props.isDisabled}
-          />
+                  </>
+                )
+              }}
+            </ComboboxValue>
+            <ComboboxChipsInput
+              aria-invalid={hasError || undefined}
+              placeholder={selectedOptions.length === 0 ? "Select commodities" : ""}
+              disabled={props.isDisabled}
+            />
+          </ComboboxChips>
           <ComboboxTriggerIcon />
         </ComboboxInputGroup>
         <ComboboxContent>
           <ComboboxEmpty>No options found.</ComboboxEmpty>
           <ComboboxList>
-            {props.optionGroups.map((optionGroup) => (
-              <ComboboxGroup key={optionGroup.label} items={optionGroup.items}>
-                <ComboboxGroupLabel>{optionGroup.label}</ComboboxGroupLabel>
-                <ComboboxCollection>
-                  {(option: DcxAppGroupedTradeMaterialOption) => (
-                    <ComboboxItem key={option.value} value={option}>
-                      <span className="truncate font-medium text-slate-950">{option.label}</span>
-                    </ComboboxItem>
-                  )}
-                </ComboboxCollection>
-              </ComboboxGroup>
-            ))}
+            {(option: DcxAppGroupedTradeMaterialOption) => (
+              <ComboboxItem key={option.value} value={option}>
+                <span className="truncate font-medium text-slate-950">{option.label}</span>
+              </ComboboxItem>
+            )}
           </ComboboxList>
         </ComboboxContent>
       </Combobox>
@@ -1235,6 +1231,7 @@ function readDcxAppGroupedTimezoneOptions(
     display_label: string
     region_label: string
     country_code_alpha2?: string | null
+    country_display_name?: string | null
     flag_asset_key?: string | null
   }>,
 ): DcxAppOrderedReferenceOptionGroup[] {
@@ -1247,7 +1244,15 @@ function readDcxAppGroupedTimezoneOptions(
       label: availableTimezone.display_label,
       subtitle: availableTimezone.iana_name,
       groupLabel,
-      searchLabel: `${availableTimezone.display_label} ${availableTimezone.iana_name} ${groupLabel}`,
+      searchLabel: [
+        availableTimezone.display_label,
+        availableTimezone.iana_name,
+        groupLabel,
+        availableTimezone.country_display_name,
+        availableTimezone.country_code_alpha2,
+      ]
+        .filter((searchPart): searchPart is string => typeof searchPart === "string" && searchPart.trim() !== "")
+        .join(" "),
       regionCode: availableTimezone.flag_asset_key ?? availableTimezone.country_code_alpha2 ?? undefined,
     })
     groupedTimezoneOptionsByRegion.set(groupLabel, existingOptions)
