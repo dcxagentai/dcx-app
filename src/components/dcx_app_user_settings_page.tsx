@@ -55,9 +55,9 @@ type EditableFieldKey =
   | "public_display_name"
   | "public_handle"
   | "public_identity_mode"
-  | "preferred_language"
-  | "preferred_timezone"
-  | "sidebar_clock_timezones"
+  | "selected_languages"
+  | "selected_timezones"
+  | "selected_countries"
   | "email_communication_preference"
   | "default_interaction_channel"
   | "trade_interest_materials"
@@ -66,9 +66,9 @@ type EditableDraft = {
   publicDisplayName: string
   publicHandle: string
   publicIdentityMode: string
-  preferredLanguageId: number | null
-  preferredTimezoneId: number | null
-  sidebarClockTimezoneIds: number[]
+  selectedLanguageIds: number[]
+  selectedTimezoneIds: number[]
+  selectedCountryIds: number[]
   emailCommunicationPreference: string
   defaultInteractionChannel: string
   tradeInterestMaterialKeys: string[]
@@ -132,12 +132,32 @@ type EditableTradeInterestMaterialsFieldProps = {
   onSelectValues: (materialKeys: string[]) => void
 }
 
-type DcxAppGroupedTimezoneOption = {
+type DcxAppOrderedReferenceOption = {
   value: string
   label: string
   searchLabel: string
   subtitle: string
   groupLabel: string
+  regionCode?: string
+}
+
+type DcxAppOrderedReferenceOptionGroup = {
+  label: string
+  items: DcxAppOrderedReferenceOption[]
+}
+
+type DcxAppAvailableLanguageOption = {
+  id: number
+  language_code: string
+  language_name_en: string
+  language_name_native: string
+}
+
+type DcxAppAvailableCountryOption = {
+  id: number
+  country_code_alpha2: string
+  default_display_name: string
+  flag_asset_key: string
 }
 
 function DcxAppEditableTextField(props: EditableTextFieldProps) {
@@ -285,26 +305,25 @@ function DcxAppEditableSelectField(props: EditableSelectFieldProps) {
   )
 }
 
-function DcxAppEditableSidebarClockTimezonesField(props: {
+function DcxAppEditableOrderedReferenceField(props: {
   label: string
   visualState: DcxAppEditableFieldVisualState
   statusText: string
   isDisabled: boolean
-  selectedTimezoneIds: number[]
-  optionGroups: Array<{
-    label: string
-    items: DcxAppGroupedTimezoneOption[]
-  }>
+  selectedIds: number[]
+  optionGroups: DcxAppOrderedReferenceOptionGroup[]
+  maxSelectedCount: number
+  placeholder: string
   onBeginEditing: () => void
   onCancelEditing: () => void
-  onSelectValues: (timezoneIds: number[]) => void
+  onSelectValues: (selectedIds: number[]) => void
 }) {
   const triggerBorderClass = readDcxAppEditableFieldBorderClass(props.visualState)
   const hasError = props.visualState === "error"
   const flatOptions = props.optionGroups.flatMap((optionGroup) => optionGroup.items)
-  const selectedOptions = props.selectedTimezoneIds
-    .map((timezoneId) => flatOptions.find((option) => option.value === String(timezoneId)))
-    .filter((option): option is DcxAppGroupedTimezoneOption => Boolean(option))
+  const selectedOptions = props.selectedIds
+    .map((selectedId) => flatOptions.find((option) => option.value === String(selectedId)))
+    .filter((option): option is DcxAppOrderedReferenceOption => Boolean(option))
 
   return (
     <Field data-invalid={hasError || undefined} className="gap-2">
@@ -327,19 +346,27 @@ function DcxAppEditableSidebarClockTimezonesField(props: {
           props.onCancelEditing()
         }}
         onValueChange={(nextOptions) => {
-          props.onSelectValues(nextOptions.slice(0, 2).map((option) => Number(option.value)))
+          props.onSelectValues(nextOptions.slice(0, props.maxSelectedCount).map((option) => Number(option.value)))
         }}
         autoHighlight
         openOnInputClick
       >
         <ComboboxInputGroup className={[triggerBorderClass, "bg-slate-50"].join(" ")}>
-          <ComboboxValue placeholder="Select clocks">
+          <ComboboxValue placeholder={props.placeholder}>
             {(selectedValue) => {
               const selectedChipOptions = Array.isArray(selectedValue) ? selectedValue : []
               return (
                 <ComboboxChips>
                   {selectedChipOptions.map((selectedOption) => (
                     <ComboboxChip key={selectedOption.value}>
+                      {selectedOption.regionCode ? (
+                        <DcxCountryFlagIcon
+                          regionCode={selectedOption.regionCode}
+                          title={selectedOption.label}
+                          fallbackLabel={selectedOption.regionCode}
+                          className="h-4 w-6"
+                        />
+                      ) : null}
                       <span className="max-w-40 truncate">{selectedOption.label}</span>
                       <ComboboxChipRemove aria-label={`Remove ${selectedOption.label}`} />
                     </ComboboxChip>
@@ -350,7 +377,7 @@ function DcxAppEditableSidebarClockTimezonesField(props: {
           </ComboboxValue>
           <ComboboxChipsInput
             aria-invalid={hasError || undefined}
-            placeholder={selectedOptions.length === 0 ? "Select up to two timezones" : ""}
+            placeholder={selectedOptions.length === 0 ? props.placeholder : ""}
             disabled={props.isDisabled}
           />
           <ComboboxTriggerIcon />
@@ -362,8 +389,15 @@ function DcxAppEditableSidebarClockTimezonesField(props: {
               <ComboboxGroup key={optionGroup.label} items={optionGroup.items}>
                 <ComboboxGroupLabel>{optionGroup.label}</ComboboxGroupLabel>
                 <ComboboxCollection>
-                  {(option: DcxAppGroupedTimezoneOption) => (
+                  {(option: DcxAppOrderedReferenceOption) => (
                     <ComboboxItem key={option.value} value={option}>
+                      {option.regionCode ? (
+                        <DcxCountryFlagIcon
+                          regionCode={option.regionCode}
+                          title={option.label}
+                          fallbackLabel={option.regionCode}
+                        />
+                      ) : null}
                       <div className="flex min-w-0 flex-col">
                         <span className="truncate font-medium text-slate-950">{option.label}</span>
                         <span className="text-xs text-slate-500">{option.subtitle}</span>
@@ -480,15 +514,18 @@ export function DcxAppUserSettingsPage(props: Props) {
     mutationFn: async (nextDraft: EditableDraft) =>
       saveDcxAppAuthenticatedUserAccountSettings({
         apiBaseUrl: props.apiBaseUrl,
-        preferredLanguageId: nextDraft.preferredLanguageId,
-        preferredTimezoneId: nextDraft.preferredTimezoneId,
+        preferredLanguageId: nextDraft.selectedLanguageIds[0] ?? null,
+        preferredTimezoneId: nextDraft.selectedTimezoneIds[0] ?? null,
         emailCommunicationPreference: nextDraft.emailCommunicationPreference,
         publicDisplayName: nextDraft.publicDisplayName,
         publicHandle: nextDraft.publicHandle,
         publicIdentityMode: nextDraft.publicIdentityMode,
         defaultInteractionChannel: nextDraft.defaultInteractionChannel,
         tradeInterestMaterialKeys: nextDraft.tradeInterestMaterialKeys,
-        sidebarClockTimezoneIds: nextDraft.sidebarClockTimezoneIds,
+        sidebarClockTimezoneIds: nextDraft.selectedTimezoneIds.slice(1, 3),
+        selectedLanguageIds: nextDraft.selectedLanguageIds,
+        selectedTimezoneIds: nextDraft.selectedTimezoneIds,
+        selectedCountryIds: nextDraft.selectedCountryIds,
       }),
   })
 
@@ -500,13 +537,19 @@ export function DcxAppUserSettingsPage(props: Props) {
   const timezoneOptionGroups = readDcxAppGroupedTimezoneOptions(
     accountSummary?.available_timezones ?? [],
   )
+  const languageOptionGroups = readDcxAppGroupedLanguageOptions(
+    accountSummary?.available_languages ?? [],
+  )
+  const countryOptionGroups = readDcxAppGroupedCountryOptions(
+    accountSummary?.available_countries ?? [],
+  )
   const [editableDraft, setEditableDraft] = useState<EditableDraft>({
     publicDisplayName: "",
     publicHandle: "",
     publicIdentityMode: "display_name",
-    preferredLanguageId: null,
-    preferredTimezoneId: null,
-    sidebarClockTimezoneIds: [],
+    selectedLanguageIds: [],
+    selectedTimezoneIds: [],
+    selectedCountryIds: [],
     emailCommunicationPreference: "newsletters",
     defaultInteractionChannel: "app_only",
     tradeInterestMaterialKeys: [],
@@ -526,15 +569,15 @@ export function DcxAppUserSettingsPage(props: Props) {
       visualState: "idle",
       statusText: DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS.editable_status_idle,
     },
-    preferred_language: {
+    selected_languages: {
       visualState: "idle",
       statusText: DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS.editable_status_idle,
     },
-    preferred_timezone: {
+    selected_timezones: {
       visualState: "idle",
       statusText: DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS.editable_status_idle,
     },
-    sidebar_clock_timezones: {
+    selected_countries: {
       visualState: "idle",
       statusText: DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS.editable_status_idle,
     },
@@ -561,9 +604,9 @@ export function DcxAppUserSettingsPage(props: Props) {
       publicDisplayName: accountSummary.public_identity.public_display_name,
       publicHandle: accountSummary.public_identity.public_handle,
       publicIdentityMode: accountSummary.public_identity.public_identity_mode,
-      preferredLanguageId: accountSummary.preferred_language?.id ?? null,
-      preferredTimezoneId: accountSummary.preferred_timezone?.id ?? null,
-      sidebarClockTimezoneIds: accountSummary.selected_sidebar_clock_timezone_ids,
+      selectedLanguageIds: accountSummary.selected_language_ids,
+      selectedTimezoneIds: accountSummary.selected_timezone_ids,
+      selectedCountryIds: accountSummary.selected_country_ids,
       emailCommunicationPreference: accountSummary.email_communication_preference,
       defaultInteractionChannel: accountSummary.default_interaction_channel,
       tradeInterestMaterialKeys: accountSummary.selected_trade_interest_material_keys,
@@ -575,7 +618,7 @@ export function DcxAppUserSettingsPage(props: Props) {
       return
     }
 
-    if (accountSummary.preferred_language !== null) {
+    if (accountSummary.selected_language_ids.length > 0) {
       return
     }
 
@@ -594,9 +637,9 @@ export function DcxAppUserSettingsPage(props: Props) {
       publicDisplayName: editableDraft.publicDisplayName,
       publicHandle: editableDraft.publicHandle,
       publicIdentityMode: editableDraft.publicIdentityMode,
-      preferredLanguageId: defaultLanguage.id,
-      preferredTimezoneId: editableDraft.preferredTimezoneId,
-      sidebarClockTimezoneIds: editableDraft.sidebarClockTimezoneIds,
+      selectedLanguageIds: [defaultLanguage.id],
+      selectedTimezoneIds: editableDraft.selectedTimezoneIds,
+      selectedCountryIds: editableDraft.selectedCountryIds,
       emailCommunicationPreference: editableDraft.emailCommunicationPreference,
       defaultInteractionChannel: editableDraft.defaultInteractionChannel,
       tradeInterestMaterialKeys: editableDraft.tradeInterestMaterialKeys,
@@ -605,12 +648,12 @@ export function DcxAppUserSettingsPage(props: Props) {
     setEditableDraft(nextDraft)
     setEditableFieldUiStateByKey((previousState) => ({
       ...previousState,
-      preferred_language: {
+      selected_languages: {
         visualState: "saving",
         statusText: ux.editable_status_saving_default_language,
       },
     }))
-    void saveEditableDraftWithRetries("preferred_language", nextDraft)
+    void saveEditableDraftWithRetries("selected_languages", nextDraft)
   }, [
     accountSummary,
     editableDraft.emailCommunicationPreference,
@@ -618,7 +661,8 @@ export function DcxAppUserSettingsPage(props: Props) {
     editableDraft.publicDisplayName,
     editableDraft.publicHandle,
     editableDraft.publicIdentityMode,
-    editableDraft.sidebarClockTimezoneIds,
+    editableDraft.selectedCountryIds,
+    editableDraft.selectedTimezoneIds,
     editableDraft.tradeInterestMaterialKeys,
     ux.editable_status_saving_default_language,
   ])
@@ -645,9 +689,9 @@ export function DcxAppUserSettingsPage(props: Props) {
           publicDisplayName: savePayload.data.public_identity.public_display_name,
           publicHandle: savePayload.data.public_identity.public_handle,
           publicIdentityMode: savePayload.data.public_identity.public_identity_mode,
-          preferredLanguageId: savePayload.data.preferred_language?.id ?? null,
-          preferredTimezoneId: savePayload.data.preferred_timezone?.id ?? null,
-          sidebarClockTimezoneIds: savePayload.data.selected_sidebar_clock_timezone_ids,
+          selectedLanguageIds: savePayload.data.selected_language_ids,
+          selectedTimezoneIds: savePayload.data.selected_timezone_ids,
+          selectedCountryIds: savePayload.data.selected_country_ids,
           emailCommunicationPreference: savePayload.data.email_communication_preference,
           defaultInteractionChannel: savePayload.data.default_interaction_channel,
           tradeInterestMaterialKeys: savePayload.data.selected_trade_interest_material_keys,
@@ -754,21 +798,55 @@ export function DcxAppUserSettingsPage(props: Props) {
     void saveEditableDraftWithRetries("trade_interest_materials", nextDraft)
   }
 
-  function setSidebarClockTimezoneIds(timezoneIds: number[]): void {
-    const nextTimezoneIds = Array.from(new Set(timezoneIds.filter((timezoneId) => Number.isInteger(timezoneId) && timezoneId > 0))).slice(0, 2)
+  function setSelectedLanguageIds(languageIds: number[]): void {
+    const nextLanguageIds = readDcxAppNormalizedSelectedIds(languageIds, 5)
     const nextDraft = {
       ...editableDraft,
-      sidebarClockTimezoneIds: nextTimezoneIds,
+      selectedLanguageIds: nextLanguageIds,
     }
     setEditableDraft(nextDraft)
     setEditableFieldUiStateByKey((previousState) => ({
       ...previousState,
-      sidebar_clock_timezones: {
+      selected_languages: {
         visualState: "saving",
         statusText: ux.editable_status_saving,
       },
     }))
-    void saveEditableDraftWithRetries("sidebar_clock_timezones", nextDraft)
+    void saveEditableDraftWithRetries("selected_languages", nextDraft)
+  }
+
+  function setSelectedTimezoneIds(timezoneIds: number[]): void {
+    const nextTimezoneIds = readDcxAppNormalizedSelectedIds(timezoneIds, 3)
+    const nextDraft = {
+      ...editableDraft,
+      selectedTimezoneIds: nextTimezoneIds,
+    }
+    setEditableDraft(nextDraft)
+    setEditableFieldUiStateByKey((previousState) => ({
+      ...previousState,
+      selected_timezones: {
+        visualState: "saving",
+        statusText: ux.editable_status_saving,
+      },
+    }))
+    void saveEditableDraftWithRetries("selected_timezones", nextDraft)
+  }
+
+  function setSelectedCountryIds(countryIds: number[]): void {
+    const nextCountryIds = readDcxAppNormalizedSelectedIds(countryIds, 25)
+    const nextDraft = {
+      ...editableDraft,
+      selectedCountryIds: nextCountryIds,
+    }
+    setEditableDraft(nextDraft)
+    setEditableFieldUiStateByKey((previousState) => ({
+      ...previousState,
+      selected_countries: {
+        visualState: "saving",
+        statusText: ux.editable_status_saving,
+      },
+    }))
+    void saveEditableDraftWithRetries("selected_countries", nextDraft)
   }
 
   return (
@@ -927,82 +1005,44 @@ export function DcxAppUserSettingsPage(props: Props) {
                   }}
                 />
               </div>
-              <DcxAppEditableSelectField
-              uxStrings={ux}
-              label={ux.field_preferred_language}
-              visualState={editableFieldUiStateByKey.preferred_language.visualState}
-              statusText={editableFieldUiStateByKey.preferred_language.statusText}
-              isDisabled={editableControlsDisabled}
-              value={String(editableDraft.preferredLanguageId ?? accountSummary.available_languages[0]?.id ?? "")}
-              placeholder={ux.field_preferred_language}
-              options={accountSummary.available_languages.map((availableLanguage) => ({
-                value: String(availableLanguage.id),
-                label: `${availableLanguage.language_name_native} (${availableLanguage.language_code})`,
-                subtitle: `${availableLanguage.language_code.toUpperCase()} · ${availableLanguage.language_name_native}`,
-                searchLabel: `${availableLanguage.language_name_native} ${availableLanguage.language_code}`,
-                regionCode: readDcxAppLanguageFlagRegionCode(availableLanguage.language_code),
-              }))}
-              onBeginEditing={() => beginEditingField("preferred_language")}
-              onCancelEditing={() => cancelEditingField("preferred_language")}
-              onSelectValue={(selectedValue) => {
-                const nextDraft = {
-                  ...editableDraft,
-                  preferredLanguageId: Number(selectedValue),
-                }
-                setEditableDraft(nextDraft)
-                setEditableFieldUiStateByKey((previousState) => ({
-                  ...previousState,
-                  preferred_language: {
-                    visualState: "saving",
-                    statusText: ux.editable_status_saving,
-                  },
-                }))
-                void saveEditableDraftWithRetries("preferred_language", nextDraft)
-              }}
-            />
-              <DcxAppEditableSelectField
-              uxStrings={ux}
-              label={ux.field_timezone}
-              visualState={editableFieldUiStateByKey.preferred_timezone.visualState}
-              statusText={editableFieldUiStateByKey.preferred_timezone.statusText}
-              isDisabled={editableControlsDisabled}
-              value={String(editableDraft.preferredTimezoneId ?? accountSummary.available_timezones[0]?.id ?? "")}
-              placeholder={ux.field_timezone}
-              options={accountSummary.available_timezones.map((availableTimezone) => ({
-                value: String(availableTimezone.id),
-                label: availableTimezone.display_label,
-                subtitle: availableTimezone.iana_name,
-                searchLabel: `${availableTimezone.display_label} ${availableTimezone.iana_name} ${availableTimezone.region_label}`,
-                groupLabel: availableTimezone.region_label,
-              }))}
-              onBeginEditing={() => beginEditingField("preferred_timezone")}
-              onCancelEditing={() => cancelEditingField("preferred_timezone")}
-              onSelectValue={(selectedValue) => {
-                const nextDraft = {
-                  ...editableDraft,
-                  preferredTimezoneId: Number(selectedValue),
-                }
-                setEditableDraft(nextDraft)
-                setEditableFieldUiStateByKey((previousState) => ({
-                  ...previousState,
-                  preferred_timezone: {
-                    visualState: "saving",
-                    statusText: ux.editable_status_saving,
-                  },
-                }))
-                void saveEditableDraftWithRetries("preferred_timezone", nextDraft)
-              }}
-            />
-              <DcxAppEditableSidebarClockTimezonesField
-                label="Sidebar clocks"
-                visualState={editableFieldUiStateByKey.sidebar_clock_timezones.visualState}
-                statusText={editableFieldUiStateByKey.sidebar_clock_timezones.statusText}
+              <DcxAppEditableOrderedReferenceField
+                label={ux.field_preferred_language}
+                visualState={editableFieldUiStateByKey.selected_languages.visualState}
+                statusText={editableFieldUiStateByKey.selected_languages.statusText}
                 isDisabled={editableControlsDisabled}
-                selectedTimezoneIds={editableDraft.sidebarClockTimezoneIds}
+                selectedIds={editableDraft.selectedLanguageIds}
+                optionGroups={languageOptionGroups}
+                maxSelectedCount={5}
+                placeholder={ux.field_preferred_language}
+                onBeginEditing={() => beginEditingField("selected_languages")}
+                onCancelEditing={() => cancelEditingField("selected_languages")}
+                onSelectValues={(nextLanguageIds) => setSelectedLanguageIds(nextLanguageIds)}
+              />
+              <DcxAppEditableOrderedReferenceField
+                label={ux.field_timezone}
+                visualState={editableFieldUiStateByKey.selected_timezones.visualState}
+                statusText={editableFieldUiStateByKey.selected_timezones.statusText}
+                isDisabled={editableControlsDisabled}
+                selectedIds={editableDraft.selectedTimezoneIds}
                 optionGroups={timezoneOptionGroups}
-                onBeginEditing={() => beginEditingField("sidebar_clock_timezones")}
-                onCancelEditing={() => cancelEditingField("sidebar_clock_timezones")}
-                onSelectValues={(nextTimezoneIds) => setSidebarClockTimezoneIds(nextTimezoneIds)}
+                maxSelectedCount={3}
+                placeholder={ux.field_timezone}
+                onBeginEditing={() => beginEditingField("selected_timezones")}
+                onCancelEditing={() => cancelEditingField("selected_timezones")}
+                onSelectValues={(nextTimezoneIds) => setSelectedTimezoneIds(nextTimezoneIds)}
+              />
+              <DcxAppEditableOrderedReferenceField
+                label={ux.field_countries ?? "Countries"}
+                visualState={editableFieldUiStateByKey.selected_countries.visualState}
+                statusText={editableFieldUiStateByKey.selected_countries.statusText}
+                isDisabled={editableControlsDisabled}
+                selectedIds={editableDraft.selectedCountryIds}
+                optionGroups={countryOptionGroups}
+                maxSelectedCount={25}
+                placeholder={ux.field_countries ?? "Countries"}
+                onBeginEditing={() => beginEditingField("selected_countries")}
+                onCancelEditing={() => cancelEditingField("selected_countries")}
+                onSelectValues={(nextCountryIds) => setSelectedCountryIds(nextCountryIds)}
               />
               <DcxAppEditableSelectField
               uxStrings={ux}
@@ -1154,18 +1194,51 @@ function readDcxAppGroupedSelectOptions(
   }))
 }
 
+function readDcxAppGroupedLanguageOptions(
+  availableLanguages: DcxAppAvailableLanguageOption[],
+): DcxAppOrderedReferenceOptionGroup[] {
+  const languageOptions = [...availableLanguages]
+    .sort((leftLanguage, rightLanguage) => {
+      const nameComparison = leftLanguage.language_name_en.localeCompare(
+        rightLanguage.language_name_en,
+        undefined,
+        { sensitivity: "base" },
+      )
+
+      if (nameComparison !== 0) {
+        return nameComparison
+      }
+
+      return leftLanguage.language_code.localeCompare(rightLanguage.language_code)
+    })
+    .map((availableLanguage) => ({
+      value: String(availableLanguage.id),
+      label: `${availableLanguage.language_name_native} (${availableLanguage.language_code})`,
+      subtitle: `${availableLanguage.language_code.toUpperCase()} · ${availableLanguage.language_name_native}`,
+      searchLabel: `${availableLanguage.language_name_en} ${availableLanguage.language_name_native} ${availableLanguage.language_code}`,
+      groupLabel: "Languages",
+      regionCode: readDcxAppLanguageFlagRegionCode(availableLanguage.language_code),
+    }))
+
+  return [
+    {
+      label: "Languages",
+      items: languageOptions,
+    },
+  ]
+}
+
 function readDcxAppGroupedTimezoneOptions(
   availableTimezones: Array<{
     id: number
     iana_name: string
     display_label: string
     region_label: string
+    country_code_alpha2?: string | null
+    flag_asset_key?: string | null
   }>,
-): Array<{
-  label: string
-  items: DcxAppGroupedTimezoneOption[]
-}> {
-  const groupedTimezoneOptionsByRegion = new Map<string, DcxAppGroupedTimezoneOption[]>()
+): DcxAppOrderedReferenceOptionGroup[] {
+  const groupedTimezoneOptionsByRegion = new Map<string, DcxAppOrderedReferenceOption[]>()
   for (const availableTimezone of availableTimezones) {
     const groupLabel = availableTimezone.region_label || "Other"
     const existingOptions = groupedTimezoneOptionsByRegion.get(groupLabel) ?? []
@@ -1175,6 +1248,7 @@ function readDcxAppGroupedTimezoneOptions(
       subtitle: availableTimezone.iana_name,
       groupLabel,
       searchLabel: `${availableTimezone.display_label} ${availableTimezone.iana_name} ${groupLabel}`,
+      regionCode: availableTimezone.flag_asset_key ?? availableTimezone.country_code_alpha2 ?? undefined,
     })
     groupedTimezoneOptionsByRegion.set(groupLabel, existingOptions)
   }
@@ -1183,4 +1257,44 @@ function readDcxAppGroupedTimezoneOptions(
     label,
     items,
   }))
+}
+
+function readDcxAppGroupedCountryOptions(
+  availableCountries: DcxAppAvailableCountryOption[],
+): DcxAppOrderedReferenceOptionGroup[] {
+  const countryOptions = [...availableCountries]
+    .sort((leftCountry, rightCountry) => {
+      const nameComparison = leftCountry.default_display_name.localeCompare(
+        rightCountry.default_display_name,
+        undefined,
+        { sensitivity: "base" },
+      )
+
+      if (nameComparison !== 0) {
+        return nameComparison
+      }
+
+      return leftCountry.country_code_alpha2.localeCompare(rightCountry.country_code_alpha2)
+    })
+    .map((availableCountry) => ({
+      value: String(availableCountry.id),
+      label: availableCountry.default_display_name,
+      subtitle: availableCountry.country_code_alpha2,
+      groupLabel: "Countries",
+      searchLabel: `${availableCountry.default_display_name} ${availableCountry.country_code_alpha2}`,
+      regionCode: availableCountry.flag_asset_key,
+    }))
+
+  return [
+    {
+      label: "Countries",
+      items: countryOptions,
+    },
+  ]
+}
+
+function readDcxAppNormalizedSelectedIds(selectedIds: number[], maxCount: number): number[] {
+  return Array.from(
+    new Set(selectedIds.filter((selectedId) => Number.isInteger(selectedId) && selectedId > 0)),
+  ).slice(0, maxCount)
 }

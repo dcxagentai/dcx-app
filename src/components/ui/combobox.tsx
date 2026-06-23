@@ -58,7 +58,7 @@ const ComboboxList = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ComboboxPrimitive.List
     ref={ref}
-    className={cn("max-h-80 overflow-y-auto p-1", className)}
+    className={cn("max-h-80 overflow-y-auto p-1 pb-6 scroll-pb-6", className)}
     {...props}
   />
 ))

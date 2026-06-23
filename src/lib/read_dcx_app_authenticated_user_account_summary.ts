@@ -126,6 +126,9 @@ export type DcxAppAuthenticatedUserAccountSummary = {
     iana_name: string
     display_label: string
     region_label: string
+    country_code_alpha2?: string | null
+    country_display_name?: string | null
+    flag_asset_key?: string | null
   } | null
   available_languages: Array<{
     id: number
@@ -139,6 +142,33 @@ export type DcxAppAuthenticatedUserAccountSummary = {
     iana_name: string
     display_label: string
     region_label: string
+    country_code_alpha2: string | null
+    country_display_name: string | null
+    flag_asset_key: string | null
+  }>
+  available_countries: Array<{
+    id: number
+    country_code_alpha2: string
+    default_display_name: string
+    flag_asset_key: string
+  }>
+  selected_language_ids: number[]
+  selected_languages: Array<{
+    id: number
+    language_code: string
+    language_name_en: string
+    language_name_native: string
+    is_rtl: boolean
+  }>
+  selected_timezone_ids: number[]
+  selected_timezones: Array<{
+    id: number
+    iana_name: string
+    display_label: string
+    region_label: string
+    country_code_alpha2?: string | null
+    country_display_name?: string | null
+    flag_asset_key?: string | null
   }>
   selected_sidebar_clock_timezone_ids: number[]
   selected_sidebar_clock_timezones: Array<{
@@ -146,6 +176,16 @@ export type DcxAppAuthenticatedUserAccountSummary = {
     iana_name: string
     display_label: string
     region_label: string
+    country_code_alpha2?: string | null
+    country_display_name?: string | null
+    flag_asset_key?: string | null
+  }>
+  selected_country_ids: number[]
+  selected_countries: Array<{
+    id: number
+    country_code_alpha2: string
+    default_display_name: string
+    flag_asset_key: string
   }>
   ux_strings: Record<string, string>
   available_email_communication_preferences: Array<{
