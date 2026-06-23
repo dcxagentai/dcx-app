@@ -13,10 +13,19 @@ export type DcxAppLanguageComboboxOption = {
 }
 
 const DCX_APP_LANGUAGE_TO_REGION_CODE: Record<string, string> = {
+  ar: "AE",
   de: "DE",
   en: "GB",
   es: "ES",
   fr: "FR",
+  hi: "IN",
+  id: "ID",
+  pt: "BR",
+  ru: "RU",
+  tr: "TR",
+  ur: "PK",
+  vi: "VN",
+  zh: "CN",
 }
 
 export function readDcxAppLanguageFlagRegionCode(languageCode: string): string {
