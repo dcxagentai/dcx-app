@@ -238,7 +238,7 @@ function DcxAppChipMainAction(props: {
       type="button"
       aria-label={`Make ${props.label} main`}
       title="Make main"
-      className="-mr-0.5 inline-flex size-[18px] items-center justify-center rounded-sm text-slate-400 ring-1 ring-transparent transition-colors hover:!bg-[#fff4d3] hover:!text-[#b88912] hover:!ring-[#ffdc7d] focus-visible:!bg-[#fff4d3] focus-visible:!text-[#b88912] focus-visible:!ring-[#ffdc7d] focus-visible:outline-none"
+      className="dcx-chip-make-main-action -mr-0.5 inline-flex size-[18px] items-center justify-center rounded-sm text-slate-400 focus-visible:outline-none"
       onPointerDown={stopChipActionPointerEvent}
       onMouseDown={stopChipActionMouseEvent}
       onClick={makeMain}
