@@ -21,6 +21,7 @@ import {
   InboxIcon,
   ShieldUserIcon,
   MessageCircleMoreIcon,
+  SendHorizontalIcon,
   StoreIcon,
 } from "lucide-react"
 import dcxLogo from "@/assets/dcx_logo.png"
@@ -59,6 +60,13 @@ export function AppSidebar({
   })
   const accountSummary = accountSummaryQuery.data?.data ?? null
   const navMain = [
+    {
+      id: "new",
+      title: uxStrings.nav_new ?? "New",
+      url: "/me/send",
+      icon: <SendHorizontalIcon />,
+      isActive: currentPathname === "/me/send",
+    },
     {
       id: "my_trades",
       title: uxStrings.nav_my_trades_section ?? "My Trades",
