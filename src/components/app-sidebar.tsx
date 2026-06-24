@@ -17,9 +17,10 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import {
+  BotIcon,
+  InboxIcon,
   ShieldUserIcon,
   MessageCircleMoreIcon,
-  SendHorizontalIcon,
   StoreIcon,
 } from "lucide-react"
 import dcxLogo from "@/assets/dcx_logo.png"
@@ -59,65 +60,75 @@ export function AppSidebar({
   const accountSummary = accountSummaryQuery.data?.data ?? null
   const navMain = [
     {
-      id: "send",
-      title: uxStrings.nav_send ?? "Send",
-      url: "/me/send",
-      icon: <SendHorizontalIcon />,
-      isActive: currentPathname === "/me/send",
-    },
-    {
-      id: "global_market",
-      title: uxStrings.nav_global_market ?? "Global Market",
+      id: "my_trades",
+      title: uxStrings.nav_my_trades_section ?? "My Trades",
       url: "#",
       icon: <StoreIcon />,
-      isActive: currentPathname.startsWith("/me/market"),
+      isActive:
+        currentPathname.startsWith("/me/market/deals") ||
+        currentPathname.startsWith("/me/trade-threads") ||
+        currentPathname.startsWith("/me/trades"),
       items: [
         {
-          title: uxStrings.nav_market_deals ?? "Deals",
+          title: uxStrings.nav_trade_board ?? "Trade Board",
           url: "/me/market/deals",
           isActive: currentPathname.startsWith("/me/market/deals"),
         },
+        {
+          title: uxStrings.nav_trade_chats ?? "Trade Chats",
+          url: "/me/trade-threads",
+          isActive: currentPathname.startsWith("/me/trade-threads"),
+        },
+        {
+          title: uxStrings.nav_trade_objects ?? "Trade Objects",
+          url: "/me/trades",
+          isActive: currentPathname.startsWith("/me/trades"),
+        },
+      ],
+    },
+    {
+      id: "my_network",
+      title: uxStrings.nav_my_network ?? "My Network",
+      url: "#",
+      icon: <MessageCircleMoreIcon />,
+      isActive: currentPathname.startsWith("/me/market/forum"),
+      items: [
         {
           title: uxStrings.nav_market_forum ?? "Forum",
           url: "/me/market/forum",
           isActive: currentPathname.startsWith("/me/market/forum"),
         },
+        {
+          title: uxStrings.nav_dms ?? "DMs",
+          url: "#",
+          isDisabled: true,
+        },
       ],
     },
     {
-      id: "my_workspace",
-      title: uxStrings.nav_my ?? "My",
+      id: "my_ai",
+      title: uxStrings.nav_my_ai ?? "My AI",
       url: "#",
-      icon: <MessageCircleMoreIcon />,
-      isActive:
-        currentPathname.startsWith("/me/trades") ||
-        currentPathname.startsWith("/me/trade-threads") ||
-        currentPathname.startsWith("/me/topics") ||
-        currentPathname.startsWith("/me/other") ||
-        currentPathname.startsWith("/me/messages"),
+      icon: <BotIcon />,
+      isActive: currentPathname.startsWith("/me/topics"),
       items: [
         {
-          title: uxStrings.nav_trades ?? "Trades",
-          url: "/me/trades",
-          isActive: currentPathname.startsWith("/me/trades"),
-        },
-        {
-          title: uxStrings.nav_trade_threads ?? "Chats",
-          url: "/me/trade-threads",
-          isActive: currentPathname.startsWith("/me/trade-threads"),
-        },
-        {
-          title: uxStrings.nav_topics ?? "Topics",
+          title: uxStrings.nav_ai_chats ?? "AI Chats",
           url: "/me/topics",
           isActive: currentPathname.startsWith("/me/topics"),
         },
+      ],
+    },
+    {
+      id: "my_admin",
+      title: uxStrings.nav_my_admin ?? "My Admin",
+      url: "#",
+      icon: <InboxIcon />,
+      isActive:
+        currentPathname.startsWith("/me/messages"),
+      items: [
         {
-          title: uxStrings.nav_other ?? "Other",
-          url: "/me/other",
-          isActive: currentPathname.startsWith("/me/other"),
-        },
-        {
-          title: uxStrings.nav_messages ?? "Messages",
+          title: uxStrings.nav_messages_inbox ?? "Messages Inbox",
           url: "/me/messages",
           isActive: currentPathname.startsWith("/me/messages"),
         },
