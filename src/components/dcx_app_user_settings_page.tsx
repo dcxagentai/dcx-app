@@ -210,9 +210,9 @@ function DcxAppChipMainAction(props: {
       <span
         aria-label={`${props.label} is main`}
         title="Main"
-        className="inline-flex size-5 items-center justify-center rounded-sm text-yellow-600"
+        className="-mr-0.5 inline-flex size-[18px] items-center justify-center rounded-sm"
       >
-        <StarIcon className="size-3.5 fill-current" aria-hidden="true" />
+        <StarIcon className="size-3.5 fill-[#ffdc7d] text-[#b88912]" aria-hidden="true" />
       </span>
     )
   }
@@ -238,7 +238,7 @@ function DcxAppChipMainAction(props: {
       type="button"
       aria-label={`Make ${props.label} main`}
       title="Make main"
-      className="inline-flex size-5 items-center justify-center rounded-sm text-slate-400 transition-colors hover:bg-yellow-100 hover:text-yellow-700 focus-visible:bg-yellow-100 focus-visible:text-yellow-700 focus-visible:outline-none"
+      className="-mr-0.5 inline-flex size-[18px] items-center justify-center rounded-sm text-slate-400 ring-1 ring-transparent transition-colors hover:!bg-[#fff4d3] hover:!text-[#b88912] hover:!ring-[#ffdc7d] focus-visible:!bg-[#fff4d3] focus-visible:!text-[#b88912] focus-visible:!ring-[#ffdc7d] focus-visible:outline-none"
       onPointerDown={stopChipActionPointerEvent}
       onMouseDown={stopChipActionMouseEvent}
       onClick={makeMain}
@@ -444,7 +444,10 @@ function DcxAppEditableOrderedReferenceField(props: {
                         label={selectedOption.label}
                         onMakeMain={() => promoteSelectedOption(selectedOption.value)}
                       />
-                      <ComboboxChipRemove aria-label={`Remove ${selectedOption.label}`} />
+                      <ComboboxChipRemove
+                        aria-label={`Remove ${selectedOption.label}`}
+                        className="-ml-0.5"
+                      />
                     </ComboboxChip>
                   ))}
                   </>
@@ -553,7 +556,10 @@ function DcxAppEditableTradeInterestMaterialsField(props: EditableTradeInterestM
                         label={selectedOption.label}
                         onMakeMain={() => promoteSelectedMaterial(selectedOption.value)}
                       />
-                      <ComboboxChipRemove aria-label={`Remove ${selectedOption.label}`} />
+                      <ComboboxChipRemove
+                        aria-label={`Remove ${selectedOption.label}`}
+                        className="-ml-0.5"
+                      />
                     </ComboboxChip>
                   ))}
                   </>

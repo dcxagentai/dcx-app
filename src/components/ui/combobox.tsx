@@ -177,7 +177,7 @@ const ComboboxChipRemove = React.forwardRef<
   <ComboboxPrimitive.ChipRemove
     ref={ref}
     className={cn(
-      "inline-flex size-5 items-center justify-center rounded-sm text-slate-500 transition-colors hover:bg-red-100 hover:text-red-700 focus-visible:bg-red-100 focus-visible:text-red-700 focus-visible:outline-none",
+      "inline-flex size-[18px] items-center justify-center rounded-sm text-slate-500 ring-1 ring-transparent transition-colors hover:!bg-[#ffe4e6] hover:!text-[#be123c] hover:!ring-[#fecdd3] focus-visible:!bg-[#ffe4e6] focus-visible:!text-[#be123c] focus-visible:!ring-[#fecdd3] focus-visible:outline-none",
       className,
     )}
     title="Remove"
