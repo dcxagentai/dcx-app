@@ -162,7 +162,7 @@ const ComboboxChip = React.forwardRef<
   <ComboboxPrimitive.Chip
     ref={ref}
     className={cn(
-      "inline-flex h-7 max-w-full items-center gap-1 rounded-md bg-slate-100 px-2 text-xs font-medium text-slate-800 outline-none data-[highlighted]:ring-2 data-[highlighted]:ring-sky-300",
+      "inline-flex h-7 max-w-full items-center gap-0.5 rounded-md bg-slate-100 px-2 text-xs font-medium text-slate-800 outline-none data-[highlighted]:ring-2 data-[highlighted]:ring-sky-300",
       className,
     )}
     {...props}
@@ -177,9 +177,10 @@ const ComboboxChipRemove = React.forwardRef<
   <ComboboxPrimitive.ChipRemove
     ref={ref}
     className={cn(
-      "inline-flex size-4 items-center justify-center rounded-sm text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 focus-visible:bg-red-50 focus-visible:text-red-600 focus-visible:outline-none",
+      "inline-flex size-5 items-center justify-center rounded-sm text-slate-500 transition-colors hover:bg-red-100 hover:text-red-700 focus-visible:bg-red-100 focus-visible:text-red-700 focus-visible:outline-none",
       className,
     )}
+    title="Remove"
     {...props}
   >
     {children ?? <XIcon className="size-3" />}

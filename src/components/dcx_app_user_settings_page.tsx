@@ -210,7 +210,7 @@ function DcxAppChipMainAction(props: {
       <span
         aria-label={`${props.label} is main`}
         title="Main"
-        className="inline-flex size-4 items-center justify-center rounded-sm text-amber-500"
+        className="inline-flex size-5 items-center justify-center rounded-sm text-yellow-600"
       >
         <StarIcon className="size-3.5 fill-current" aria-hidden="true" />
       </span>
@@ -238,7 +238,7 @@ function DcxAppChipMainAction(props: {
       type="button"
       aria-label={`Make ${props.label} main`}
       title="Make main"
-      className="inline-flex size-4 items-center justify-center rounded-sm text-slate-400 transition-colors hover:bg-amber-50 hover:text-amber-500 focus-visible:bg-amber-50 focus-visible:text-amber-500 focus-visible:outline-none"
+      className="inline-flex size-5 items-center justify-center rounded-sm text-slate-400 transition-colors hover:bg-yellow-100 hover:text-yellow-700 focus-visible:bg-yellow-100 focus-visible:text-yellow-700 focus-visible:outline-none"
       onPointerDown={stopChipActionPointerEvent}
       onMouseDown={stopChipActionMouseEvent}
       onClick={makeMain}
