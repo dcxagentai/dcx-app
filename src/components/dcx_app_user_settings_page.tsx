@@ -4,8 +4,15 @@
  * It carries the editable preference controls that used to live on the account
  * page so the shell can now separate identity, settings, and activity clearly.
  */
-import { useEffect, useRef, useState } from "react"
+import {
+  type MouseEvent,
+  type PointerEvent,
+  useEffect,
+  useRef,
+  useState,
+} from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { StarIcon } from "lucide-react"
 
 import {
   type DcxAppEditableFieldVisualState,
@@ -193,6 +200,54 @@ function DcxAppEditableTextField(props: EditableTextFieldProps) {
   )
 }
 
+function DcxAppChipMainAction(props: {
+  isMain: boolean
+  label: string
+  onMakeMain: () => void
+}) {
+  if (props.isMain) {
+    return (
+      <span
+        aria-label={`${props.label} is main`}
+        title="Main"
+        className="inline-flex size-4 items-center justify-center rounded-sm text-amber-500"
+      >
+        <StarIcon className="size-3.5 fill-current" aria-hidden="true" />
+      </span>
+    )
+  }
+
+  function stopChipActionPointerEvent(event: PointerEvent<HTMLButtonElement>): void {
+    event.preventDefault()
+    event.stopPropagation()
+  }
+
+  function stopChipActionMouseEvent(event: MouseEvent<HTMLButtonElement>): void {
+    event.preventDefault()
+    event.stopPropagation()
+  }
+
+  function makeMain(event: MouseEvent<HTMLButtonElement>): void {
+    event.preventDefault()
+    event.stopPropagation()
+    props.onMakeMain()
+  }
+
+  return (
+    <button
+      type="button"
+      aria-label={`Make ${props.label} main`}
+      title="Make main"
+      className="inline-flex size-4 items-center justify-center rounded-sm text-slate-400 transition-colors hover:bg-amber-50 hover:text-amber-500 focus-visible:bg-amber-50 focus-visible:text-amber-500 focus-visible:outline-none"
+      onPointerDown={stopChipActionPointerEvent}
+      onMouseDown={stopChipActionMouseEvent}
+      onClick={makeMain}
+    >
+      <StarIcon className="size-3.5" aria-hidden="true" />
+    </button>
+  )
+}
+
 function DcxAppEditableSelectField(props: EditableSelectFieldProps) {
   const triggerBorderClass = readDcxAppEditableFieldBorderClass(props.visualState)
   const hasError = props.visualState === "error"
@@ -326,6 +381,19 @@ function DcxAppEditableOrderedReferenceField(props: {
     .filter((option): option is DcxAppOrderedReferenceOption => Boolean(option))
   const selectedValueSet = new Set(selectedOptions.map((selectedOption) => selectedOption.value))
   const isSelectionFull = selectedOptions.length >= props.maxSelectedCount
+  const mainSelectedOptionValue = selectedOptions[0]?.value ?? null
+
+  function promoteSelectedOption(optionValue: string): void {
+    const promotedId = Number(optionValue)
+    if (!Number.isInteger(promotedId) || promotedId <= 0) {
+      return
+    }
+
+    props.onSelectValues([
+      promotedId,
+      ...props.selectedIds.filter((selectedId) => selectedId !== promotedId),
+    ])
+  }
 
   return (
     <Field data-invalid={hasError || undefined} className="gap-2">
@@ -371,6 +439,11 @@ function DcxAppEditableOrderedReferenceField(props: {
                         />
                       ) : null}
                       <span className="max-w-40 truncate">{selectedOption.label}</span>
+                      <DcxAppChipMainAction
+                        isMain={selectedOption.value === mainSelectedOptionValue}
+                        label={selectedOption.label}
+                        onMakeMain={() => promoteSelectedOption(selectedOption.value)}
+                      />
                       <ComboboxChipRemove aria-label={`Remove ${selectedOption.label}`} />
                     </ComboboxChip>
                   ))}
@@ -430,6 +503,14 @@ function DcxAppEditableTradeInterestMaterialsField(props: EditableTradeInterestM
   const selectedOptions = props.selectedMaterialKeys
     .map((materialKey) => flatOptions.find((option) => option.value === materialKey))
     .filter((option): option is DcxAppGroupedTradeMaterialOption => Boolean(option))
+  const mainSelectedMaterialKey = selectedOptions[0]?.value ?? null
+
+  function promoteSelectedMaterial(materialKey: string): void {
+    props.onSelectValues([
+      materialKey,
+      ...props.selectedMaterialKeys.filter((selectedMaterialKey) => selectedMaterialKey !== materialKey),
+    ])
+  }
 
   return (
     <Field data-invalid={hasError || undefined} className="gap-2">
@@ -467,6 +548,11 @@ function DcxAppEditableTradeInterestMaterialsField(props: EditableTradeInterestM
                   {selectedChipOptions.map((selectedOption) => (
                     <ComboboxChip key={selectedOption.value}>
                       <span className="max-w-36 truncate">{selectedOption.label}</span>
+                      <DcxAppChipMainAction
+                        isMain={selectedOption.value === mainSelectedMaterialKey}
+                        label={selectedOption.label}
+                        onMakeMain={() => promoteSelectedMaterial(selectedOption.value)}
+                      />
                       <ComboboxChipRemove aria-label={`Remove ${selectedOption.label}`} />
                     </ComboboxChip>
                   ))}

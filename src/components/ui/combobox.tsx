@@ -176,7 +176,10 @@ const ComboboxChipRemove = React.forwardRef<
 >(({ className, children, ...props }, ref) => (
   <ComboboxPrimitive.ChipRemove
     ref={ref}
-    className={cn("inline-flex size-4 items-center justify-center rounded-sm text-slate-500 hover:text-slate-900", className)}
+    className={cn(
+      "inline-flex size-4 items-center justify-center rounded-sm text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 focus-visible:bg-red-50 focus-visible:text-red-600 focus-visible:outline-none",
+      className,
+    )}
     {...props}
   >
     {children ?? <XIcon className="size-3" />}
