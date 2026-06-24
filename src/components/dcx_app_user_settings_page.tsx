@@ -977,24 +977,11 @@ export function DcxAppUserSettingsPage(props: Props) {
 
       {accountSummary && !accountSummaryQuery.isError ? (
         <article className="rounded-none border border-black/6 bg-white px-6 py-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
-          <div className="mb-6 space-y-2 border-b border-black/6 pb-5">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-              <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  {ux.settings_eyebrow}
-                </p>
-                <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
-                  {ux.settings_title}
-                </h2>
-                <p className="text-sm text-slate-600">
-                  {ux.settings_subtitle}
-                </p>
-              </div>
-              <div className="rounded-md border border-slate-200 px-3 py-2 text-right">
-                <p className={["text-xs font-medium", settingsSaveStatus.textClassName].join(" ")}>
-                  {settingsSaveStatus.label}
-                </p>
-              </div>
+          <div className="mb-5 flex justify-end">
+            <div className="rounded-md border border-slate-200 px-3 py-2 text-right">
+              <p className={["text-xs font-medium", settingsSaveStatus.textClassName].join(" ")}>
+                {settingsSaveStatus.label}
+              </p>
             </div>
           </div>
 
