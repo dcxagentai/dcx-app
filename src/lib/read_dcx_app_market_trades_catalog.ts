@@ -37,7 +37,7 @@ type DcxAppMarketTradesCatalogErrorResponse = {
 export async function readDcxAppMarketTradesCatalog(params: {
   apiBaseUrl: string
 }): Promise<DcxAppMarketTradesCatalogSuccessResponse> {
-  const response = await fetch(new URL("/users/me/market/trades", params.apiBaseUrl).toString(), {
+  const response = await fetch(new URL("/trades/board", params.apiBaseUrl).toString(), {
     method: "GET",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -52,7 +52,7 @@ export async function readDcxAppMarketTradesCatalog(params: {
         ? payload.error
         : {
             code: "DCX_APP_MARKET_TRADES_READ_FAILED",
-            message: "We could not load Market deals.",
+            message: "We could not load the Trade Board.",
             suggested_action: "Retry after confirming the backend is reachable.",
           }
     const error = new Error(errorPayload.message) as Error & { code?: string; suggested_action?: string }

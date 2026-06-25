@@ -18,7 +18,7 @@ export async function confirmDcxAppAuthenticatedUserTradeCandidate(params: {
   apiBaseUrl: string
   tradeId: number
 }): Promise<DcxAppTradeConfirmSuccessResponse> {
-  const response = await fetch(new URL(`/users/me/trades/${params.tradeId}/confirm`, params.apiBaseUrl).toString(), {
+  const response = await fetch(new URL(`/trades/objects/${params.tradeId}/confirm`, params.apiBaseUrl).toString(), {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },

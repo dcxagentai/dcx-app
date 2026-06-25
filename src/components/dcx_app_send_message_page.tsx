@@ -890,7 +890,7 @@ function readDcxSendOutcomeLinks(
       label: messageDetail.linked_trades.length === 1
         ? (uxStrings.messages_compose_outcome_open_trade ?? "Open trade")
         : `${uxStrings.messages_compose_outcome_open_trade ?? "Open trade"} ${tradeIndex + 1}`,
-      path: `/me/trades/${linkedTrade.trade_id}`,
+      path: `/trades/objects/${linkedTrade.trade_id}`,
       detail: linkedTrade.trade_summary_text || `Open trade #${linkedTrade.trade_id}`,
     })),
     ...messageDetail.linked_market_topics.map((linkedMarketTopic, topicIndex) => ({

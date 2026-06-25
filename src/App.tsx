@@ -547,16 +547,16 @@ function App() {
       {protectedAppPathname === "/me/other" ? (
         <DcxAppMessagesPage apiBaseUrl={apiBaseUrl} filter="all" workflowKindFilter="other" />
       ) : null}
-      {protectedAppPathname === "/me/trades" ? (
+      {protectedAppPathname === "/trades/objects" ? (
         <DcxAppTradesPage apiBaseUrl={apiBaseUrl} routeTradeId={protectedAppTradeId} />
       ) : null}
-      {protectedAppPathname === "/me/trade-threads" ? (
+      {protectedAppPathname === "/trades/chats" ? (
         <DcxAppTradeThreadsPage apiBaseUrl={apiBaseUrl} routeTradeThreadId={protectedAppTradeThreadId} />
       ) : null}
       {protectedAppPathname === "/me/topics" ? (
         <DcxAppMarketTopicsPage apiBaseUrl={apiBaseUrl} routeMarketTopicId={protectedAppMarketTopicId} />
       ) : null}
-      {protectedAppPathname === "/me/market/deals" ? (
+      {protectedAppPathname === "/trades/board" ? (
         <DcxAppMarketDealsPage
           apiBaseUrl={apiBaseUrl}
           routeTradePublicationId={protectedAppMarketTradePublicationId}
@@ -574,7 +574,7 @@ function App() {
 
 export default App
 
-type DcxProtectedAppPathname = "/me/account" | "/me/settings" | "/me/activity-log" | "/me/usage" | "/me/messages" | "/me/trades" | "/me/trade-threads" | "/me/topics" | "/me/market/deals" | "/me/market/forum" | "/me/other" | "/new"
+type DcxProtectedAppPathname = "/me/account" | "/me/settings" | "/me/activity-log" | "/me/usage" | "/me/messages" | "/trades/objects" | "/trades/chats" | "/me/topics" | "/trades/board" | "/me/market/forum" | "/me/other" | "/new"
 
 function readProtectedAppPathname(
   pathname: string,
@@ -602,20 +602,20 @@ function readProtectedAppPathname(
     return "/me/messages"
   }
 
-  if (pathname === "/me/trades" || /^\/me\/trades\/\d+$/.test(pathname)) {
-    return "/me/trades"
+  if (pathname === "/trades/objects" || /^\/trades\/objects\/\d+$/.test(pathname)) {
+    return "/trades/objects"
   }
 
-  if (pathname === "/me/trade-threads" || /^\/me\/trade-threads\/\d+$/.test(pathname)) {
-    return "/me/trade-threads"
+  if (pathname === "/trades/chats" || /^\/trades\/chats\/\d+$/.test(pathname)) {
+    return "/trades/chats"
   }
 
   if (pathname === "/me/topics" || /^\/me\/topics\/\d+$/.test(pathname)) {
     return "/me/topics"
   }
 
-  if (pathname === "/me/market/deals" || /^\/me\/market\/deals\/\d+$/.test(pathname)) {
-    return "/me/market/deals"
+  if (pathname === "/trades/board" || /^\/trades\/board\/\d+$/.test(pathname)) {
+    return "/trades/board"
   }
 
   if (pathname === "/me/market/forum" || /^\/me\/market\/forum\/\d+$/.test(pathname)) {
@@ -653,20 +653,20 @@ function readProtectedAppPageTitle(
     return uxStrings.page_title_messages ?? "Messages"
   }
 
-  if (pathname === "/me/trades") {
-    return uxStrings.page_title_trades ?? "Trades"
+  if (pathname === "/trades/objects") {
+    return uxStrings.page_title_trade_objects ?? "Trade Objects"
   }
 
-  if (pathname === "/me/trade-threads") {
-    return uxStrings.page_title_trade_threads ?? "Trade Chats"
+  if (pathname === "/trades/chats") {
+    return uxStrings.page_title_trade_chats ?? "Trade Chats"
   }
 
   if (pathname === "/me/topics") {
     return uxStrings.page_title_topics ?? "Topics"
   }
 
-  if (pathname === "/me/market/deals") {
-    return uxStrings.page_title_market_deals ?? "Market Deals"
+  if (pathname === "/trades/board") {
+    return uxStrings.page_title_trade_board ?? "Trade Board"
   }
 
   if (pathname === "/me/market/forum") {
@@ -703,7 +703,7 @@ function readProtectedAppMessageFilter(
 }
 
 function readProtectedAppTradeId(pathname: string): number | null {
-  const match = pathname.match(/^\/me\/trades\/(\d+)$/)
+  const match = pathname.match(/^\/trades\/objects\/(\d+)$/)
   if (!match) {
     return null
   }
@@ -712,7 +712,7 @@ function readProtectedAppTradeId(pathname: string): number | null {
 }
 
 function readProtectedAppTradeThreadId(pathname: string): number | null {
-  const match = pathname.match(/^\/me\/trade-threads\/(\d+)$/)
+  const match = pathname.match(/^\/trades\/chats\/(\d+)$/)
   if (!match) {
     return null
   }
@@ -739,7 +739,7 @@ function readProtectedAppMarketTopicId(pathname: string): number | null {
 }
 
 function readProtectedAppMarketTradePublicationId(pathname: string): number | null {
-  const match = pathname.match(/^\/me\/market\/deals\/(\d+)$/)
+  const match = pathname.match(/^\/trades\/board\/(\d+)$/)
   if (!match) {
     return null
   }

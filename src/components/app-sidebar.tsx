@@ -73,24 +73,24 @@ export function AppSidebar({
       url: "#",
       icon: <StoreIcon />,
       isActive:
-        currentPathname.startsWith("/me/market/deals") ||
-        currentPathname.startsWith("/me/trade-threads") ||
-        currentPathname.startsWith("/me/trades"),
+        currentPathname.startsWith("/trades/board") ||
+        currentPathname.startsWith("/trades/chats") ||
+        currentPathname.startsWith("/trades/objects"),
       items: [
         {
           title: uxStrings.nav_trade_board ?? "Trade Board",
-          url: "/me/market/deals",
-          isActive: currentPathname.startsWith("/me/market/deals"),
+          url: "/trades/board",
+          isActive: currentPathname.startsWith("/trades/board"),
         },
         {
           title: uxStrings.nav_trade_chats ?? "Trade Chats",
-          url: "/me/trade-threads",
-          isActive: currentPathname.startsWith("/me/trade-threads"),
+          url: "/trades/chats",
+          isActive: currentPathname.startsWith("/trades/chats"),
         },
         {
           title: uxStrings.nav_trade_objects ?? "Trade Objects",
-          url: "/me/trades",
-          isActive: currentPathname.startsWith("/me/trades"),
+          url: "/trades/objects",
+          isActive: currentPathname.startsWith("/trades/objects"),
         },
       ],
     },

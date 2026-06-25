@@ -48,7 +48,7 @@ type DcxAppTradesCatalogErrorResponse = {
 export async function readDcxAppAuthenticatedUserTradesCatalog(params: {
   apiBaseUrl: string
 }): Promise<DcxAppTradesCatalogSuccessResponse> {
-  const response = await fetch(new URL("/users/me/trades", params.apiBaseUrl).toString(), {
+  const response = await fetch(new URL("/trades/objects", params.apiBaseUrl).toString(), {
     method: "GET",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -64,7 +64,7 @@ export async function readDcxAppAuthenticatedUserTradesCatalog(params: {
         ? payload.error
         : {
             code: "DCX_APP_TRADES_CATALOG_READ_FAILED",
-            message: "We could not load the Trades view.",
+            message: "We could not load Trade Objects.",
             suggested_action: "Retry after confirming the backend is reachable.",
           }
 

@@ -643,7 +643,7 @@ export function DcxAppTradesPage(props: Props) {
 
               {tradesCatalogQuery.isError ? (
                 <div className="px-4 py-8">
-                  <h3 className="text-base font-semibold text-slate-950">{ux.trades_error_title ?? "Trades could not load"}</h3>
+                  <h3 className="text-base font-semibold text-slate-950">{ux.trades_error_title ?? "Trade Objects could not load"}</h3>
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
                     {(
                       (tradesCatalogQuery.error as Error & { suggested_action?: string })?.suggested_action ??
@@ -1382,7 +1382,7 @@ function writeDcxTradeIdToCurrentUrl(tradeId: number): void {
   if (typeof window === "undefined") {
     return
   }
-  window.history.pushState({}, "", `/me/trades/${tradeId}`)
+  window.history.pushState({}, "", `/trades/objects/${tradeId}`)
   window.dispatchEvent(new PopStateEvent("popstate"))
 }
 

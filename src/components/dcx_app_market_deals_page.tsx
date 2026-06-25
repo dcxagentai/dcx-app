@@ -98,7 +98,7 @@ export function DcxAppMarketDealsPage(props: Props) {
           threadReferenceCode: payload.data.thread_reference_code,
         },
       }))
-      window.history.pushState({}, "", `/me/trade-threads/${payload.data.trade_thread_id}`)
+      window.history.pushState({}, "", `/trades/chats/${payload.data.trade_thread_id}`)
       window.dispatchEvent(new PopStateEvent("popstate"))
     },
   })
@@ -132,7 +132,7 @@ export function DcxAppMarketDealsPage(props: Props) {
         id: "trade",
         accessorFn: (trade) => trade.trade_summary_text || trade.normalized_material_name || "Trade",
         header: ({ column }) => <DcxMarketSortableHeader column={column} title="Deal" />,
-        cell: ({ row }) => <span className="line-clamp-1 font-medium text-slate-950">{row.original.trade_summary_text || "Market deal"}</span>,
+        cell: ({ row }) => <span className="line-clamp-1 font-medium text-slate-950">{row.original.trade_summary_text || "Trade board item"}</span>,
       },
       {
         id: "side",
@@ -218,7 +218,7 @@ export function DcxAppMarketDealsPage(props: Props) {
                 pageSize={25}
                 onRowClick={(row) => {
                   setSelectedTradePublicationId(row.trade_publication_id)
-                  window.history.replaceState({}, "", `/me/market/deals/${row.trade_publication_id}`)
+                  window.history.replaceState({}, "", `/trades/board/${row.trade_publication_id}`)
                   if (isDetailSheetMode) {
                     setIsMobileDetailOpen(true)
                   }
@@ -245,7 +245,7 @@ export function DcxAppMarketDealsPage(props: Props) {
     </aside>
   )
 
-  const selectedDealTitle = selectedTrade?.trade_summary_text || "Market deal"
+  const selectedDealTitle = selectedTrade?.trade_summary_text || "Trade board item"
 
   return (
     <section className="flex min-h-[calc(100vh-5rem)] min-w-0 flex-col gap-4 overflow-x-hidden">
@@ -281,7 +281,7 @@ export function DcxAppMarketDealsPage(props: Props) {
           <SheetContent className="overflow-x-hidden overflow-y-auto p-0 data-[side=right]:w-[90vw] data-[side=right]:max-w-[90vw] data-[side=right]:sm:max-w-[90vw]">
             <SheetHeader className="sr-only">
               <SheetTitle>{selectedDealTitle}</SheetTitle>
-              <SheetDescription>Market deal detail</SheetDescription>
+              <SheetDescription>Trade board item detail</SheetDescription>
             </SheetHeader>
             {dealDetailPanel}
           </SheetContent>
@@ -301,8 +301,8 @@ function DcxMarketTradeDetailPanel(props: {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Market deal</p>
-        <h2 className="mt-2 text-xl font-semibold text-slate-950">{props.trade.trade_summary_text || "Market deal"}</h2>
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Trade board item</p>
+        <h2 className="mt-2 text-xl font-semibold text-slate-950">{props.trade.trade_summary_text || "Trade board item"}</h2>
         <p className="mt-2 text-sm text-slate-500">Posted by {props.trade.owner_public_identity_label}</p>
       </div>
       <div className="rounded-lg border border-slate-200 bg-white p-4">
@@ -330,7 +330,7 @@ function DcxMarketTradeDetailPanel(props: {
       ) : null}
       {props.threadErrorText ? <p className="text-sm text-red-600">{props.threadErrorText}</p> : null}
       {props.trade.is_owned_by_authenticated_user ? (
-        <Button type="button" variant="outline" onClick={() => { window.location.href = `/me/trades/${props.trade.trade_id}` }}>
+        <Button type="button" variant="outline" onClick={() => { window.location.href = `/trades/objects/${props.trade.trade_id}` }}>
           Open my trade
         </Button>
       ) : (

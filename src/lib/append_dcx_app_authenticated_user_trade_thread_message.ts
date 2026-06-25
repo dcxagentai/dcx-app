@@ -20,7 +20,7 @@ export async function appendDcxAppAuthenticatedUserTradeThreadMessage(params: {
   messageText: string
   languageCode: string
 }): Promise<DcxAppTradeThreadMessageAppendSuccessResponse> {
-  const response = await fetch(new URL(`/users/me/trade-threads/${params.tradeThreadId}/messages`, params.apiBaseUrl).toString(), {
+  const response = await fetch(new URL(`/trades/chats/${params.tradeThreadId}/messages`, params.apiBaseUrl).toString(), {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },

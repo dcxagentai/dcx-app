@@ -47,7 +47,7 @@ type DcxAppTradeThreadsCatalogErrorResponse = {
 export async function readDcxAppAuthenticatedUserTradeThreadsCatalog(params: {
   apiBaseUrl: string
 }): Promise<DcxAppTradeThreadsCatalogSuccessResponse> {
-  const response = await fetch(new URL("/users/me/trade-threads", params.apiBaseUrl).toString(), {
+  const response = await fetch(new URL("/trades/chats", params.apiBaseUrl).toString(), {
     method: "GET",
     credentials: "include",
   })
@@ -61,7 +61,7 @@ export async function readDcxAppAuthenticatedUserTradeThreadsCatalog(params: {
         ? payload.error
         : {
             code: "DCX_APP_TRADE_THREADS_READ_FAILED",
-            message: "We could not load your trade conversations.",
+            message: "We could not load Trade Chats.",
             suggested_action: "Retry after confirming the backend is reachable.",
           }
     const error = new Error(errorPayload.message) as Error & { code?: string; suggested_action?: string }

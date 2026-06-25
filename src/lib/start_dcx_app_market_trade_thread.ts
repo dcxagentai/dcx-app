@@ -20,7 +20,7 @@ export async function startDcxAppMarketTradeThread(params: {
   apiBaseUrl: string
   tradePublicationId: number
 }): Promise<DcxAppMarketTradeThreadStartSuccessResponse> {
-  const response = await fetch(new URL(`/users/me/market/trades/${params.tradePublicationId}/threads`, params.apiBaseUrl).toString(), {
+  const response = await fetch(new URL(`/trades/board/${params.tradePublicationId}/chats`, params.apiBaseUrl).toString(), {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -35,7 +35,7 @@ export async function startDcxAppMarketTradeThread(params: {
         ? payload.error
         : {
             code: "DCX_APP_MARKET_TRADE_THREAD_START_FAILED",
-            message: "We could not start that trade conversation.",
+            message: "We could not start that Trade Chat.",
             suggested_action: "Retry after confirming the backend is reachable.",
           }
     const error = new Error(errorPayload.message) as Error & { code?: string; suggested_action?: string }

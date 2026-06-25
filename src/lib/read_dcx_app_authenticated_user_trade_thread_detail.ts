@@ -55,7 +55,7 @@ export async function readDcxAppAuthenticatedUserTradeThreadDetail(params: {
   apiBaseUrl: string
   tradeThreadId: number
 }): Promise<DcxAppTradeThreadDetailSuccessResponse> {
-  const response = await fetch(new URL(`/users/me/trade-threads/${params.tradeThreadId}`, params.apiBaseUrl).toString(), {
+  const response = await fetch(new URL(`/trades/chats/${params.tradeThreadId}`, params.apiBaseUrl).toString(), {
     method: "GET",
     credentials: "include",
   })
@@ -69,7 +69,7 @@ export async function readDcxAppAuthenticatedUserTradeThreadDetail(params: {
         ? payload.error
         : {
             code: "DCX_APP_TRADE_THREAD_READ_FAILED",
-            message: "We could not load that trade conversation.",
+            message: "We could not load that Trade Chat.",
             suggested_action: "Retry after confirming the backend is reachable.",
           }
     const error = new Error(errorPayload.message) as Error & { code?: string; suggested_action?: string }

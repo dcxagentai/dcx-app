@@ -19,7 +19,7 @@ export async function setDcxAppAuthenticatedUserTradeVisibility(params: {
   tradeId: number
   visibilityStatus: "private" | "shareable" | "public"
 }): Promise<DcxAppTradeVisibilitySuccessResponse> {
-  const response = await fetch(new URL(`/users/me/trades/${params.tradeId}/visibility`, params.apiBaseUrl).toString(), {
+  const response = await fetch(new URL(`/trades/objects/${params.tradeId}/visibility`, params.apiBaseUrl).toString(), {
     method: "PATCH",
     credentials: "include",
     headers: { "Content-Type": "application/json" },

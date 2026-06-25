@@ -42,7 +42,7 @@ export async function updateDcxAppAuthenticatedUserTradeCandidate(params: {
   tradeId: number
   patchPayload: DcxAppTradeCandidatePatchPayload
 }): Promise<DcxAppTradeUpdateSuccessResponse> {
-  const response = await fetch(new URL(`/users/me/trades/${params.tradeId}`, params.apiBaseUrl).toString(), {
+  const response = await fetch(new URL(`/trades/objects/${params.tradeId}`, params.apiBaseUrl).toString(), {
     method: "PATCH",
     credentials: "include",
     headers: { "Content-Type": "application/json" },

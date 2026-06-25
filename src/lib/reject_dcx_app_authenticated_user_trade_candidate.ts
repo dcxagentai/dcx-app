@@ -19,7 +19,7 @@ export async function rejectDcxAppAuthenticatedUserTradeCandidate(params: {
   tradeId: number
   rejectionReasonText?: string
 }): Promise<DcxAppTradeRejectSuccessResponse> {
-  const response = await fetch(new URL(`/users/me/trades/${params.tradeId}/reject`, params.apiBaseUrl).toString(), {
+  const response = await fetch(new URL(`/trades/objects/${params.tradeId}/reject`, params.apiBaseUrl).toString(), {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },

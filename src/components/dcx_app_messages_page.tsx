@@ -1156,7 +1156,7 @@ function DcxMessageWorkflowItemsPanel(props: {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => navigateToDcxAppPath(`/me/trades/${linkedTrade.trade_id}`)}
+                      onClick={() => navigateToDcxAppPath(`/trades/objects/${linkedTrade.trade_id}`)}
                     >
                       {props.ux.messages_workflow_open_trade ?? "Open trade"}
                     </Button>

@@ -103,7 +103,7 @@ export async function readDcxAppAuthenticatedUserTradeDetail(params: {
   apiBaseUrl: string
   tradeId: number
 }): Promise<DcxAppTradeDetailSuccessResponse> {
-  const response = await fetch(new URL(`/users/me/trades/${params.tradeId}`, params.apiBaseUrl).toString(), {
+  const response = await fetch(new URL(`/trades/objects/${params.tradeId}`, params.apiBaseUrl).toString(), {
     method: "GET",
     credentials: "include",
     headers: { "Content-Type": "application/json" },

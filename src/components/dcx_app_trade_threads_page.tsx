@@ -270,7 +270,7 @@ export function DcxAppTradeThreadsPage(props: Props) {
                   setSelectedTradeThreadId(row.trade_thread_id)
                   setDraftMessageText("")
                   setPendingMessage(null)
-                  window.history.replaceState({}, "", `/me/trade-threads/${row.trade_thread_id}`)
+                  window.history.replaceState({}, "", `/trades/chats/${row.trade_thread_id}`)
                   if (isDetailSheetMode) {
                     setIsMobileDetailOpen(true)
                   }
@@ -428,7 +428,7 @@ function DcxTradeThreadDetailPanel(props: {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => navigateDcxAppToPath(`/me/trades/${props.tradeThread.trade_id}`)}
+              onClick={() => navigateDcxAppToPath(`/trades/objects/${props.tradeThread.trade_id}`)}
             >
               Open trade
             </Button>
@@ -438,7 +438,7 @@ function DcxTradeThreadDetailPanel(props: {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => navigateDcxAppToPath(`/me/market/deals/${props.tradeThread.trade_publication_id}`)}
+              onClick={() => navigateDcxAppToPath(`/trades/board/${props.tradeThread.trade_publication_id}`)}
             >
               Open market deal
             </Button>
