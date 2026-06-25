@@ -565,7 +565,7 @@ function App() {
       {protectedAppPathname === "/me/market/forum" ? (
         <DcxAppMarketForumPage apiBaseUrl={apiBaseUrl} routeForumPostId={protectedAppForumPostId} />
       ) : null}
-      {protectedAppPathname === "/me/send" ? (
+      {protectedAppPathname === "/new" ? (
         <DcxAppSendMessagePage apiBaseUrl={apiBaseUrl} />
       ) : null}
     </DcxAppShell>
@@ -574,7 +574,7 @@ function App() {
 
 export default App
 
-type DcxProtectedAppPathname = "/me/account" | "/me/settings" | "/me/activity-log" | "/me/usage" | "/me/messages" | "/me/trades" | "/me/trade-threads" | "/me/topics" | "/me/market/deals" | "/me/market/forum" | "/me/other" | "/me/send"
+type DcxProtectedAppPathname = "/me/account" | "/me/settings" | "/me/activity-log" | "/me/usage" | "/me/messages" | "/me/trades" | "/me/trade-threads" | "/me/topics" | "/me/market/deals" | "/me/market/forum" | "/me/other" | "/new"
 
 function readProtectedAppPathname(
   pathname: string,
@@ -626,8 +626,8 @@ function readProtectedAppPathname(
     return "/me/other"
   }
 
-  if (pathname === "/me/send") {
-    return "/me/send"
+  if (pathname === "/new") {
+    return "/new"
   }
 
   return "/me/account"
@@ -677,8 +677,8 @@ function readProtectedAppPageTitle(
     return uxStrings.page_title_other ?? "Other"
   }
 
-  if (pathname === "/me/send") {
-    return uxStrings.page_title_send ?? "Send"
+  if (pathname === "/new") {
+    return uxStrings.page_title_new ?? "New"
   }
 
   return uxStrings.page_title_account ?? "Account"
