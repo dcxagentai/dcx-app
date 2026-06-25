@@ -6,17 +6,10 @@
 
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { MessageCircleIcon, PlusIcon, RefreshCwIcon } from "lucide-react"
+import { MessageCircleIcon, RefreshCwIcon } from "lucide-react"
 
 import { Button } from "./ui/button"
 import { Textarea } from "./ui/textarea"
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "./ui/sheet"
 import {
   DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS,
   formatDcxAppAccountTimestampLabel,
@@ -24,7 +17,6 @@ import {
 import { readDcxAppAuthenticatedUserAccountSummary } from "../lib/read_dcx_app_authenticated_user_account_summary"
 import {
   appendDcxAppNetworkFeedReply,
-  createDcxAppNetworkFeedPost,
   readDcxAppNetworkFeed,
   type DcxAppNetworkFeedPost,
   type DcxAppNetworkFeedScope,
@@ -41,8 +33,6 @@ type Props = {
 export function DcxAppNetworkFeedPage(props: Props) {
   const queryClient = useQueryClient()
   const [scope, setScope] = useState<DcxAppNetworkFeedScope>("following")
-  const [isComposerOpen, setIsComposerOpen] = useState(window.location.search.includes("compose=1"))
-  const [postText, setPostText] = useState("")
   const [replyTextByPostId, setReplyTextByPostId] = useState<Record<number, string>>({})
 
   const accountSummaryQuery = useQuery({
@@ -57,20 +47,6 @@ export function DcxAppNetworkFeedPage(props: Props) {
   const feedQuery = useQuery({
     queryKey: ["dcx_app_network_feed", scope],
     queryFn: async () => readDcxAppNetworkFeed({ apiBaseUrl: props.apiBaseUrl, scope }),
-  })
-
-  const createPostMutation = useMutation({
-    mutationFn: async () =>
-      createDcxAppNetworkFeedPost({
-        apiBaseUrl: props.apiBaseUrl,
-        postText,
-        languageCode: selectedLanguageCode,
-      }),
-    onSuccess: async () => {
-      setPostText("")
-      setIsComposerOpen(false)
-      await queryClient.invalidateQueries({ queryKey: ["dcx_app_network_feed"] })
-    },
   })
 
   const replyMutation = useMutation({
@@ -113,21 +89,15 @@ export function DcxAppNetworkFeedPage(props: Props) {
             All
           </Button>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => void queryClient.invalidateQueries({ queryKey: ["dcx_app_network_feed"] })}
-          >
-            <RefreshCwIcon />
-            {ux.refresh_button_label ?? "Refresh"}
-          </Button>
-          <Button type="button" size="sm" onClick={() => setIsComposerOpen(true)}>
-            <PlusIcon />
-            New post
-          </Button>
-        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => void queryClient.invalidateQueries({ queryKey: ["dcx_app_network_feed"] })}
+        >
+          <RefreshCwIcon />
+          {ux.refresh_button_label ?? "Refresh"}
+        </Button>
       </div>
 
       {feedQuery.isLoading ? (
@@ -151,6 +121,7 @@ export function DcxAppNetworkFeedPage(props: Props) {
         {posts.map((post) => (
           <DcxNetworkFeedPostCard
             key={post.feed_post_id}
+            apiBaseUrl={props.apiBaseUrl}
             post={post}
             selectedLanguageCode={selectedLanguageCode}
             selectedTimezoneIanaName={selectedTimezoneIanaName}
@@ -171,42 +142,12 @@ export function DcxAppNetworkFeedPage(props: Props) {
           />
         ))}
       </div>
-
-      <Sheet open={isComposerOpen} onOpenChange={setIsComposerOpen}>
-        <SheetContent className="overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Public network post</SheetTitle>
-            <SheetDescription>This will be visible to signed-in DCX traders in the network feed.</SheetDescription>
-          </SheetHeader>
-          <div className="mt-6 space-y-3">
-            <Textarea
-              value={postText}
-              maxLength={500}
-              rows={7}
-              placeholder="Share a market thought, question, update, or useful note."
-              onChange={(event) => setPostText(event.target.value)}
-            />
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-xs text-slate-500">{postText.trim().length}/500</span>
-              <Button
-                type="button"
-                disabled={postText.trim() === "" || createPostMutation.isPending}
-                onClick={() => createPostMutation.mutate()}
-              >
-                {createPostMutation.isPending ? "Posting..." : "Post"}
-              </Button>
-            </div>
-            {createPostMutation.isError ? (
-              <p className="text-sm text-red-600">{(createPostMutation.error as Error).message}</p>
-            ) : null}
-          </div>
-        </SheetContent>
-      </Sheet>
     </section>
   )
 }
 
 function DcxNetworkFeedPostCard(props: {
+  apiBaseUrl: string
   post: DcxAppNetworkFeedPost
   selectedLanguageCode: string
   selectedTimezoneIanaName: string | null
@@ -232,6 +173,7 @@ function DcxNetworkFeedPostCard(props: {
         </div>
       </header>
       <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-800">{props.post.post_text}</p>
+      <DcxNetworkFeedPostAttachment apiBaseUrl={props.apiBaseUrl} post={props.post} />
       <section className="mt-4 space-y-3 border-t border-slate-100 pt-4">
         <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
           <MessageCircleIcon className="size-4" />
@@ -265,5 +207,36 @@ function DcxNetworkFeedPostCard(props: {
         </div>
       </section>
     </article>
+  )
+}
+
+function DcxNetworkFeedPostAttachment(props: {
+  apiBaseUrl: string
+  post: DcxAppNetworkFeedPost
+}) {
+  const attachment = props.post.attachment
+  if (!attachment) {
+    return null
+  }
+
+  const attachmentUrl = new URL(attachment.attachment_url_path, props.apiBaseUrl).toString()
+  if (attachment.attachment_kind === "image") {
+    return (
+      <div className="mt-4 overflow-hidden rounded-md border border-slate-200 bg-slate-50">
+        <img
+          src={attachmentUrl}
+          alt={attachment.original_filename || "Network post image"}
+          className="max-h-96 w-auto max-w-full object-contain"
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-4 py-3">
+      <audio controls className="w-full">
+        <source src={attachmentUrl} type={attachment.content_type || "audio/mpeg"} />
+      </audio>
+    </div>
   )
 }

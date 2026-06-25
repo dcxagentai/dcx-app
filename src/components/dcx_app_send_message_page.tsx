@@ -26,6 +26,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 
 import { createDcxAppAuthenticatedUserContactMessage } from "../lib/create_dcx_app_authenticated_user_contact_message"
+import { createDcxAppNetworkFeedPost } from "../lib/dcx_app_network_api"
 import { retryDcxAppAuthenticatedUserMessageAnalysis } from "../lib/retry_dcx_app_authenticated_user_message_analysis"
 import type { DcxAppAuthenticatedUserMessageDetail } from "../lib/read_dcx_app_authenticated_user_message_detail"
 import { readDcxAppAuthenticatedUserAccountSummary } from "../lib/read_dcx_app_authenticated_user_account_summary"
@@ -62,9 +63,12 @@ type DcxSendOutcomeLink = {
   detail: string
 }
 
+type DcxNewComposeMode = "message_to_dcx" | "network_post"
+
 export function DcxAppSendMessagePage(props: Props) {
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [composeMode, setComposeMode] = useState<DcxNewComposeMode>("message_to_dcx")
   const [messageText, setMessageText] = useState("")
   const [messageFiles, setMessageFiles] = useState<File[]>([])
   const [fileInputResetKey, setFileInputResetKey] = useState(0)
@@ -146,9 +150,35 @@ export function DcxAppSendMessagePage(props: Props) {
     },
   })
 
+  const createPostMutation = useMutation({
+    mutationFn: async (nextPost: { postText: string; postFile: File | null }) =>
+      createDcxAppNetworkFeedPost({
+        apiBaseUrl: props.apiBaseUrl,
+        postText: nextPost.postText,
+        postFile: nextPost.postFile,
+        languageCode: accountSummaryQuery.data?.data.preferred_language?.language_code ?? "en",
+      }),
+    onSuccess: async () => {
+      setMessageText("")
+      setMessageFiles([])
+      setFileInputResetKey((currentValue) => currentValue + 1)
+      await queryClient.invalidateQueries({
+        queryKey: ["dcx_app_network_feed"],
+      })
+      await queryClient.invalidateQueries({
+        queryKey: ["dcx_app_network_profile"],
+      })
+    },
+  })
+
   const ux = accountSummaryQuery.data?.data.ux_strings ?? DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS
-  const canSendMessage = messageText.trim().length > 0 || messageFiles.length > 0
+  const isNetworkPostMode = composeMode === "network_post"
+  const selectedNetworkPostFile = isNetworkPostMode ? (messageFiles[0] ?? null) : null
+  const canSendMessage = isNetworkPostMode
+    ? messageText.trim().length > 0 && messageFiles.length <= 1
+    : messageText.trim().length > 0 || messageFiles.length > 0
   const isSendingMessage = createMessageMutation.isPending
+  const isPostingNetworkPost = createPostMutation.isPending
   const isRetryingAnalysis = retryMessageAnalysisMutation.isPending
   const hasFailedAnalysis = sendStage === "analysis_failed" && lastCreatedMessageDetail !== null
   const hasProhibitedContent = sendStage === "prohibited" && lastCreatedMessageDetail !== null
@@ -171,7 +201,12 @@ export function DcxAppSendMessagePage(props: Props) {
   const analysisModelNote = lastCreatedMessageDetail?.analysis_model_name
     ? `${ux.messages_detail_analysis_model_label ?? "Analysis model"}: ${lastCreatedMessageDetail.analysis_model_name}`
     : null
-  const isFormLocked = isSendingMessage
+  const isFormLocked = isSendingMessage || isPostingNetworkPost
+
+  useEffect(() => {
+    setMessageFiles([])
+    setFileInputResetKey((currentValue) => currentValue + 1)
+  }, [composeMode])
 
   useEffect(() => {
     if (!isSendingMessage) {
@@ -210,18 +245,47 @@ export function DcxAppSendMessagePage(props: Props) {
   return (
     <section className="flex min-h-[calc(100vh-5rem)] flex-col gap-4 text-slate-950">
       <section className="border border-black/6 bg-white p-5 shadow-[0_18px_55px_-48px_rgba(15,23,42,0.45)]">
+        <div className="mb-5 flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant={composeMode === "message_to_dcx" ? "default" : "outline"}
+            onClick={() => setComposeMode("message_to_dcx")}
+          >
+            Message to DCX
+          </Button>
+          <Button
+            type="button"
+            variant={composeMode === "network_post" ? "default" : "outline"}
+            onClick={() => setComposeMode("network_post")}
+          >
+            Public post
+          </Button>
+        </div>
+
+        <div className="mb-4 max-w-5xl border-l-4 border-sky-200 bg-sky-50/60 px-4 py-3">
+          <p className="text-sm leading-6 text-slate-700">
+            {isNetworkPostMode
+              ? "This will be visible to signed-in DCX traders in the Network feed. Use it for short market thoughts, questions, updates, or useful notes."
+              : "This goes privately to DCX for processing as a message, photo, voice note, or document."}
+          </p>
+        </div>
+
         <div className="max-w-5xl">
           <Label htmlFor="dcx-app-message-compose-input" className="text-xs font-semibold uppercase text-slate-500">
-            {ux.messages_compose_label}
+            {isNetworkPostMode ? "Public post" : ux.messages_compose_label}
           </Label>
           <Textarea
             id="dcx-app-message-compose-input"
             value={messageText}
             onChange={(event) => setMessageText(event.target.value)}
-            placeholder={ux.messages_compose_placeholder}
+            placeholder={isNetworkPostMode ? "Share a market thought, question, update, or useful note." : ux.messages_compose_placeholder}
             disabled={isFormLocked}
+            maxLength={isNetworkPostMode ? 500 : undefined}
             className="mt-2 min-h-44 w-full resize-y bg-white text-sm leading-7"
           />
+          {isNetworkPostMode ? (
+            <p className="mt-2 text-xs text-slate-500">{messageText.trim().length}/500</p>
+          ) : null}
         </div>
 
         <div className="mt-4 max-w-5xl">
@@ -229,11 +293,23 @@ export function DcxAppSendMessagePage(props: Props) {
             key={fileInputResetKey}
             ref={fileInputRef}
             type="file"
-            multiple
-            accept="image/jpeg,image/png,image/webp,image/jfif,audio/mpeg,audio/ogg,audio/wav,audio/mp4,.pdf,.docx,.pptx"
+            multiple={!isNetworkPostMode}
+            accept={isNetworkPostMode
+              ? "image/jpeg,image/png,image/webp,image/jfif,audio/mpeg,audio/ogg,audio/wav,audio/mp4"
+              : "image/jpeg,image/png,image/webp,image/jfif,audio/mpeg,audio/ogg,audio/wav,audio/mp4,.pdf,.docx,.pptx"}
             className="sr-only"
             disabled={isFormLocked}
-            onChange={(event) => setMessageFiles(Array.from(event.target.files ?? []))}
+            onChange={(event) => {
+              const selectedFiles = Array.from(event.target.files ?? [])
+              if (isNetworkPostMode) {
+                const selectedFile = selectedFiles.find((file) =>
+                  file.type.startsWith("image/") || file.type.startsWith("audio/"),
+                )
+                setMessageFiles(selectedFile ? [selectedFile] : [])
+                return
+              }
+              setMessageFiles(selectedFiles)
+            }}
           />
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div className="flex flex-col gap-2">
@@ -245,19 +321,31 @@ export function DcxAppSendMessagePage(props: Props) {
                 onClick={() => fileInputRef.current?.click()}
               >
                 <PaperclipIcon />
-                {ux.messages_compose_files_label}
+                {isNetworkPostMode ? "Attach image or audio" : ux.messages_compose_files_label}
               </Button>
-              <p className="text-sm leading-6 text-slate-500">{ux.messages_compose_help}</p>
+              <p className="text-sm leading-6 text-slate-500">
+                {isNetworkPostMode
+                  ? "Optional: add one image or one audio file. Documents stay private to DCX messages for now."
+                  : ux.messages_compose_help}
+              </p>
             </div>
             <Button
               type="button"
-              disabled={!canSendMessage || isSendingMessage}
-              onClick={() => createMessageMutation.mutate({ messageText, messageFiles })}
+              disabled={!canSendMessage || isFormLocked}
+              onClick={() => {
+                if (isNetworkPostMode) {
+                  createPostMutation.mutate({ postText: messageText, postFile: selectedNetworkPostFile })
+                  return
+                }
+                createMessageMutation.mutate({ messageText, messageFiles })
+              }}
             >
-              {isSendingMessage ? <Loader2Icon className="animate-spin" /> : <SendHorizontalIcon />}
-              {isSendingMessage
-                ? ux.messages_compose_submit_pending
-                : ux.messages_compose_submit_idle}
+              {isFormLocked ? <Loader2Icon className="animate-spin" /> : <SendHorizontalIcon />}
+              {isNetworkPostMode
+                ? (isPostingNetworkPost ? "Posting..." : "Post")
+                : isSendingMessage
+                  ? ux.messages_compose_submit_pending
+                  : ux.messages_compose_submit_idle}
             </Button>
           </div>
         </div>
@@ -293,41 +381,54 @@ export function DcxAppSendMessagePage(props: Props) {
           </div>
         ) : null}
 
-        <DcxSendProgressPanel
-          commentary={sendCommentary}
-          steps={sendProgressSteps}
-          isVisible={
-            isSendingMessage ||
-            createMessageMutation.isSuccess ||
-            createMessageMutation.isError ||
-            hasProhibitedContent ||
-            hasFailedAnalysis ||
-            retryMessageAnalysisMutation.isPending ||
-            retryMessageAnalysisMutation.isSuccess ||
-            retryMessageAnalysisMutation.isError
-          }
-          isSuccess={sendStage === "success"}
-          isError={createMessageMutation.isError}
-          isProhibited={hasProhibitedContent}
-          isAnalysisFailed={hasFailedAnalysis}
-          isRetryingAnalysis={isRetryingAnalysis}
-          retryLabel={ux.messages_detail_retry_analysis_button ?? "Retry analysis"}
-          retryPendingLabel={ux.messages_detail_retry_analysis_pending ?? "Retrying..."}
-          outcomeLinks={sendOutcomeLinks}
-          onRetryAnalysis={hasFailedAnalysis && lastCreatedMessageDetail
-            ? () => retryMessageAnalysisMutation.mutate(lastCreatedMessageDetail.message_id)
-            : null}
-          modelNote={analysisModelNote}
-          errorText={
-            createMessageMutation.isError
-              ? ((createMessageMutation.error as Error & { suggested_action?: string }).message)
-              : retryMessageAnalysisMutation.isError
-                ? ((retryMessageAnalysisMutation.error as Error & { suggested_action?: string }).message)
-                : null
-          }
-        />
+        {isNetworkPostMode && (createPostMutation.isSuccess || createPostMutation.isError) ? (
+          <div className={cn(
+            "mt-5 max-w-5xl border px-4 py-3 text-sm",
+            createPostMutation.isError ? "border-red-200 bg-red-50 text-red-700" : "border-emerald-200 bg-emerald-50 text-emerald-700",
+          )}>
+            {createPostMutation.isError
+              ? (createPostMutation.error as Error).message
+              : "Posted to the Network feed."}
+          </div>
+        ) : null}
 
-        {createMessageMutation.isError || retryMessageAnalysisMutation.isError ? (
+        {!isNetworkPostMode ? (
+          <DcxSendProgressPanel
+            commentary={sendCommentary}
+            steps={sendProgressSteps}
+            isVisible={
+              isSendingMessage ||
+              createMessageMutation.isSuccess ||
+              createMessageMutation.isError ||
+              hasProhibitedContent ||
+              hasFailedAnalysis ||
+              retryMessageAnalysisMutation.isPending ||
+              retryMessageAnalysisMutation.isSuccess ||
+              retryMessageAnalysisMutation.isError
+            }
+            isSuccess={sendStage === "success"}
+            isError={createMessageMutation.isError}
+            isProhibited={hasProhibitedContent}
+            isAnalysisFailed={hasFailedAnalysis}
+            isRetryingAnalysis={isRetryingAnalysis}
+            retryLabel={ux.messages_detail_retry_analysis_button ?? "Retry analysis"}
+            retryPendingLabel={ux.messages_detail_retry_analysis_pending ?? "Retrying..."}
+            outcomeLinks={sendOutcomeLinks}
+            onRetryAnalysis={hasFailedAnalysis && lastCreatedMessageDetail
+              ? () => retryMessageAnalysisMutation.mutate(lastCreatedMessageDetail.message_id)
+              : null}
+            modelNote={analysisModelNote}
+            errorText={
+              createMessageMutation.isError
+                ? ((createMessageMutation.error as Error & { suggested_action?: string }).message)
+                : retryMessageAnalysisMutation.isError
+                  ? ((retryMessageAnalysisMutation.error as Error & { suggested_action?: string }).message)
+                  : null
+            }
+          />
+        ) : null}
+
+        {!isNetworkPostMode && (createMessageMutation.isError || retryMessageAnalysisMutation.isError) ? (
           <p className="mt-3 text-sm text-red-600">
             {(
               createMessageMutation.isError

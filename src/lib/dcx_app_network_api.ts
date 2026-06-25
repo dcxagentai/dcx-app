@@ -55,6 +55,18 @@ export type DcxAppNetworkFeedReply = {
   is_owned_by_authenticated_user: boolean
 }
 
+export type DcxAppNetworkFeedAttachment = {
+  file_object_id: number
+  attachment_kind: "image" | "audio"
+  attachment_metadata_json: Record<string, unknown>
+  file_uuid: string
+  content_type: string
+  file_size_bytes: number
+  original_filename: string
+  file_kind: string
+  attachment_url_path: string
+}
+
 export type DcxAppNetworkFeedPost = {
   feed_post_id: number
   author: DcxAppNetworkAuthor
@@ -66,6 +78,7 @@ export type DcxAppNetworkFeedPost = {
   reply_count: number
   viewer_follows_author: boolean
   is_owned_by_authenticated_user: boolean
+  attachment: DcxAppNetworkFeedAttachment | null
   replies: DcxAppNetworkFeedReply[]
 }
 
@@ -122,6 +135,25 @@ export type DcxAppNetworkDmThreadDetail = {
   messages: DcxAppNetworkDmMessage[]
 }
 
+export type DcxAppNetworkContactScope = "all" | "following" | "followers" | "mutual"
+
+export type DcxAppNetworkContact = {
+  user_id: number
+  public_display_name: string
+  public_handle: string
+  public_identity_mode: string
+  public_identity_label: string
+  profile_image_url: string
+  dm_acceptance_mode: string
+  created_at_ts_ms: number
+  follower_count: number
+  following_count: number
+  is_followed_by_authenticated_user: boolean
+  is_following_authenticated_user: boolean
+  latest_post_at_ts_ms: number | null
+  post_count: number
+}
+
 type DcxNetworkSuccessResponse<TData> = {
   ok: true
   data: TData
@@ -153,15 +185,18 @@ export async function createDcxAppNetworkFeedPost(params: {
   apiBaseUrl: string
   postText: string
   languageCode: string
+  postFile?: File | null
 }): Promise<DcxNetworkSuccessResponse<DcxAppNetworkFeedPost>> {
+  const formData = new FormData()
+  formData.append("post_text", params.postText)
+  formData.append("language_code", params.languageCode)
+  if (params.postFile) {
+    formData.append("post_file", params.postFile)
+  }
   return readDcxNetworkJson(new URL("/network/feed/posts", params.apiBaseUrl), {
     method: "POST",
     credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      post_text: params.postText,
-      language_code: params.languageCode,
-    }),
+    body: formData,
   })
 }
 
@@ -190,6 +225,28 @@ export async function readDcxAppNetworkProfile(params: {
   networkNickname: string
 }): Promise<DcxNetworkSuccessResponse<DcxAppNetworkProfile>> {
   return readDcxNetworkJson(new URL(`/network/profiles/${params.networkNickname}`, params.apiBaseUrl), {
+    method: "GET",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+  })
+}
+
+export async function readDcxAppNetworkContacts(params: {
+  apiBaseUrl: string
+  scope: DcxAppNetworkContactScope
+  searchQuery: string
+}): Promise<DcxNetworkSuccessResponse<{
+  scope: DcxAppNetworkContactScope
+  search_query: string
+  contacts: DcxAppNetworkContact[]
+  total_contact_count: number
+}>> {
+  const url = new URL("/network/contacts", params.apiBaseUrl)
+  url.searchParams.set("scope", params.scope)
+  if (params.searchQuery.trim()) {
+    url.searchParams.set("search", params.searchQuery.trim())
+  }
+  return readDcxNetworkJson(url, {
     method: "GET",
     credentials: "include",
     headers: { "Content-Type": "application/json" },

@@ -107,9 +107,9 @@ export function AppSidebar({
           isActive: currentPathname === "/network/feed",
         },
         {
-          title: uxStrings.nav_network_new_post ?? "New Post",
-          url: "/network/feed?compose=1",
-          isActive: false,
+          title: uxStrings.nav_network_contacts ?? "Contacts",
+          url: "/network/contacts",
+          isActive: currentPathname.startsWith("/network/contacts"),
         },
         {
           title: uxStrings.nav_dms ?? "DMs",
