@@ -55,7 +55,7 @@ export async function readDcxAppAuthenticatedUserMarketTopicDetail(params: {
   apiBaseUrl: string
   marketTopicId: number
 }): Promise<DcxAppMarketTopicDetailSuccessResponse> {
-  const response = await fetch(new URL(`/users/me/market-topics/${params.marketTopicId}`, params.apiBaseUrl).toString(), {
+  const response = await fetch(new URL(`/ai/chats/${params.marketTopicId}`, params.apiBaseUrl).toString(), {
     method: "GET",
     credentials: "include",
     headers: { "Content-Type": "application/json" },

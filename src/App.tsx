@@ -553,7 +553,7 @@ function App() {
       {protectedAppPathname === "/trades/chats" ? (
         <DcxAppTradeThreadsPage apiBaseUrl={apiBaseUrl} routeTradeThreadId={protectedAppTradeThreadId} />
       ) : null}
-      {protectedAppPathname === "/me/topics" ? (
+      {protectedAppPathname === "/ai/chats" ? (
         <DcxAppMarketTopicsPage apiBaseUrl={apiBaseUrl} routeMarketTopicId={protectedAppMarketTopicId} />
       ) : null}
       {protectedAppPathname === "/trades/board" ? (
@@ -574,7 +574,7 @@ function App() {
 
 export default App
 
-type DcxProtectedAppPathname = "/me/account" | "/me/settings" | "/me/activity-log" | "/me/usage" | "/me/messages" | "/trades/objects" | "/trades/chats" | "/me/topics" | "/trades/board" | "/me/market/forum" | "/me/other" | "/new"
+type DcxProtectedAppPathname = "/me/account" | "/me/settings" | "/me/activity-log" | "/me/usage" | "/me/messages" | "/trades/objects" | "/trades/chats" | "/ai/chats" | "/trades/board" | "/me/market/forum" | "/me/other" | "/new"
 
 function readProtectedAppPathname(
   pathname: string,
@@ -610,8 +610,8 @@ function readProtectedAppPathname(
     return "/trades/chats"
   }
 
-  if (pathname === "/me/topics" || /^\/me\/topics\/\d+$/.test(pathname)) {
-    return "/me/topics"
+  if (pathname === "/ai/chats" || /^\/ai\/chats\/\d+$/.test(pathname)) {
+    return "/ai/chats"
   }
 
   if (pathname === "/trades/board" || /^\/trades\/board\/\d+$/.test(pathname)) {
@@ -661,8 +661,8 @@ function readProtectedAppPageTitle(
     return uxStrings.page_title_trade_chats ?? "Trade Chats"
   }
 
-  if (pathname === "/me/topics") {
-    return uxStrings.page_title_topics ?? "Topics"
+  if (pathname === "/ai/chats") {
+    return uxStrings.page_title_topics ?? "AI Chats"
   }
 
   if (pathname === "/trades/board") {
@@ -730,7 +730,7 @@ function readProtectedAppMessageId(pathname: string): number | null {
 }
 
 function readProtectedAppMarketTopicId(pathname: string): number | null {
-  const match = pathname.match(/^\/me\/topics\/(\d+)$/)
+  const match = pathname.match(/^\/ai\/chats\/(\d+)$/)
   if (!match) {
     return null
   }

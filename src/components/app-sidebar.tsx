@@ -118,12 +118,12 @@ export function AppSidebar({
       title: uxStrings.nav_my_ai ?? "My AI",
       url: "#",
       icon: <BotIcon />,
-      isActive: currentPathname.startsWith("/me/topics"),
+      isActive: currentPathname.startsWith("/ai/chats"),
       items: [
         {
           title: uxStrings.nav_ai_chats ?? "AI Chats",
-          url: "/me/topics",
-          isActive: currentPathname.startsWith("/me/topics"),
+          url: "/ai/chats",
+          isActive: currentPathname.startsWith("/ai/chats"),
         },
       ],
     },

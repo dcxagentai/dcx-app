@@ -1166,7 +1166,7 @@ function DcxMessageWorkflowItemsPanel(props: {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => navigateToDcxAppPath(`/me/topics/${linkedMarketTopic.market_topic_id}`)}
+                      onClick={() => navigateToDcxAppPath(`/ai/chats/${linkedMarketTopic.market_topic_id}`)}
                     >
                       {props.ux.messages_workflow_open_topic ?? "Open topic"}
                     </Button>

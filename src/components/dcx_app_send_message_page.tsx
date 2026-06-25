@@ -898,7 +898,7 @@ function readDcxSendOutcomeLinks(
       label: messageDetail.linked_market_topics.length === 1
         ? (uxStrings.messages_compose_outcome_open_topic ?? "Open topic")
         : `${uxStrings.messages_compose_outcome_open_topic ?? "Open topic"} ${topicIndex + 1}`,
-      path: `/me/topics/${linkedMarketTopic.market_topic_id}`,
+      path: `/ai/chats/${linkedMarketTopic.market_topic_id}`,
       detail: linkedMarketTopic.topic_title || `Open topic #${linkedMarketTopic.market_topic_id}`,
     })),
   ]

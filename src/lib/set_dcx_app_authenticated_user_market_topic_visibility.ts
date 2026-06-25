@@ -19,7 +19,7 @@ export async function setDcxAppAuthenticatedUserMarketTopicVisibility(params: {
   marketTopicId: number
   visibilityStatus: "private" | "shareable" | "public"
 }): Promise<DcxAppMarketTopicVisibilitySuccessResponse> {
-  const response = await fetch(new URL(`/users/me/market-topics/${params.marketTopicId}/visibility`, params.apiBaseUrl).toString(), {
+  const response = await fetch(new URL(`/ai/chats/${params.marketTopicId}/visibility`, params.apiBaseUrl).toString(), {
     method: "PATCH",
     credentials: "include",
     headers: { "Content-Type": "application/json" },

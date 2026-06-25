@@ -20,7 +20,7 @@ export async function appendDcxAppAuthenticatedUserMarketTopicAiTurn(params: {
   turnText: string
   languageCode: string
 }): Promise<DcxAppMarketTopicAiTurnSuccessResponse> {
-  const response = await fetch(new URL(`/users/me/market-topics/${params.marketTopicId}/turns`, params.apiBaseUrl).toString(), {
+  const response = await fetch(new URL(`/ai/chats/${params.marketTopicId}/turns`, params.apiBaseUrl).toString(), {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -55,4 +55,3 @@ export async function appendDcxAppAuthenticatedUserMarketTopicAiTurn(params: {
 
   return payload
 }
-

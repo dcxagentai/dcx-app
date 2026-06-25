@@ -36,7 +36,7 @@ type DcxAppMarketTopicsCatalogErrorResponse = {
 export async function readDcxAppAuthenticatedUserMarketTopicsCatalog(params: {
   apiBaseUrl: string
 }): Promise<DcxAppMarketTopicsCatalogSuccessResponse> {
-  const response = await fetch(new URL("/users/me/market-topics", params.apiBaseUrl).toString(), {
+  const response = await fetch(new URL("/ai/chats", params.apiBaseUrl).toString(), {
     method: "GET",
     credentials: "include",
     headers: { "Content-Type": "application/json" },

@@ -368,7 +368,7 @@ export function DcxAppMarketTopicsPage(props: Props) {
                     setPendingAiChatUserTurn(null)
                     setHasTopicChatReachedContextLimit(false)
                     if (typeof window !== "undefined") {
-                      window.history.replaceState({}, "", `/me/topics/${row.market_topic_id}`)
+                      window.history.replaceState({}, "", `/ai/chats/${row.market_topic_id}`)
                     }
                     if (isDetailSheetMode) {
                       setIsMobileDetailOpen(true)
