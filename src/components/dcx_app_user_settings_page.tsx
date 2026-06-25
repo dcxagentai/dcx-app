@@ -62,6 +62,8 @@ type EditableFieldKey =
   | "public_display_name"
   | "public_handle"
   | "public_identity_mode"
+  | "network_profile_image_url"
+  | "network_dm_acceptance_mode"
   | "selected_languages"
   | "selected_timezones"
   | "selected_countries"
@@ -73,6 +75,8 @@ type EditableDraft = {
   publicDisplayName: string
   publicHandle: string
   publicIdentityMode: string
+  networkProfileImageUrl: string
+  networkDmAcceptanceMode: string
   selectedLanguageIds: number[]
   selectedTimezoneIds: number[]
   selectedCountryIds: number[]
@@ -622,6 +626,8 @@ export function DcxAppUserSettingsPage(props: Props) {
         publicDisplayName: nextDraft.publicDisplayName,
         publicHandle: nextDraft.publicHandle,
         publicIdentityMode: nextDraft.publicIdentityMode,
+        networkDmAcceptanceMode: nextDraft.networkDmAcceptanceMode,
+        networkProfileImageUrl: nextDraft.networkProfileImageUrl,
         defaultInteractionChannel: nextDraft.defaultInteractionChannel,
         tradeInterestMaterialKeys: nextDraft.tradeInterestMaterialKeys,
         sidebarClockTimezoneIds: nextDraft.selectedTimezoneIds.slice(1, 3),
@@ -649,6 +655,8 @@ export function DcxAppUserSettingsPage(props: Props) {
     publicDisplayName: "",
     publicHandle: "",
     publicIdentityMode: "display_name",
+    networkProfileImageUrl: "",
+    networkDmAcceptanceMode: "everyone",
     selectedLanguageIds: [],
     selectedTimezoneIds: [],
     selectedCountryIds: [],
@@ -668,6 +676,14 @@ export function DcxAppUserSettingsPage(props: Props) {
       statusText: DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS.editable_status_idle,
     },
     public_identity_mode: {
+      visualState: "idle",
+      statusText: DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS.editable_status_idle,
+    },
+    network_profile_image_url: {
+      visualState: "idle",
+      statusText: DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS.editable_status_idle,
+    },
+    network_dm_acceptance_mode: {
       visualState: "idle",
       statusText: DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS.editable_status_idle,
     },
@@ -706,6 +722,8 @@ export function DcxAppUserSettingsPage(props: Props) {
       publicDisplayName: accountSummary.public_identity.public_display_name,
       publicHandle: accountSummary.public_identity.public_handle,
       publicIdentityMode: accountSummary.public_identity.public_identity_mode,
+      networkProfileImageUrl: accountSummary.network_profile?.profile_image_url ?? "",
+      networkDmAcceptanceMode: accountSummary.network_profile?.dm_acceptance_mode ?? "everyone",
       selectedLanguageIds: accountSummary.selected_language_ids,
       selectedTimezoneIds: accountSummary.selected_timezone_ids,
       selectedCountryIds: accountSummary.selected_country_ids,
@@ -739,6 +757,8 @@ export function DcxAppUserSettingsPage(props: Props) {
       publicDisplayName: editableDraft.publicDisplayName,
       publicHandle: editableDraft.publicHandle,
       publicIdentityMode: editableDraft.publicIdentityMode,
+      networkProfileImageUrl: editableDraft.networkProfileImageUrl,
+      networkDmAcceptanceMode: editableDraft.networkDmAcceptanceMode,
       selectedLanguageIds: [defaultLanguage.id],
       selectedTimezoneIds: editableDraft.selectedTimezoneIds,
       selectedCountryIds: editableDraft.selectedCountryIds,
@@ -763,6 +783,8 @@ export function DcxAppUserSettingsPage(props: Props) {
     editableDraft.publicDisplayName,
     editableDraft.publicHandle,
     editableDraft.publicIdentityMode,
+    editableDraft.networkDmAcceptanceMode,
+    editableDraft.networkProfileImageUrl,
     editableDraft.selectedCountryIds,
     editableDraft.selectedTimezoneIds,
     editableDraft.tradeInterestMaterialKeys,
@@ -791,6 +813,8 @@ export function DcxAppUserSettingsPage(props: Props) {
           publicDisplayName: savePayload.data.public_identity.public_display_name,
           publicHandle: savePayload.data.public_identity.public_handle,
           publicIdentityMode: savePayload.data.public_identity.public_identity_mode,
+          networkProfileImageUrl: savePayload.data.network_profile?.profile_image_url ?? "",
+          networkDmAcceptanceMode: savePayload.data.network_profile?.dm_acceptance_mode ?? "everyone",
           selectedLanguageIds: savePayload.data.selected_language_ids,
           selectedTimezoneIds: savePayload.data.selected_timezone_ids,
           selectedCountryIds: savePayload.data.selected_country_ids,
@@ -1042,7 +1066,7 @@ export function DcxAppUserSettingsPage(props: Props) {
                   onCommitValue={(committedValue) => {
                     const nextDraft = {
                       ...editableDraft,
-                      publicHandle: committedValue.trim().replace(/^@/, ""),
+                      publicHandle: committedValue.trim().toLowerCase().replace(/^@/, ""),
                     }
                     setEditableDraft(nextDraft)
                     setEditableFieldUiStateByKey((previousState) => ({
@@ -1091,6 +1115,76 @@ export function DcxAppUserSettingsPage(props: Props) {
                       },
                     }))
                     void saveEditableDraftWithRetries("public_identity_mode", nextDraft)
+                  }}
+                />
+              </div>
+              <div className="grid gap-6 lg:grid-cols-2">
+                <DcxAppEditableTextField
+                  uxStrings={ux}
+                  label="Profile image URL"
+                  visualState={editableFieldUiStateByKey.network_profile_image_url.visualState}
+                  statusText={editableFieldUiStateByKey.network_profile_image_url.statusText}
+                  isDisabled={editableControlsDisabled}
+                  value={editableDraft.networkProfileImageUrl}
+                  placeholder="https://..."
+                  onBeginEditing={() => beginEditingField("network_profile_image_url")}
+                  onCancelEditing={() => cancelEditingField("network_profile_image_url")}
+                  onChangeValue={(nextValue) => {
+                    setEditableDraft((previousDraft) => ({
+                      ...previousDraft,
+                      networkProfileImageUrl: nextValue,
+                    }))
+                    beginEditingField("network_profile_image_url")
+                  }}
+                  onCommitValue={(committedValue) => {
+                    const nextDraft = {
+                      ...editableDraft,
+                      networkProfileImageUrl: committedValue.trim(),
+                    }
+                    setEditableDraft(nextDraft)
+                    setEditableFieldUiStateByKey((previousState) => ({
+                      ...previousState,
+                      network_profile_image_url: {
+                        visualState: "saving",
+                        statusText: ux.editable_status_saving,
+                      },
+                    }))
+                    void saveEditableDraftWithRetries("network_profile_image_url", nextDraft)
+                  }}
+                />
+                <DcxAppEditableSelectField
+                  uxStrings={ux}
+                  label="Who can DM me"
+                  visualState={editableFieldUiStateByKey.network_dm_acceptance_mode.visualState}
+                  statusText={editableFieldUiStateByKey.network_dm_acceptance_mode.statusText}
+                  isDisabled={editableControlsDisabled}
+                  value={editableDraft.networkDmAcceptanceMode}
+                  placeholder="Who can DM me"
+                  options={(accountSummary.available_network_dm_acceptance_modes ?? [
+                    { value: "everyone", label: "Everyone" },
+                    { value: "following", label: "People I follow" },
+                    { value: "none", label: "No DMs" },
+                  ]).map((availableMode) => ({
+                    value: availableMode.value,
+                    label: availableMode.label,
+                    searchLabel: availableMode.label,
+                  }))}
+                  onBeginEditing={() => beginEditingField("network_dm_acceptance_mode")}
+                  onCancelEditing={() => cancelEditingField("network_dm_acceptance_mode")}
+                  onSelectValue={(selectedValue) => {
+                    const nextDraft = {
+                      ...editableDraft,
+                      networkDmAcceptanceMode: selectedValue,
+                    }
+                    setEditableDraft(nextDraft)
+                    setEditableFieldUiStateByKey((previousState) => ({
+                      ...previousState,
+                      network_dm_acceptance_mode: {
+                        visualState: "saving",
+                        statusText: ux.editable_status_saving,
+                      },
+                    }))
+                    void saveEditableDraftWithRetries("network_dm_acceptance_mode", nextDraft)
                   }}
                 />
               </div>

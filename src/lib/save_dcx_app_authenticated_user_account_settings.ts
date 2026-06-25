@@ -63,6 +63,8 @@ export async function saveDcxAppAuthenticatedUserAccountSettings(params: {
   publicHandle: string
   publicIdentityMode: string
   defaultInteractionChannel: string
+  networkDmAcceptanceMode: string
+  networkProfileImageUrl: string
   tradeInterestMaterialKeys: string[]
   sidebarClockTimezoneIds: number[]
   selectedLanguageIds: number[]
@@ -85,6 +87,8 @@ export async function saveDcxAppAuthenticatedUserAccountSettings(params: {
       public_handle: params.publicHandle,
       public_identity_mode: params.publicIdentityMode,
       default_interaction_channel: params.defaultInteractionChannel,
+      network_dm_acceptance_mode: params.networkDmAcceptanceMode,
+      network_profile_image_url: params.networkProfileImageUrl,
       trade_interest_material_keys: params.tradeInterestMaterialKeys,
       sidebar_clock_timezone_ids: params.sidebarClockTimezoneIds,
       selected_language_ids: params.selectedLanguageIds,

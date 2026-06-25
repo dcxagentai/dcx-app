@@ -99,17 +99,22 @@ export function AppSidebar({
       title: uxStrings.nav_my_network ?? "My Network",
       url: "#",
       icon: <MessageCircleMoreIcon />,
-      isActive: currentPathname.startsWith("/me/market/forum"),
+      isActive: currentPathname.startsWith("/network/"),
       items: [
         {
-          title: uxStrings.nav_market_forum ?? "Forum",
-          url: "/me/market/forum",
-          isActive: currentPathname.startsWith("/me/market/forum"),
+          title: uxStrings.nav_network_feed ?? "Feed",
+          url: "/network/feed",
+          isActive: currentPathname === "/network/feed",
+        },
+        {
+          title: uxStrings.nav_network_new_post ?? "New Post",
+          url: "/network/feed?compose=1",
+          isActive: false,
         },
         {
           title: uxStrings.nav_dms ?? "DMs",
-          url: "#",
-          isDisabled: true,
+          url: "/network/dms",
+          isActive: currentPathname.startsWith("/network/dms"),
         },
       ],
     },

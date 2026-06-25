@@ -16,6 +16,9 @@ import { DcxAppMessagesPage } from "./components/dcx_app_messages_page"
 import { DcxAppMarketDealsPage } from "./components/dcx_app_market_deals_page"
 import { DcxAppMarketForumPage } from "./components/dcx_app_market_forum_page"
 import { DcxAppMarketTopicsPage } from "./components/dcx_app_market_topics_page"
+import { DcxAppNetworkDmsPage } from "./components/dcx_app_network_dms_page"
+import { DcxAppNetworkFeedPage } from "./components/dcx_app_network_feed_page"
+import { DcxAppNetworkProfilePage } from "./components/dcx_app_network_profile_page"
 import { DcxAppSendMessagePage } from "./components/dcx_app_send_message_page"
 import { DcxAppTradeThreadsPage } from "./components/dcx_app_trade_threads_page"
 import { DcxAppTradesPage } from "./components/dcx_app_trades_page"
@@ -375,6 +378,8 @@ function App() {
   const protectedAppMarketTopicId = readProtectedAppMarketTopicId(pathname)
   const protectedAppMarketTradePublicationId = readProtectedAppMarketTradePublicationId(pathname)
   const protectedAppForumPostId = readProtectedAppForumPostId(pathname)
+  const protectedAppNetworkNickname = readProtectedAppNetworkNickname(pathname)
+  const protectedAppNetworkDmThreadId = readProtectedAppNetworkDmThreadId(pathname)
 
   useEffect(() => {
     if (authenticatedSessionSummary && (authRoutePath === "/login" || isPasswordRoute)) {
@@ -565,6 +570,15 @@ function App() {
       {protectedAppPathname === "/me/market/forum" ? (
         <DcxAppMarketForumPage apiBaseUrl={apiBaseUrl} routeForumPostId={protectedAppForumPostId} />
       ) : null}
+      {protectedAppPathname === "/network/feed" ? (
+        <DcxAppNetworkFeedPage apiBaseUrl={apiBaseUrl} />
+      ) : null}
+      {protectedAppPathname === "/network/profile" ? (
+        <DcxAppNetworkProfilePage apiBaseUrl={apiBaseUrl} networkNickname={protectedAppNetworkNickname} />
+      ) : null}
+      {protectedAppPathname === "/network/dms" ? (
+        <DcxAppNetworkDmsPage apiBaseUrl={apiBaseUrl} routeDmThreadId={protectedAppNetworkDmThreadId} />
+      ) : null}
       {protectedAppPathname === "/new" ? (
         <DcxAppSendMessagePage apiBaseUrl={apiBaseUrl} />
       ) : null}
@@ -574,7 +588,7 @@ function App() {
 
 export default App
 
-type DcxProtectedAppPathname = "/me/account" | "/me/settings" | "/me/activity-log" | "/me/usage" | "/me/messages" | "/trades/objects" | "/trades/chats" | "/ai/chats" | "/trades/board" | "/me/market/forum" | "/me/other" | "/new"
+type DcxProtectedAppPathname = "/me/account" | "/me/settings" | "/me/activity-log" | "/me/usage" | "/me/messages" | "/trades/objects" | "/trades/chats" | "/ai/chats" | "/trades/board" | "/me/market/forum" | "/network/feed" | "/network/profile" | "/network/dms" | "/me/other" | "/new"
 
 function readProtectedAppPathname(
   pathname: string,
@@ -620,6 +634,18 @@ function readProtectedAppPathname(
 
   if (pathname === "/me/market/forum" || /^\/me\/market\/forum\/\d+$/.test(pathname)) {
     return "/me/market/forum"
+  }
+
+  if (pathname === "/network/feed") {
+    return "/network/feed"
+  }
+
+  if (pathname === "/network/dms" || /^\/network\/dms\/\d+$/.test(pathname)) {
+    return "/network/dms"
+  }
+
+  if (/^\/network\/[a-z0-9_]{3,32}$/.test(pathname)) {
+    return "/network/profile"
   }
 
   if (pathname === "/me/other") {
@@ -671,6 +697,18 @@ function readProtectedAppPageTitle(
 
   if (pathname === "/me/market/forum") {
     return uxStrings.page_title_market_forum ?? "Forum"
+  }
+
+  if (pathname === "/network/feed") {
+    return uxStrings.page_title_network_feed ?? "Feed"
+  }
+
+  if (pathname === "/network/profile") {
+    return uxStrings.page_title_network_profile ?? "Profile"
+  }
+
+  if (pathname === "/network/dms") {
+    return uxStrings.page_title_network_dms ?? "DMs"
   }
 
   if (pathname === "/me/other") {
@@ -754,5 +792,22 @@ function readProtectedAppForumPostId(pathname: string): number | null {
   }
   const parsedForumPostId = Number.parseInt(match[1], 10)
   return Number.isFinite(parsedForumPostId) && parsedForumPostId > 0 ? parsedForumPostId : null
+}
+
+function readProtectedAppNetworkNickname(pathname: string): string | null {
+  const match = pathname.match(/^\/network\/([a-z0-9_]{3,32})$/)
+  if (!match) {
+    return null
+  }
+  return match[1]
+}
+
+function readProtectedAppNetworkDmThreadId(pathname: string): number | null {
+  const match = pathname.match(/^\/network\/dms\/(\d+)$/)
+  if (!match) {
+    return null
+  }
+  const parsedDmThreadId = Number.parseInt(match[1], 10)
+  return Number.isFinite(parsedDmThreadId) && parsedDmThreadId > 0 ? parsedDmThreadId : null
 }
 

@@ -111,6 +111,10 @@ export type DcxAppAuthenticatedUserAccountSummary = {
     public_identity_mode: string
     public_identity_label: string
   }
+  network_profile: {
+    dm_acceptance_mode: string
+    profile_image_url: string
+  }
   last_seen_at_ts_ms: number | null
   created_at_ts_ms: number
   updated_at_ts_ms: number
@@ -197,6 +201,10 @@ export type DcxAppAuthenticatedUserAccountSummary = {
     label: string
   }>
   available_default_interaction_channels: Array<{
+    value: string
+    label: string
+  }>
+  available_network_dm_acceptance_modes: Array<{
     value: string
     label: string
   }>
