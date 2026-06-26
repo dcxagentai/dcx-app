@@ -111,7 +111,7 @@ export function DcxAppWhatsappPhoneVerifyPage(props: Props) {
           <div className="mt-8 space-y-2">
             <h1 className="text-2xl font-semibold tracking-tight text-white">
               {status === "success"
-                ? "WhatsApp phone verified"
+                ? "Success, thanks for verifying WhatsApp"
                 : status === "error"
                   ? "WhatsApp phone not verified"
                   : "Connect WhatsApp phone"}
