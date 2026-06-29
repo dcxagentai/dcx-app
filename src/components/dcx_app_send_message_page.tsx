@@ -26,6 +26,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 
 import { createDcxAppAuthenticatedUserContactMessage } from "../lib/create_dcx_app_authenticated_user_contact_message"
+import { createDcxAppAuthenticatedUserAiChat } from "../lib/create_dcx_app_authenticated_user_ai_chat"
 import { createDcxAppNetworkFeedPost } from "../lib/dcx_app_network_api"
 import { retryDcxAppAuthenticatedUserMessageAnalysis } from "../lib/retry_dcx_app_authenticated_user_message_analysis"
 import type { DcxAppAuthenticatedUserMessageDetail } from "../lib/read_dcx_app_authenticated_user_message_detail"
@@ -63,12 +64,12 @@ type DcxSendOutcomeLink = {
   detail: string
 }
 
-type DcxNewComposeMode = "message_to_dcx" | "network_post"
+type DcxNewComposeMode = "message_to_dcx" | "ai_chat" | "network_post"
 
 export function DcxAppSendMessagePage(props: Props) {
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const [composeMode, setComposeMode] = useState<DcxNewComposeMode>("message_to_dcx")
+  const [composeMode, setComposeMode] = useState<DcxNewComposeMode>(readDcxNewComposeModeFromCurrentLocation)
   const [messageText, setMessageText] = useState("")
   const [messageFiles, setMessageFiles] = useState<File[]>([])
   const [fileInputResetKey, setFileInputResetKey] = useState(0)
@@ -170,15 +171,40 @@ export function DcxAppSendMessagePage(props: Props) {
       })
     },
   })
+  const createAiChatMutation = useMutation({
+    mutationFn: async (nextChat: { chatText: string }) =>
+      createDcxAppAuthenticatedUserAiChat({
+        apiBaseUrl: props.apiBaseUrl,
+        chatText: nextChat.chatText,
+        languageCode: accountSummaryQuery.data?.data.preferred_language?.language_code ?? "en",
+      }),
+    onSuccess: async (payload) => {
+      setMessageText("")
+      setMessageFiles([])
+      setFileInputResetKey((currentValue) => currentValue + 1)
+      queryClient.setQueryData(
+        ["dcx_app_authenticated_user_market_topic_detail", payload.data.market_topic_id],
+        payload,
+      )
+      await queryClient.invalidateQueries({
+        queryKey: ["dcx_app_authenticated_user_market_topics_catalog"],
+      })
+      window.location.assign(`/ai/chats/${payload.data.market_topic_id}`)
+    },
+  })
 
   const ux = accountSummaryQuery.data?.data.ux_strings ?? DCX_APP_ACCOUNT_PAGE_DEFAULT_UX_STRINGS
   const isNetworkPostMode = composeMode === "network_post"
+  const isAiChatMode = composeMode === "ai_chat"
   const selectedNetworkPostFile = isNetworkPostMode ? (messageFiles[0] ?? null) : null
-  const canSendMessage = isNetworkPostMode
+  const canSendMessage = isAiChatMode
+    ? messageText.trim().length > 0
+    : isNetworkPostMode
     ? messageText.trim().length > 0 && messageFiles.length <= 1
     : messageText.trim().length > 0 || messageFiles.length > 0
   const isSendingMessage = createMessageMutation.isPending
   const isPostingNetworkPost = createPostMutation.isPending
+  const isCreatingAiChat = createAiChatMutation.isPending
   const isRetryingAnalysis = retryMessageAnalysisMutation.isPending
   const hasFailedAnalysis = sendStage === "analysis_failed" && lastCreatedMessageDetail !== null
   const hasProhibitedContent = sendStage === "prohibited" && lastCreatedMessageDetail !== null
@@ -201,7 +227,7 @@ export function DcxAppSendMessagePage(props: Props) {
   const analysisModelNote = lastCreatedMessageDetail?.analysis_model_name
     ? `${ux.messages_detail_analysis_model_label ?? "Analysis model"}: ${lastCreatedMessageDetail.analysis_model_name}`
     : null
-  const isFormLocked = isSendingMessage || isPostingNetworkPost
+  const isFormLocked = isSendingMessage || isPostingNetworkPost || isCreatingAiChat
 
   useEffect(() => {
     setMessageFiles([])
@@ -255,6 +281,13 @@ export function DcxAppSendMessagePage(props: Props) {
           </Button>
           <Button
             type="button"
+            variant={composeMode === "ai_chat" ? "default" : "outline"}
+            onClick={() => setComposeMode("ai_chat")}
+          >
+            AI chat
+          </Button>
+          <Button
+            type="button"
             variant={composeMode === "network_post" ? "default" : "outline"}
             onClick={() => setComposeMode("network_post")}
           >
@@ -264,21 +297,19 @@ export function DcxAppSendMessagePage(props: Props) {
 
         <div className="mb-4 max-w-5xl border-l-4 border-sky-200 bg-sky-50/60 px-4 py-3">
           <p className="text-sm leading-6 text-slate-700">
-            {isNetworkPostMode
-              ? "This will be visible to signed-in DCX traders in the Network feed. Use it for short market thoughts, questions, updates, or useful notes."
-              : "This goes privately to DCX for processing as a message, photo, voice note, or document."}
+            {readDcxNewComposeModeHelpText(composeMode)}
           </p>
         </div>
 
         <div className="max-w-5xl">
           <Label htmlFor="dcx-app-message-compose-input" className="text-xs font-semibold uppercase text-slate-500">
-            {isNetworkPostMode ? "Public post" : ux.messages_compose_label}
+            {readDcxNewComposeModeLabel(composeMode, ux.messages_compose_label)}
           </Label>
           <Textarea
             id="dcx-app-message-compose-input"
             value={messageText}
             onChange={(event) => setMessageText(event.target.value)}
-            placeholder={isNetworkPostMode ? "Share a market thought, question, update, or useful note." : ux.messages_compose_placeholder}
+            placeholder={readDcxNewComposeModePlaceholder(composeMode, ux.messages_compose_placeholder)}
             disabled={isFormLocked}
             maxLength={isNetworkPostMode ? 500 : undefined}
             className="mt-2 min-h-44 w-full resize-y bg-white text-sm leading-7"
@@ -288,30 +319,30 @@ export function DcxAppSendMessagePage(props: Props) {
           ) : null}
         </div>
 
-        <div className="mt-4 max-w-5xl">
-          <Input
-            key={fileInputResetKey}
-            ref={fileInputRef}
-            type="file"
-            multiple={!isNetworkPostMode}
-            accept={isNetworkPostMode
-              ? "image/jpeg,image/png,image/webp,image/jfif,audio/mpeg,audio/ogg,audio/wav,audio/mp4"
-              : "image/jpeg,image/png,image/webp,image/jfif,audio/mpeg,audio/ogg,audio/wav,audio/mp4,.pdf,.docx,.pptx"}
-            className="sr-only"
-            disabled={isFormLocked}
-            onChange={(event) => {
-              const selectedFiles = Array.from(event.target.files ?? [])
-              if (isNetworkPostMode) {
-                const selectedFile = selectedFiles.find((file) =>
-                  file.type.startsWith("image/") || file.type.startsWith("audio/"),
-                )
-                setMessageFiles(selectedFile ? [selectedFile] : [])
-                return
-              }
-              setMessageFiles(selectedFiles)
-            }}
-          />
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        {!isAiChatMode ? (
+          <div className="mt-4 max-w-5xl">
+            <Input
+              key={fileInputResetKey}
+              ref={fileInputRef}
+              type="file"
+              multiple={!isNetworkPostMode}
+              accept={isNetworkPostMode
+                ? "image/jpeg,image/png,image/webp,image/jfif,audio/mpeg,audio/ogg,audio/wav,audio/mp4"
+                : "image/jpeg,image/png,image/webp,image/jfif,audio/mpeg,audio/ogg,audio/wav,audio/mp4,.pdf,.docx,.pptx"}
+              className="sr-only"
+              disabled={isFormLocked}
+              onChange={(event) => {
+                const selectedFiles = Array.from(event.target.files ?? [])
+                if (isNetworkPostMode) {
+                  const selectedFile = selectedFiles.find((file) =>
+                    file.type.startsWith("image/") || file.type.startsWith("audio/"),
+                  )
+                  setMessageFiles(selectedFile ? [selectedFile] : [])
+                  return
+                }
+                setMessageFiles(selectedFiles)
+              }}
+            />
             <div className="flex flex-col gap-2">
               <Button
                 type="button"
@@ -329,25 +360,35 @@ export function DcxAppSendMessagePage(props: Props) {
                   : ux.messages_compose_help}
               </p>
             </div>
-            <Button
-              type="button"
-              disabled={!canSendMessage || isFormLocked}
-              onClick={() => {
-                if (isNetworkPostMode) {
-                  createPostMutation.mutate({ postText: messageText, postFile: selectedNetworkPostFile })
-                  return
-                }
-                createMessageMutation.mutate({ messageText, messageFiles })
-              }}
-            >
-              {isFormLocked ? <Loader2Icon className="animate-spin" /> : <SendHorizontalIcon />}
-              {isNetworkPostMode
-                ? (isPostingNetworkPost ? "Posting..." : "Post")
-                : isSendingMessage
-                  ? ux.messages_compose_submit_pending
-                  : ux.messages_compose_submit_idle}
-            </Button>
           </div>
+        ) : null}
+
+        <div className="mt-4 flex max-w-5xl justify-end">
+          <Button
+            type="button"
+            disabled={!canSendMessage || isFormLocked}
+            onClick={() => {
+              if (isAiChatMode) {
+                createAiChatMutation.mutate({ chatText: messageText })
+                return
+              }
+              if (isNetworkPostMode) {
+                createPostMutation.mutate({ postText: messageText, postFile: selectedNetworkPostFile })
+                return
+              }
+              createMessageMutation.mutate({ messageText, messageFiles })
+            }}
+          >
+            {isFormLocked ? <Loader2Icon className="animate-spin" /> : <SendHorizontalIcon />}
+            {readDcxNewComposeModeSubmitLabel({
+              composeMode,
+              isSendingMessage,
+              isPostingNetworkPost,
+              isCreatingAiChat,
+              defaultPendingLabel: ux.messages_compose_submit_pending,
+              defaultIdleLabel: ux.messages_compose_submit_idle,
+            })}
+          </Button>
         </div>
 
         {messageFilePreviews.length > 0 ? (
@@ -392,7 +433,13 @@ export function DcxAppSendMessagePage(props: Props) {
           </div>
         ) : null}
 
-        {!isNetworkPostMode ? (
+        {isAiChatMode && createAiChatMutation.isError ? (
+          <div className="mt-5 max-w-5xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {(createAiChatMutation.error as Error).message}
+          </div>
+        ) : null}
+
+        {!isNetworkPostMode && !isAiChatMode ? (
           <DcxSendProgressPanel
             commentary={sendCommentary}
             steps={sendProgressSteps}
@@ -428,7 +475,7 @@ export function DcxAppSendMessagePage(props: Props) {
           />
         ) : null}
 
-        {!isNetworkPostMode && (createMessageMutation.isError || retryMessageAnalysisMutation.isError) ? (
+        {!isNetworkPostMode && !isAiChatMode && (createMessageMutation.isError || retryMessageAnalysisMutation.isError) ? (
           <p className="mt-3 text-sm text-red-600">
             {(
               createMessageMutation.isError
@@ -441,6 +488,73 @@ export function DcxAppSendMessagePage(props: Props) {
       </section>
     </section>
   )
+}
+
+function readDcxNewComposeModeFromCurrentLocation(): DcxNewComposeMode {
+  if (typeof window === "undefined") {
+    return "message_to_dcx"
+  }
+
+  const requestedMode = new URLSearchParams(window.location.search).get("mode")
+  if (requestedMode === "ai_chat") {
+    return "ai_chat"
+  }
+  if (requestedMode === "network_post") {
+    return "network_post"
+  }
+  return "message_to_dcx"
+}
+
+function readDcxNewComposeModeHelpText(composeMode: DcxNewComposeMode): string {
+  if (composeMode === "ai_chat") {
+    return "This starts a private AI chat and takes you straight to the conversation."
+  }
+  if (composeMode === "network_post") {
+    return "This will be visible to signed-in DCX traders in the Network feed. Use it for short market thoughts, questions, updates, or useful notes."
+  }
+  return "This goes privately to DCX for processing as a message, photo, voice note, or document."
+}
+
+function readDcxNewComposeModeLabel(composeMode: DcxNewComposeMode, messageLabel: string | undefined): string {
+  if (composeMode === "ai_chat") {
+    return "New AI chat"
+  }
+  if (composeMode === "network_post") {
+    return "Public post"
+  }
+  return messageLabel ?? "New message"
+}
+
+function readDcxNewComposeModePlaceholder(
+  composeMode: DcxNewComposeMode,
+  messagePlaceholder: string | undefined,
+): string {
+  if (composeMode === "ai_chat") {
+    return "Ask DCX anything you want to explore."
+  }
+  if (composeMode === "network_post") {
+    return "Share a market thought, question, update, or useful note."
+  }
+  return messagePlaceholder ?? "Send a message, photo, voice note, or document to DCX."
+}
+
+function readDcxNewComposeModeSubmitLabel(params: {
+  composeMode: DcxNewComposeMode
+  isSendingMessage: boolean
+  isPostingNetworkPost: boolean
+  isCreatingAiChat: boolean
+  defaultPendingLabel: string | undefined
+  defaultIdleLabel: string | undefined
+}): string {
+  if (params.composeMode === "ai_chat") {
+    return params.isCreatingAiChat ? "Starting..." : "Start AI chat"
+  }
+  if (params.composeMode === "network_post") {
+    return params.isPostingNetworkPost ? "Posting..." : "Post"
+  }
+  return params.isSendingMessage
+    ? (params.defaultPendingLabel ?? "Sending...")
+    : (params.defaultIdleLabel ?? "Send")
 }
 
 function DcxSendProgressPanel(props: {

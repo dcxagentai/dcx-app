@@ -292,6 +292,14 @@ export function DcxAppMarketTopicsPage(props: Props) {
                     </p>
                     <Button
                       type="button"
+                      size="sm"
+                      onClick={() => window.location.assign("/new?mode=ai_chat")}
+                    >
+                      <MessageCircleIcon />
+                      New AI Chat
+                    </Button>
+                    <Button
+                      type="button"
                       variant="outline"
                       size="sm"
                       onClick={() => {
