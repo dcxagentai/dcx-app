@@ -50,47 +50,79 @@ export function DcxAppNetworkBadgeList(props: {
   maxItems?: number
 }) {
   const maxItems = props.maxItems ?? 40
-  const badges = [
-    ...(props.languages ?? []).map((language) => ({
+  const countryBadges = (props.countries ?? []).map((country) => ({
+    key: `country:${country.id}`,
+    label: country.default_display_name,
+    regionCode: country.flag_asset_key,
+  }))
+  const languageBadges = (props.languages ?? []).map((language) => ({
       key: `language:${language.id}`,
       label: `${language.language_name_native} (${language.language_code})`,
       regionCode: readDcxAppLanguageFlagRegionCode(language.language_code),
-    })),
-    ...(props.timezones ?? []).map((timezone) => ({
+    }))
+  const commodityBadges = (props.commodities ?? []).map((commodity) => ({
+    key: `commodity:${commodity.material_key}`,
+    label: commodity.display_label,
+    regionCode: undefined,
+  }))
+  const timezoneBadges = (props.timezones ?? []).map((timezone) => ({
       key: `timezone:${timezone.id}`,
       label: timezone.display_label.replace(/^\(UTC[^)]*\)\s*/, ""),
       regionCode: timezone.flag_asset_key ?? timezone.country_code_alpha2 ?? undefined,
-    })),
-    ...(props.countries ?? []).map((country) => ({
-      key: `country:${country.id}`,
-      label: country.default_display_name,
-      regionCode: country.flag_asset_key,
-    })),
-    ...(props.commodities ?? []).map((commodity) => ({
-      key: `commodity:${commodity.material_key}`,
-      label: commodity.display_label,
-      regionCode: undefined,
-    })),
-  ].slice(0, maxItems)
+    }))
+  const badgeGroups = [
+    { key: "countries", label: "Countries", badges: countryBadges },
+    { key: "languages", label: "Languages", badges: languageBadges },
+    { key: "commodities", label: "Commodities", badges: commodityBadges },
+    { key: "timezones", label: "Timezones", badges: timezoneBadges },
+  ]
+    .map((badgeGroup) => ({
+      ...badgeGroup,
+      badges: badgeGroup.badges.slice(0, Math.max(0, maxItems)),
+    }))
+    .filter((badgeGroup) => badgeGroup.badges.length > 0)
 
-  if (badges.length === 0) {
+  if (badgeGroups.length === 0) {
     return <p className="text-sm text-slate-500">No profile badges yet.</p>
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
-      {badges.map((badge) => (
-        <span
-          key={badge.key}
-          className="inline-flex max-w-full items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-700"
-        >
-          {badge.regionCode ? (
-            <DcxCountryFlagIcon regionCode={badge.regionCode} title={badge.label} fallbackLabel={badge.regionCode} className="h-3.5 w-5" />
-          ) : null}
-          <span className="truncate">{badge.label}</span>
-        </span>
+    <div className="space-y-3">
+      {badgeGroups.map((badgeGroup) => (
+        <section key={badgeGroup.key} className="space-y-2">
+          <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-slate-400">
+            {badgeGroup.label}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {badgeGroup.badges.map((badge) => (
+              <DcxAppNetworkProfileBadge key={badge.key} badge={badge} />
+            ))}
+          </div>
+        </section>
       ))}
     </div>
+  )
+}
+
+function DcxAppNetworkProfileBadge(props: {
+  badge: {
+    key: string
+    label: string
+    regionCode?: string
+  }
+}) {
+  return (
+    <span className="inline-flex max-w-full items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-700">
+      {props.badge.regionCode ? (
+        <DcxCountryFlagIcon
+          regionCode={props.badge.regionCode}
+          title={props.badge.label}
+          fallbackLabel={props.badge.regionCode}
+          className="h-3.5 w-5"
+        />
+      ) : null}
+      <span className="truncate">{props.badge.label}</span>
+    </span>
   )
 }
 
