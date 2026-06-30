@@ -65,7 +65,7 @@ export function AppSidebar({
       title: uxStrings.nav_new ?? "New",
       url: "/new",
       icon: <SendHorizontalIcon />,
-      isActive: currentPathname === "/new",
+      isActive: currentPathname.startsWith("/new"),
     },
     {
       id: "my_trades",

@@ -660,7 +660,7 @@ function readProtectedAppPathname(
     return "/me/other"
   }
 
-  if (pathname === "/new") {
+  if (pathname === "/new" || /^\/new\/(message|ai|post)$/.test(pathname)) {
     return "/new"
   }
 

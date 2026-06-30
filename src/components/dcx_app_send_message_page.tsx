@@ -275,21 +275,21 @@ export function DcxAppSendMessagePage(props: Props) {
           <Button
             type="button"
             variant={composeMode === "message_to_dcx" ? "default" : "outline"}
-            onClick={() => setComposeMode("message_to_dcx")}
+            onClick={() => selectDcxNewComposeMode("message_to_dcx", setComposeMode)}
           >
             Message to DCX
           </Button>
           <Button
             type="button"
             variant={composeMode === "ai_chat" ? "default" : "outline"}
-            onClick={() => setComposeMode("ai_chat")}
+            onClick={() => selectDcxNewComposeMode("ai_chat", setComposeMode)}
           >
             AI chat
           </Button>
           <Button
             type="button"
             variant={composeMode === "network_post" ? "default" : "outline"}
-            onClick={() => setComposeMode("network_post")}
+            onClick={() => selectDcxNewComposeMode("network_post", setComposeMode)}
           >
             Public post
           </Button>
@@ -495,6 +495,16 @@ function readDcxNewComposeModeFromCurrentLocation(): DcxNewComposeMode {
     return "message_to_dcx"
   }
 
+  if (window.location.pathname === "/new/ai") {
+    return "ai_chat"
+  }
+  if (window.location.pathname === "/new/post") {
+    return "network_post"
+  }
+  if (window.location.pathname === "/new/message") {
+    return "message_to_dcx"
+  }
+
   const requestedMode = new URLSearchParams(window.location.search).get("mode")
   if (requestedMode === "ai_chat") {
     return "ai_chat"
@@ -503,6 +513,32 @@ function readDcxNewComposeModeFromCurrentLocation(): DcxNewComposeMode {
     return "network_post"
   }
   return "message_to_dcx"
+}
+
+function selectDcxNewComposeMode(
+  composeMode: DcxNewComposeMode,
+  setComposeMode: (composeMode: DcxNewComposeMode) => void,
+) {
+  setComposeMode(composeMode)
+  if (typeof window === "undefined") {
+    return
+  }
+
+  const nextPathname = readDcxNewComposeModePathname(composeMode)
+  if (window.location.pathname !== nextPathname) {
+    window.history.pushState({}, "", nextPathname)
+    window.dispatchEvent(new PopStateEvent("popstate"))
+  }
+}
+
+function readDcxNewComposeModePathname(composeMode: DcxNewComposeMode): string {
+  if (composeMode === "ai_chat") {
+    return "/new/ai"
+  }
+  if (composeMode === "network_post") {
+    return "/new/post"
+  }
+  return "/new/message"
 }
 
 function readDcxNewComposeModeHelpText(composeMode: DcxNewComposeMode): string {
