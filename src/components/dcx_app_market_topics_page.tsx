@@ -396,9 +396,6 @@ export function DcxAppMarketTopicsPage(props: Props) {
                       #{readDcxMarketTopicReferenceCode(selectedTopic.market_topic_id)}
                     </span>
                   </div>
-                  {selectedTopic.topic_summary_text ? (
-                    <p className="mt-2 line-clamp-3 text-sm text-slate-600">{selectedTopic.topic_summary_text}</p>
-                  ) : null}
                   {selectedTopic.source_first_image_attachment ? (
                     <DcxSourceMessageImagePreview
                       apiBaseUrl={props.apiBaseUrl}
@@ -466,7 +463,7 @@ export function DcxAppMarketTopicsPage(props: Props) {
                       rows={2}
                       disabled={appendMarketTopicAiTurnMutation.isPending || hasTopicChatReachedContextLimit}
                       placeholder="Type your next message..."
-                      className="min-h-20 resize-y"
+                      className="min-h-16 resize-y sm:min-h-20"
                     />
                     {appendMarketTopicAiTurnMutation.isError ? (
                       <p className="mt-2 text-sm text-red-600">
@@ -528,7 +525,7 @@ export function DcxAppMarketTopicsPage(props: Props) {
 
       {isDetailSheetMode ? (
         <Sheet open={isMobileDetailOpen && selectedMarketTopicId !== null} onOpenChange={setIsMobileDetailOpen}>
-          <SheetContent className="overflow-x-hidden overflow-y-auto p-0 data-[side=right]:w-[90vw] data-[side=right]:max-w-[90vw] data-[side=right]:sm:max-w-[90vw]">
+          <SheetContent className="h-dvh overflow-hidden p-0 data-[side=right]:w-full data-[side=right]:max-w-full data-[side=right]:sm:w-[90vw] data-[side=right]:sm:max-w-[90vw]">
             <SheetHeader className="sr-only">
               <SheetTitle>{selectedTopicTitle}</SheetTitle>
               <SheetDescription>AI chat detail</SheetDescription>
@@ -552,20 +549,21 @@ function DcxMarketTopicAiChatTurn(props: {
 }) {
   const normalizedRole = props.role.trim().toLowerCase()
   const isAssistant = normalizedRole === "assistant"
-  const roleLabel = isAssistant ? "DCX AI" : normalizedRole === "system" ? "System" : "You"
   const sourceMetadata = readDcxMarketTopicTurnSourceMetadata(props.turnMetadata)
   const showSourceIcon = !isAssistant && sourceMetadata.channel !== "app"
+  const isUser = !isAssistant && normalizedRole !== "system"
 
   return (
     <article
       className={cn(
-        "rounded-lg border px-4 py-3",
-        isAssistant ? "border-sky-100 bg-sky-50/60" : "border-slate-200 bg-white",
+        "border px-4 py-3",
+        isUser ? "ml-auto w-full max-w-[80%] border-[#ffd79a] bg-[#fff4e0]" : "mr-auto w-full border-sky-100 bg-sky-50/60",
+        normalizedRole === "system" ? "border-slate-200 bg-slate-50" : "",
         props.isPending ? "border-dashed text-slate-500" : "",
       )}
     >
       <div className="flex items-center justify-between gap-3">
-        <p className="flex min-w-0 items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+        <p className="flex min-w-0 items-center gap-1.5">
           {showSourceIcon ? (
             <span
               className={cn(
@@ -578,7 +576,6 @@ function DcxMarketTopicAiChatTurn(props: {
               <sourceMetadata.Icon className="size-3" aria-hidden="true" />
             </span>
           ) : null}
-          <span className="truncate">{roleLabel}</span>
         </p>
         <p className="text-xs text-slate-400">
           {formatDcxAppAccountTimestampLabel(
