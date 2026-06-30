@@ -44,8 +44,8 @@ import {
 } from "../lib/read_dcx_app_authenticated_user_market_topics_catalog"
 import {
   readDcxAppAuthenticatedUserMarketTopicDetail,
+  type DcxAppAuthenticatedUserMarketTopicDetail,
 } from "../lib/read_dcx_app_authenticated_user_market_topic_detail"
-import { setDcxAppAuthenticatedUserMarketTopicVisibility } from "../lib/set_dcx_app_authenticated_user_market_topic_visibility"
 import { appendDcxAppAuthenticatedUserMarketTopicAiTurn } from "../lib/append_dcx_app_authenticated_user_market_topic_ai_turn"
 import {
   useDcxAppBalancedDesktopSplitMode,
@@ -58,19 +58,12 @@ type Props = {
 }
 
 type DcxTopicStatusFilter = "all" | "open" | "closed" | "archived"
-type DcxTopicVisibilityStatus = "private" | "shareable" | "public"
 
 type DcxPendingMarketTopicAiChatUserTurn = {
   marketTopicId: number
   turnText: string
   createdAtTsMs: number
 }
-
-const DCX_TOPIC_VISIBILITY_OPTIONS: Array<{ value: DcxTopicVisibilityStatus; label: string }> = [
-  { value: "private", label: "Private" },
-  { value: "shareable", label: "Shareable" },
-  { value: "public", label: "Public" },
-]
 
 export function DcxAppMarketTopicsPage(props: Props) {
   const queryClient = useQueryClient()
@@ -163,24 +156,6 @@ export function DcxAppMarketTopicsPage(props: Props) {
         marketTopicId: selectedMarketTopicId as number,
       }),
   })
-  const updateMarketTopicVisibilityMutation = useMutation({
-    mutationFn: async (params: { marketTopicId: number; visibilityStatus: DcxTopicVisibilityStatus }) =>
-      setDcxAppAuthenticatedUserMarketTopicVisibility({
-        apiBaseUrl: props.apiBaseUrl,
-        marketTopicId: params.marketTopicId,
-        visibilityStatus: params.visibilityStatus,
-      }),
-    onSuccess: async (payload, variables) => {
-      queryClient.setQueryData(
-        ["dcx_app_authenticated_user_market_topic_detail", variables.marketTopicId],
-        payload,
-      )
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["dcx_app_authenticated_user_market_topics_catalog"] }),
-        queryClient.invalidateQueries({ queryKey: ["dcx_app_market_forum_catalog"] }),
-      ])
-    },
-  })
   const appendMarketTopicAiTurnMutation = useMutation({
     mutationFn: async (params: { marketTopicId: number; turnText: string }) =>
       appendDcxAppAuthenticatedUserMarketTopicAiTurn({
@@ -220,22 +195,12 @@ export function DcxAppMarketTopicsPage(props: Props) {
     () => [
       {
         id: "topic",
-        accessorFn: (topic) => topic.topic_title || "Topic",
-        header: ({ column }) => <DcxTopicSortableHeader column={column} title={ux.topics_table_column_topic ?? "Topic"} />,
+        accessorFn: (topic) => topic.topic_title || "Chat",
+        header: ({ column }) => <DcxTopicSortableHeader column={column} title="Chat" />,
         cell: ({ row }) => (
           <div className="min-w-0">
-            <p className="line-clamp-1 font-medium text-slate-950">{row.original.topic_title || (ux.topics_table_column_topic ?? "Topic")}</p>
+            <p className="line-clamp-1 font-medium text-slate-950">{row.original.topic_title || "Chat"}</p>
           </div>
-        ),
-      },
-      {
-        id: "tags",
-        accessorFn: (topic) => topic.topic_tags_json.join(" "),
-        header: ({ column }) => <DcxTopicSortableHeader column={column} title={ux.topics_table_column_tags ?? "Tags"} />,
-        cell: ({ row }) => (
-          <span className="line-clamp-1 text-sm text-slate-600">
-            {readDcxTopicTagsPreview(row.original.topic_tags_json)}
-          </span>
         ),
       },
       {
@@ -272,6 +237,7 @@ export function DcxAppMarketTopicsPage(props: Props) {
   )
 
   const selectedTopic = selectedMarketTopicDetailQuery.data?.data ?? null
+  const selectedTopicIsDirectAiChat = selectedTopic ? readDcxMarketTopicIsDirectAiChat(selectedTopic) : false
 
   const topicListPanel = (
     <section className="min-w-0 overflow-hidden border border-black/6 bg-white shadow-[0_18px_55px_-48px_rgba(15,23,42,0.45)]">
@@ -282,7 +248,7 @@ export function DcxAppMarketTopicsPage(props: Props) {
                     <Input
                       value={topicSearchQuery}
                       onChange={(event) => setTopicSearchQuery(event.target.value)}
-                      placeholder={ux.topics_search_placeholder ?? "Search topics..."}
+                      placeholder="Search chats..."
                       className="pl-9"
                     />
                   </label>
@@ -346,13 +312,13 @@ export function DcxAppMarketTopicsPage(props: Props) {
 
               {topicsCatalogQuery.isLoading ? (
                 <div className="px-4 py-8">
-                  <p className="text-sm text-slate-500">{ux.topics_loading ?? "Loading topics..."}</p>
+                  <p className="text-sm text-slate-500">Loading AI chats...</p>
                 </div>
               ) : null}
 
               {topicsCatalogQuery.isError ? (
                 <div className="px-4 py-8">
-                  <h3 className="text-base font-semibold text-slate-950">{ux.topics_error_title ?? "Topics could not load"}</h3>
+                  <h3 className="text-base font-semibold text-slate-950">AI chats could not load</h3>
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
                     {(
                       (topicsCatalogQuery.error as Error & { suggested_action?: string })?.suggested_action ??
@@ -385,101 +351,61 @@ export function DcxAppMarketTopicsPage(props: Props) {
                   readRowClassName={(row) => row.market_topic_id === selectedMarketTopicId ? "bg-sky-50 hover:bg-sky-50 ring-1 ring-inset ring-sky-200" : ""}
                   readColumnWidthClassName={(columnId) => {
                     if (columnId === "topic") {
-                      return "w-[42%]"
-                    }
-                    if (columnId === "tags") {
-                      return "w-[24%]"
+                      return "w-[48%]"
                     }
                     if (columnId === "updated") {
-                      return "w-[16%]"
+                      return "w-[18%]"
                     }
-                    return "w-[9%]"
+                    return "w-[11%]"
                   }}
-                  emptyLabel={ux.topics_empty ?? "No market topics match these filters."}
+                  emptyLabel="No AI chats match these filters."
                 />
               ) : null}
     </section>
   )
 
   const topicDetailPanel = (
-    <aside className="h-full min-w-0 overflow-y-auto border border-black/6 bg-white p-6 shadow-[0_18px_55px_-48px_rgba(15,23,42,0.45)]">
+    <aside className="flex h-full min-w-0 flex-col overflow-hidden border border-black/6 bg-white shadow-[0_18px_55px_-48px_rgba(15,23,42,0.45)]">
             {!selectedTopic ? (
-              <p className="text-sm text-slate-500">{ux.topics_detail_empty ?? "Choose a topic to inspect its seeded AI response."}</p>
+              <div className="p-6">
+                <p className="text-sm text-slate-500">Choose an AI chat to inspect its conversation.</p>
+              </div>
             ) : (
-              <div className="space-y-6">
-                <div>
+              <div className="flex min-h-0 flex-1 flex-col">
+                <header className="shrink-0 border-b border-black/6 px-6 py-5">
                   <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-                    <span>{ux.topics_detail_topic_label ?? "Topic"}</span>
-                    <span aria-hidden="true">|</span>
-                    <button
-                      type="button"
-                      onClick={() => navigateDcxAppToPath(`/me/messages/${selectedTopic.source_message_id}`)}
-                      className="tracking-[0.18em] text-sky-700 transition-colors hover:text-sky-950"
-                    >
-                      Message {selectedTopic.source_message_id}
-                    </button>
+                    <span>Chat</span>
+                    {!selectedTopicIsDirectAiChat ? (
+                      <>
+                        <span aria-hidden="true">|</span>
+                        <button
+                          type="button"
+                          onClick={() => navigateDcxAppToPath(`/me/messages/${selectedTopic.source_message_id}`)}
+                          className="tracking-[0.18em] text-sky-700 transition-colors hover:text-sky-950"
+                        >
+                          Message {selectedTopic.source_message_id}
+                        </button>
+                      </>
+                    ) : null}
                   </p>
                   <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <h2 className="text-xl font-semibold text-slate-950">{selectedTopic.topic_title || (ux.topics_detail_topic_label ?? "Topic")}</h2>
+                    <h2 className="text-xl font-semibold text-slate-950">{selectedTopic.topic_title || "Chat"}</h2>
                     <span className="inline-flex w-fit shrink-0 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-sky-700">
                       #{readDcxMarketTopicReferenceCode(selectedTopic.market_topic_id)}
                     </span>
                   </div>
-                  <p className="mt-2 text-sm text-slate-600">{selectedTopic.topic_summary_text}</p>
+                  {selectedTopic.topic_summary_text ? (
+                    <p className="mt-2 line-clamp-3 text-sm text-slate-600">{selectedTopic.topic_summary_text}</p>
+                  ) : null}
                   {selectedTopic.source_first_image_attachment ? (
                     <DcxSourceMessageImagePreview
                       apiBaseUrl={props.apiBaseUrl}
                       attachment={selectedTopic.source_first_image_attachment}
                     />
                   ) : null}
-                </div>
-                <section className="rounded-lg border border-sky-200 bg-white px-4 py-3">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                        {ux.topics_visibility_label ?? "Visibility"}
-                      </p>
-                      <p className="mt-1 text-sm text-sky-700">
-                        {readDcxTopicVisibilityLabel(selectedTopic.visibility_status, ux)}
-                      </p>
-                    </div>
-                    <Select
-                      value={(selectedTopic.visibility_status || "private") as DcxTopicVisibilityStatus}
-                      onValueChange={(nextVisibilityStatus) => {
-                        updateMarketTopicVisibilityMutation.mutate({
-                          marketTopicId: selectedTopic.market_topic_id,
-                          visibilityStatus: nextVisibilityStatus as DcxTopicVisibilityStatus,
-                        })
-                      }}
-                      disabled={updateMarketTopicVisibilityMutation.isPending}
-                    >
-                      <SelectTrigger className="w-[170px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DCX_TOPIC_VISIBILITY_OPTIONS.map((visibilityOption) => (
-                          <SelectItem key={visibilityOption.value} value={visibilityOption.value}>
-                            {readDcxTopicVisibilityLabel(visibilityOption.value, ux)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {updateMarketTopicVisibilityMutation.isError ? (
-                    <p className="mt-3 text-sm text-red-600">
-                      {(
-                        updateMarketTopicVisibilityMutation.error as Error & { suggested_action?: string }
-                      )?.suggested_action ?? (updateMarketTopicVisibilityMutation.error as Error).message}
-                    </p>
-                  ) : null}
-                </section>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{ux.topics_detail_tags_label ?? "Tags"}</p>
-                  <p className="mt-1 text-sm text-slate-900">{selectedTopic.topic_tags_json.join(", ") || "—"}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{ux.topics_detail_opening_ai_response_label ?? "AI chat"}</p>
-                  <div className="mt-3 space-y-3 rounded-lg border border-slate-200 bg-white p-4">
+                </header>
+                <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+                  <div className="space-y-3">
                     {selectedTopic.turns.length === 0 ? (
                       <p className="text-sm text-slate-500">No AI chat turns yet.</p>
                     ) : (
@@ -518,7 +444,7 @@ export function DcxAppMarketTopicsPage(props: Props) {
                     ) : null}
                   </div>
                   <form
-                    className="mt-4 rounded-lg border border-sky-200 bg-white p-4"
+                    className="sticky bottom-0 mt-4 border-t border-black/6 bg-white py-3"
                     onSubmit={(event) => {
                       event.preventDefault()
                       const trimmedDraftText = aiChatDraftText.trim()
@@ -531,28 +457,27 @@ export function DcxAppMarketTopicsPage(props: Props) {
                       })
                     }}
                   >
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Ask DCX AI</p>
                     <Textarea
                       value={aiChatDraftText}
                       onChange={(event) => setAiChatDraftText(event.target.value)}
-                      rows={4}
+                      rows={2}
                       disabled={appendMarketTopicAiTurnMutation.isPending || hasTopicChatReachedContextLimit}
-                      placeholder="Ask a follow-up about this market topic..."
-                      className="mt-3"
+                      placeholder="Type your next message..."
+                      className="min-h-20 resize-y"
                     />
                     {appendMarketTopicAiTurnMutation.isError ? (
-                      <p className="mt-3 text-sm text-red-600">
+                      <p className="mt-2 text-sm text-red-600">
                         {(
                           appendMarketTopicAiTurnMutation.error as Error & { suggested_action?: string }
                         )?.suggested_action ?? (appendMarketTopicAiTurnMutation.error as Error).message}
                       </p>
                     ) : null}
                     {hasTopicChatReachedContextLimit ? (
-                      <p className="mt-3 text-sm text-amber-700">
-                        This MVP chat has reached its context limit. Start a new topic with the latest question.
+                      <p className="mt-2 text-sm text-amber-700">
+                        This MVP chat has reached its context limit. Start a new AI chat with the latest question.
                       </p>
                     ) : null}
-                    <div className="mt-3 flex justify-end">
+                    <div className="mt-2 flex justify-end">
                       <Button
                         type="submit"
                         disabled={aiChatDraftText.trim() === "" || appendMarketTopicAiTurnMutation.isPending || hasTopicChatReachedContextLimit}
@@ -568,7 +493,7 @@ export function DcxAppMarketTopicsPage(props: Props) {
     </aside>
   )
 
-  const selectedTopicTitle = selectedTopic?.topic_title || (ux.topics_detail_topic_label ?? "Topic")
+  const selectedTopicTitle = selectedTopic?.topic_title || "Chat"
 
   return (
     <section className="flex min-h-[calc(100vh-5rem)] min-w-0 flex-col gap-4 overflow-x-hidden">
@@ -604,7 +529,7 @@ export function DcxAppMarketTopicsPage(props: Props) {
           <SheetContent className="overflow-x-hidden overflow-y-auto p-0 data-[side=right]:w-[90vw] data-[side=right]:max-w-[90vw] data-[side=right]:sm:max-w-[90vw]">
             <SheetHeader className="sr-only">
               <SheetTitle>{selectedTopicTitle}</SheetTitle>
-              <SheetDescription>Market topic detail</SheetDescription>
+              <SheetDescription>AI chat detail</SheetDescription>
             </SheetHeader>
             {topicDetailPanel}
           </SheetContent>
@@ -671,7 +596,11 @@ function DcxMarketTopicAiChatTurn(props: {
 }
 
 function readDcxMarketTopicReferenceCode(marketTopicId: number): string {
-  return `T${marketTopicId}`
+  return `C${marketTopicId}`
+}
+
+function readDcxMarketTopicIsDirectAiChat(topic: DcxAppAuthenticatedUserMarketTopicDetail): boolean {
+  return topic.topic_metadata_json.direct_ai_chat === true
 }
 
 function DcxSourceMessageImagePreview(props: {
@@ -1048,31 +977,6 @@ function readDcxTopicStatusLabel(statusValue: string, ux: Record<string, string>
     return ux.topics_status_archived ?? "Archived"
   }
   return readDcxTopicFriendlyLabel(statusValue)
-}
-
-function readDcxTopicVisibilityLabel(visibilityStatus: string, ux: Record<string, string>): string {
-  const normalizedVisibilityStatus = visibilityStatus.trim().toLowerCase()
-  if (normalizedVisibilityStatus === "private") {
-    return ux.topics_visibility_private ?? "Private"
-  }
-  if (normalizedVisibilityStatus === "shareable") {
-    return ux.topics_visibility_shareable ?? "Shareable"
-  }
-  if (normalizedVisibilityStatus === "public") {
-    return ux.topics_visibility_public ?? "Public"
-  }
-  return ux.topics_visibility_private ?? "Private"
-}
-
-function readDcxTopicTagsPreview(tags: string[]): string {
-  const normalizedTags = tags
-    .map((tag) => tag.trim())
-    .filter((tag) => tag !== "")
-
-  if (normalizedTags.length === 0) {
-    return "—"
-  }
-  return normalizedTags.slice(0, 3).join(", ")
 }
 
 function readDcxTopicStatusTone(statusValue: string): "neutral" | "success" | "warning" {
