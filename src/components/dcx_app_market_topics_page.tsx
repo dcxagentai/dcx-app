@@ -240,7 +240,7 @@ export function DcxAppMarketTopicsPage(props: Props) {
   const selectedTopicIsDirectAiChat = selectedTopic ? readDcxMarketTopicIsDirectAiChat(selectedTopic) : false
 
   const topicListPanel = (
-    <section className="min-w-0 overflow-hidden border border-black/6 bg-white shadow-[0_18px_55px_-48px_rgba(15,23,42,0.45)]">
+    <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden border border-black/6 bg-white shadow-[0_18px_55px_-48px_rgba(15,23,42,0.45)]">
               <div className="flex flex-col gap-4 border-b border-black/6 px-4 py-3">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <label className="relative block w-full lg:flex-1">
@@ -310,57 +310,59 @@ export function DcxAppMarketTopicsPage(props: Props) {
                 </Select>
               </div>
 
-              {topicsCatalogQuery.isLoading ? (
-                <div className="px-4 py-8">
-                  <p className="text-sm text-slate-500">Loading AI chats...</p>
-                </div>
-              ) : null}
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                {topicsCatalogQuery.isLoading ? (
+                  <div className="px-4 py-8">
+                    <p className="text-sm text-slate-500">Loading AI chats...</p>
+                  </div>
+                ) : null}
 
-              {topicsCatalogQuery.isError ? (
-                <div className="px-4 py-8">
-                  <h3 className="text-base font-semibold text-slate-950">AI chats could not load</h3>
-                  <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                    {(
-                      (topicsCatalogQuery.error as Error & { suggested_action?: string })?.suggested_action ??
-                      (topicsCatalogQuery.error as Error)?.message
-                    ) || (ux.topics_error_suggested_action ?? "Retry after confirming the backend is reachable.")}
-                  </p>
-                </div>
-              ) : null}
+                {topicsCatalogQuery.isError ? (
+                  <div className="px-4 py-8">
+                    <h3 className="text-base font-semibold text-slate-950">AI chats could not load</h3>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                      {(
+                        (topicsCatalogQuery.error as Error & { suggested_action?: string })?.suggested_action ??
+                        (topicsCatalogQuery.error as Error)?.message
+                      ) || (ux.topics_error_suggested_action ?? "Retry after confirming the backend is reachable.")}
+                    </p>
+                  </div>
+                ) : null}
 
-              {!topicsCatalogQuery.isLoading && !topicsCatalogQuery.isError ? (
-                <DcxAppDataTable
-                  columns={columns}
-                  data={filteredTopics}
-                  tableClassName="[&_td]:py-3"
-                  sorting={topicSorting}
-                  onSortingChange={setTopicSorting}
-                  pageSize={25}
-                  onRowClick={(row) => {
-                    setSelectedMarketTopicId(row.market_topic_id)
-                    setAiChatDraftText("")
-                    setPendingAiChatUserTurn(null)
-                    setHasTopicChatReachedContextLimit(false)
-                    if (typeof window !== "undefined") {
-                      window.history.replaceState({}, "", `/ai/chats/${row.market_topic_id}`)
-                    }
-                    if (isDetailSheetMode) {
-                      setIsMobileDetailOpen(true)
-                    }
-                  }}
-                  readRowClassName={(row) => row.market_topic_id === selectedMarketTopicId ? "bg-sky-50 hover:bg-sky-50 ring-1 ring-inset ring-sky-200" : ""}
-                  readColumnWidthClassName={(columnId) => {
-                    if (columnId === "topic") {
-                      return "w-[48%]"
-                    }
-                    if (columnId === "updated") {
-                      return "w-[18%]"
-                    }
-                    return "w-[11%]"
-                  }}
-                  emptyLabel="No AI chats match these filters."
-                />
-              ) : null}
+                {!topicsCatalogQuery.isLoading && !topicsCatalogQuery.isError ? (
+                  <DcxAppDataTable
+                    columns={columns}
+                    data={filteredTopics}
+                    tableClassName="[&_td]:py-3"
+                    sorting={topicSorting}
+                    onSortingChange={setTopicSorting}
+                    pageSize={25}
+                    onRowClick={(row) => {
+                      setSelectedMarketTopicId(row.market_topic_id)
+                      setAiChatDraftText("")
+                      setPendingAiChatUserTurn(null)
+                      setHasTopicChatReachedContextLimit(false)
+                      if (typeof window !== "undefined") {
+                        window.history.replaceState({}, "", `/ai/chats/${row.market_topic_id}`)
+                      }
+                      if (isDetailSheetMode) {
+                        setIsMobileDetailOpen(true)
+                      }
+                    }}
+                    readRowClassName={(row) => row.market_topic_id === selectedMarketTopicId ? "bg-sky-50 hover:bg-sky-50 ring-1 ring-inset ring-sky-200" : ""}
+                    readColumnWidthClassName={(columnId) => {
+                      if (columnId === "topic") {
+                        return "w-[48%]"
+                      }
+                      if (columnId === "updated") {
+                        return "w-[18%]"
+                      }
+                      return "w-[11%]"
+                    }}
+                    emptyLabel="No AI chats match these filters."
+                  />
+                ) : null}
+              </div>
     </section>
   )
 
@@ -443,8 +445,9 @@ export function DcxAppMarketTopicsPage(props: Props) {
                       </>
                     ) : null}
                   </div>
-                  <form
-                    className="sticky bottom-0 mt-4 border-t border-black/6 bg-white py-3"
+                </div>
+                <form
+                    className="shrink-0 border-t border-black/6 bg-white px-6 py-3"
                     onSubmit={(event) => {
                       event.preventDefault()
                       const trimmedDraftText = aiChatDraftText.trim()
@@ -487,7 +490,6 @@ export function DcxAppMarketTopicsPage(props: Props) {
                       </Button>
                     </div>
                   </form>
-                </div>
               </div>
             )}
     </aside>
@@ -496,9 +498,9 @@ export function DcxAppMarketTopicsPage(props: Props) {
   const selectedTopicTitle = selectedTopic?.topic_title || "Chat"
 
   return (
-    <section className="flex min-h-[calc(100vh-5rem)] min-w-0 flex-col gap-4 overflow-x-hidden">
+    <section className="flex h-[calc(100vh-5rem)] min-h-0 min-w-0 flex-col gap-4 overflow-hidden">
       {isDetailSheetMode ? (
-        <main className="min-w-0 overflow-x-hidden">{topicListPanel}</main>
+        <main className="min-h-0 min-w-0 flex-1 overflow-hidden">{topicListPanel}</main>
       ) : (
         <ResizablePanelGroup
           key={isBalancedDesktopSplitMode ? "balanced-desktop-split" : "wide-desktop-split"}
