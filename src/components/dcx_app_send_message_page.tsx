@@ -1087,8 +1087,8 @@ function readDcxSendWorkflowOutcomeSummary(
     outcomeParts.push(
       `${topicCount} ${
         topicCount === 1
-          ? (uxStrings.messages_compose_progress_market_topic_singular ?? "AI chat")
-          : (uxStrings.messages_compose_progress_market_topic_plural ?? "AI chats")
+          ? readDcxSendAiChatSingularLabel(uxStrings)
+          : readDcxSendAiChatPluralLabel(uxStrings)
       }`,
     )
   }
@@ -1113,7 +1113,7 @@ function readDcxSendFinalOutcomeSummary(
 
   const linkedOutputCount = messageDetail.linked_trades.length + messageDetail.linked_market_topics.length
   if (linkedOutputCount > 0) {
-    return uxStrings.messages_compose_progress_open_outputs_body ?? "Open the message or jump straight to the created trade/chat output."
+    return readDcxSendOpenOutputsBody(uxStrings)
   }
   if (messageDetail.contains_other_items) {
     return uxStrings.messages_compose_progress_open_other_body ?? "Open the message to review the stored Other item."
@@ -1147,12 +1147,47 @@ function readDcxSendOutcomeLinks(
     ...messageDetail.linked_market_topics.map((linkedMarketTopic, topicIndex) => ({
       key: `topic-${linkedMarketTopic.market_topic_id}`,
       label: messageDetail.linked_market_topics.length === 1
-        ? (uxStrings.messages_compose_outcome_open_topic ?? "Open chat")
-        : `${uxStrings.messages_compose_outcome_open_topic ?? "Open chat"} ${topicIndex + 1}`,
+        ? readDcxSendOpenChatLabel(uxStrings)
+        : `${readDcxSendOpenChatLabel(uxStrings)} ${topicIndex + 1}`,
       path: `/ai/chats/${linkedMarketTopic.market_topic_id}`,
       detail: linkedMarketTopic.topic_title || `Open chat #${linkedMarketTopic.market_topic_id}`,
     })),
   ]
+}
+
+function readDcxSendAiChatSingularLabel(uxStrings: Record<string, string>): string {
+  const configuredLabel = uxStrings.messages_compose_progress_market_topic_singular?.trim()
+  if (!configuredLabel || configuredLabel.toLowerCase() === "market topic") {
+    return "AI chat"
+  }
+  return configuredLabel
+}
+
+function readDcxSendAiChatPluralLabel(uxStrings: Record<string, string>): string {
+  const configuredLabel = uxStrings.messages_compose_progress_market_topic_plural?.trim()
+  if (!configuredLabel || configuredLabel.toLowerCase() === "market topics") {
+    return "AI chats"
+  }
+  return configuredLabel
+}
+
+function readDcxSendOpenOutputsBody(uxStrings: Record<string, string>): string {
+  const configuredBody = uxStrings.messages_compose_progress_open_outputs_body?.trim()
+  if (
+    !configuredBody ||
+    configuredBody.toLowerCase() === "open the message or jump straight to the created trade/topic output."
+  ) {
+    return "Open the message or jump straight to the created trade/chat output."
+  }
+  return configuredBody
+}
+
+function readDcxSendOpenChatLabel(uxStrings: Record<string, string>): string {
+  const configuredLabel = uxStrings.messages_compose_outcome_open_topic?.trim()
+  if (!configuredLabel || configuredLabel.toLowerCase() === "open topic") {
+    return "Open chat"
+  }
+  return configuredLabel
 }
 
 function navigateToDcxAppPath(pathnameWithSearch: string): void {

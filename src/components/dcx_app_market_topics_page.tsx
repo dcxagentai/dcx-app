@@ -417,6 +417,7 @@ export function DcxAppMarketTopicsPage(props: Props) {
                           languageCode={selectedLanguageCode}
                           timezoneIanaName={selectedTimezoneIanaName}
                           turnMetadata={turn.turn_metadata_json}
+                          fallbackModelName={readDcxMarketTopicModelName(selectedTopic.topic_metadata_json)}
                         />
                       ))
                     )}
@@ -545,6 +546,7 @@ function DcxMarketTopicAiChatTurn(props: {
   languageCode: string
   timezoneIanaName: string | null
   turnMetadata: Record<string, unknown>
+  fallbackModelName?: string
   isPending?: boolean
 }) {
   const normalizedRole = props.role.trim().toLowerCase()
@@ -552,7 +554,9 @@ function DcxMarketTopicAiChatTurn(props: {
   const sourceMetadata = readDcxMarketTopicTurnSourceMetadata(props.turnMetadata)
   const showSourceIcon = !isAssistant && sourceMetadata.channel !== "app"
   const isUser = !isAssistant && normalizedRole !== "system"
-  const turnModelName = readDcxMarketTopicTurnModelName(props.turnMetadata)
+  const turnModelName = isAssistant
+    ? readDcxMarketTopicModelName(props.turnMetadata) || props.fallbackModelName?.trim() || ""
+    : readDcxMarketTopicModelName(props.turnMetadata)
   const turnTimestampLabel = formatDcxAppAccountTimestampLabel(
     props.createdAtTsMs,
     props.languageCode,
@@ -658,12 +662,36 @@ function readDcxMarketTopicTurnSourceMetadata(turnMetadata: Record<string, unkno
   }
 }
 
-function readDcxMarketTopicTurnModelName(turnMetadata: Record<string, unknown>): string {
-  const rawModelName = turnMetadata.model_name
-  if (typeof rawModelName !== "string") {
-    return ""
+function readDcxMarketTopicModelName(metadata: Record<string, unknown>): string {
+  const directModelName = normalizeDcxMarketTopicModelName(metadata.model_name)
+  if (directModelName) {
+    return directModelName
   }
-  return rawModelName.trim().replace(/^models\//, "")
+
+  const fallbackKeys = ["analysis_model_name", "seed_model_name", "ai_model_name"]
+  for (const fallbackKey of fallbackKeys) {
+    const fallbackModelName = normalizeDcxMarketTopicModelName(metadata[fallbackKey])
+    if (fallbackModelName) {
+      return fallbackModelName
+    }
+  }
+
+  const nestedKeys = ["ai_response_metadata_json", "seed_metadata_json", "market_topic_seed_metadata_json"]
+  for (const nestedKey of nestedKeys) {
+    const nestedMetadata = metadata[nestedKey]
+    if (nestedMetadata && typeof nestedMetadata === "object" && !Array.isArray(nestedMetadata)) {
+      const nestedModelName = readDcxMarketTopicModelName(nestedMetadata as Record<string, unknown>)
+      if (nestedModelName) {
+        return nestedModelName
+      }
+    }
+  }
+
+  return ""
+}
+
+function normalizeDcxMarketTopicModelName(rawModelName: unknown): string {
+  return typeof rawModelName === "string" ? rawModelName.trim().replace(/^models\//, "") : ""
 }
 
 type DcxSimpleMarkdownBlock =

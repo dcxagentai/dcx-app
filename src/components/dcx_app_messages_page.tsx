@@ -1168,7 +1168,7 @@ function DcxMessageWorkflowItemsPanel(props: {
                       size="sm"
                       onClick={() => navigateToDcxAppPath(`/ai/chats/${linkedMarketTopic.market_topic_id}`)}
                     >
-                      {props.ux.messages_workflow_open_topic ?? "Open chat"}
+                      {readDcxMessageOpenChatLabel(props.ux)}
                     </Button>
                   ) : null}
                 </div>
@@ -1195,6 +1195,14 @@ function readDcxMessageWorkflowItemKindLabel(itemKind: string): string {
     return "AI chat"
   }
   return normalizedItemKind ? normalizedItemKind.replaceAll("_", " ") : "item"
+}
+
+function readDcxMessageOpenChatLabel(uxStrings: Record<string, string>): string {
+  const configuredLabel = uxStrings.messages_workflow_open_topic?.trim()
+  if (!configuredLabel || configuredLabel.toLowerCase() === "open topic") {
+    return "Open chat"
+  }
+  return configuredLabel
 }
 
 function readDcxMessageOriginalLabel(uxStrings: Record<string, string>): string {
