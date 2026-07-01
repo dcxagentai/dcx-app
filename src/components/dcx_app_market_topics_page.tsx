@@ -552,6 +552,13 @@ function DcxMarketTopicAiChatTurn(props: {
   const sourceMetadata = readDcxMarketTopicTurnSourceMetadata(props.turnMetadata)
   const showSourceIcon = !isAssistant && sourceMetadata.channel !== "app"
   const isUser = !isAssistant && normalizedRole !== "system"
+  const turnModelName = readDcxMarketTopicTurnModelName(props.turnMetadata)
+  const turnTimestampLabel = formatDcxAppAccountTimestampLabel(
+    props.createdAtTsMs,
+    props.languageCode,
+    props.timezoneIanaName,
+    "-",
+  )
 
   return (
     <article
@@ -578,12 +585,7 @@ function DcxMarketTopicAiChatTurn(props: {
           ) : null}
         </p>
         <p className="text-xs text-slate-400">
-          {formatDcxAppAccountTimestampLabel(
-            props.createdAtTsMs,
-            props.languageCode,
-            props.timezoneIanaName,
-            "—",
-          )}
+          {turnModelName ? `${turnTimestampLabel} · ${turnModelName}` : turnTimestampLabel}
         </p>
       </div>
       <DcxSimpleMarkdownText
@@ -654,6 +656,14 @@ function readDcxMarketTopicTurnSourceMetadata(turnMetadata: Record<string, unkno
     Icon: MonitorIcon,
     className: "border-slate-200 bg-slate-50 text-slate-500",
   }
+}
+
+function readDcxMarketTopicTurnModelName(turnMetadata: Record<string, unknown>): string {
+  const rawModelName = turnMetadata.model_name
+  if (typeof rawModelName !== "string") {
+    return ""
+  }
+  return rawModelName.trim().replace(/^models\//, "")
 }
 
 type DcxSimpleMarkdownBlock =

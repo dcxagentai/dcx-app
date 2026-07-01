@@ -1138,7 +1138,7 @@ function DcxMessageWorkflowItemsPanel(props: {
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <DcxInlinePill
-                      label={workflowItem.item_kind.replaceAll("_", " ")}
+                      label={readDcxMessageWorkflowItemKindLabel(workflowItem.item_kind)}
                       tone={workflowItem.requires_user_attention ? "warning" : "neutral"}
                     />
                     <DcxInlinePill
@@ -1168,7 +1168,7 @@ function DcxMessageWorkflowItemsPanel(props: {
                       size="sm"
                       onClick={() => navigateToDcxAppPath(`/ai/chats/${linkedMarketTopic.market_topic_id}`)}
                     >
-                      {props.ux.messages_workflow_open_topic ?? "Open topic"}
+                      {props.ux.messages_workflow_open_topic ?? "Open chat"}
                     </Button>
                   ) : null}
                 </div>
@@ -1187,6 +1187,14 @@ function readDcxMessageSynthesisLabel(uxStrings: Record<string, string>): string
     return "Synthesis"
   }
   return configuredLabel
+}
+
+function readDcxMessageWorkflowItemKindLabel(itemKind: string): string {
+  const normalizedItemKind = itemKind.trim().toLowerCase()
+  if (normalizedItemKind === "market_topic") {
+    return "AI chat"
+  }
+  return normalizedItemKind ? normalizedItemKind.replaceAll("_", " ") : "item"
 }
 
 function readDcxMessageOriginalLabel(uxStrings: Record<string, string>): string {

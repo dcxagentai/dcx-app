@@ -883,7 +883,7 @@ function readDcxSendProgressSteps(props: {
           title: props.uxStrings.messages_compose_progress_routing_title ?? "Routing workflow...",
           body:
             props.uxStrings.messages_compose_progress_routing_body ??
-            "DCX is deciding whether this is a trade, market topic, other message, or prohibited content.",
+            "DCX is deciding whether this is a trade, AI chat, other message, or prohibited content.",
         },
         {
           key: "final",
@@ -913,7 +913,7 @@ function readDcxSendProgressSteps(props: {
           title: props.uxStrings.messages_compose_progress_routing_title ?? "Routing workflow...",
           body:
             props.uxStrings.messages_compose_progress_routing_body ??
-            "DCX is deciding whether this is a trade, market topic, other message, or prohibited content.",
+            "DCX is deciding whether this is a trade, AI chat, other message, or prohibited content.",
         },
         {
           key: "final",
@@ -1087,8 +1087,8 @@ function readDcxSendWorkflowOutcomeSummary(
     outcomeParts.push(
       `${topicCount} ${
         topicCount === 1
-          ? (uxStrings.messages_compose_progress_market_topic_singular ?? "market topic")
-          : (uxStrings.messages_compose_progress_market_topic_plural ?? "market topics")
+          ? (uxStrings.messages_compose_progress_market_topic_singular ?? "AI chat")
+          : (uxStrings.messages_compose_progress_market_topic_plural ?? "AI chats")
       }`,
     )
   }
@@ -1113,7 +1113,7 @@ function readDcxSendFinalOutcomeSummary(
 
   const linkedOutputCount = messageDetail.linked_trades.length + messageDetail.linked_market_topics.length
   if (linkedOutputCount > 0) {
-    return uxStrings.messages_compose_progress_open_outputs_body ?? "Open the message or jump straight to the created trade/topic output."
+    return uxStrings.messages_compose_progress_open_outputs_body ?? "Open the message or jump straight to the created trade/chat output."
   }
   if (messageDetail.contains_other_items) {
     return uxStrings.messages_compose_progress_open_other_body ?? "Open the message to review the stored Other item."
@@ -1147,10 +1147,10 @@ function readDcxSendOutcomeLinks(
     ...messageDetail.linked_market_topics.map((linkedMarketTopic, topicIndex) => ({
       key: `topic-${linkedMarketTopic.market_topic_id}`,
       label: messageDetail.linked_market_topics.length === 1
-        ? (uxStrings.messages_compose_outcome_open_topic ?? "Open topic")
-        : `${uxStrings.messages_compose_outcome_open_topic ?? "Open topic"} ${topicIndex + 1}`,
+        ? (uxStrings.messages_compose_outcome_open_topic ?? "Open chat")
+        : `${uxStrings.messages_compose_outcome_open_topic ?? "Open chat"} ${topicIndex + 1}`,
       path: `/ai/chats/${linkedMarketTopic.market_topic_id}`,
-      detail: linkedMarketTopic.topic_title || `Open topic #${linkedMarketTopic.market_topic_id}`,
+      detail: linkedMarketTopic.topic_title || `Open chat #${linkedMarketTopic.market_topic_id}`,
     })),
   ]
 }
