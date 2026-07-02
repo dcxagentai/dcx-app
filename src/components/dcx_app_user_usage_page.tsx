@@ -25,6 +25,9 @@ const USAGE_PERIOD_OPTIONS = [
   { label: "90D", days: 90 },
   { label: "1Y", days: 365 },
 ]
+const DCX_USAGE_CHART_TOTAL_COLOR = "#0f172a"
+const DCX_USAGE_CHART_INPUT_COLOR = "#3a5b7f"
+const DCX_USAGE_CHART_OUTPUT_COLOR = "#f08a24"
 
 export function DcxAppUserUsagePage(props: Props) {
   const [usagePeriodDays, setUsagePeriodDays] = useState(30)
@@ -98,7 +101,6 @@ export function DcxAppUserUsagePage(props: Props) {
               </div>
               <UsageTokensChart
                 dailyTotals={usage.daily_totals}
-                languageCode={selectedLanguageCode}
               />
             </div>
           </>
@@ -162,7 +164,6 @@ function UsageStat(props: { label: string; value: string }) {
 
 function UsageTokensChart(props: {
   dailyTotals: DcxAppUsageDailyTotal[]
-  languageCode: string
 }) {
   const chartWidth = 860
   const chartHeight = 260
@@ -197,9 +198,9 @@ function UsageTokensChart(props: {
   return (
     <div className="border border-slate-200 bg-slate-50/60 px-4 py-4">
       <div className="mb-3 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold uppercase tracking-[0.14em]">
-        <UsageChartLegendItem color="#0f172a" label="Total" />
-        <UsageChartLegendItem color="#2563eb" label="Input" />
-        <UsageChartLegendItem color="#b7791f" label="Output" />
+        <UsageChartLegendItem color={DCX_USAGE_CHART_TOTAL_COLOR} label="Total" />
+        <UsageChartLegendItem color={DCX_USAGE_CHART_INPUT_COLOR} label="Input" />
+        <UsageChartLegendItem color={DCX_USAGE_CHART_OUTPUT_COLOR} label="Output" />
       </div>
       <div className="overflow-x-auto">
         <svg
@@ -247,13 +248,13 @@ function UsageTokensChart(props: {
                 textAnchor={dayIndex === 0 ? "start" : dayIndex === props.dailyTotals.length - 1 ? "end" : "middle"}
                 className="fill-slate-500 text-[11px]"
               >
-                {formatDcxUsageChartDayLabel(dailyTotal.usage_day, props.languageCode)}
+                {formatDcxUsageChartDayLabel(dailyTotal.usage_day)}
               </text>
             )
           })}
-          <polyline points={totalPoints} fill="none" stroke="#0f172a" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
-          <polyline points={inputPoints} fill="none" stroke="#2563eb" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-          <polyline points={outputPoints} fill="none" stroke="#b7791f" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+          <polyline points={totalPoints} fill="none" stroke={DCX_USAGE_CHART_TOTAL_COLOR} strokeWidth="1" strokeLinejoin="round" strokeLinecap="round" />
+          <polyline points={inputPoints} fill="none" stroke={DCX_USAGE_CHART_INPUT_COLOR} strokeWidth="1" strokeLinejoin="round" strokeLinecap="round" />
+          <polyline points={outputPoints} fill="none" stroke={DCX_USAGE_CHART_OUTPUT_COLOR} strokeWidth="1" strokeLinejoin="round" strokeLinecap="round" />
         </svg>
       </div>
     </div>
@@ -279,12 +280,12 @@ function readDcxUsageChartLabelIndexes(dayCount: number): number[] {
   return Array.from(new Set([0, Math.floor((dayCount - 1) / 2), dayCount - 1]))
 }
 
-function formatDcxUsageChartDayLabel(usageDay: string, languageCode: string): string {
+function formatDcxUsageChartDayLabel(usageDay: string): string {
   const usageDate = new Date(`${usageDay}T00:00:00Z`)
   if (Number.isNaN(usageDate.getTime())) {
     return usageDay
   }
-  return new Intl.DateTimeFormat(languageCode || "en", {
+  return new Intl.DateTimeFormat("en", {
     month: "short",
     day: "numeric",
   }).format(usageDate)
