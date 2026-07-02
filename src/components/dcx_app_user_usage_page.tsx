@@ -3,6 +3,7 @@
  * Basic authenticated Usage page for DCX app users.
  * It shows the MVP token account from provider-returned Gemini usage metadata.
  */
+import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 
 import {
@@ -10,20 +11,33 @@ import {
   formatDcxAppAccountTimestampLabel,
 } from "./dcx_app_user_account_shared"
 import { readDcxAppAuthenticatedUserAccountSummary } from "../lib/read_dcx_app_authenticated_user_account_summary"
-import { readDcxAppAuthenticatedUserUsage } from "../lib/read_dcx_app_authenticated_user_usage"
+import {
+  readDcxAppAuthenticatedUserUsage,
+  type DcxAppUsageDailyTotal,
+} from "../lib/read_dcx_app_authenticated_user_usage"
 
 type Props = {
   apiBaseUrl: string
 }
 
+const USAGE_PERIOD_OPTIONS = [
+  { label: "30D", days: 30 },
+  { label: "90D", days: 90 },
+  { label: "1Y", days: 365 },
+]
+
 export function DcxAppUserUsagePage(props: Props) {
+  const [usagePeriodDays, setUsagePeriodDays] = useState(30)
   const accountSummaryQuery = useQuery({
     queryKey: ["dcx_app_authenticated_user_account_summary"],
     queryFn: async () => readDcxAppAuthenticatedUserAccountSummary({ apiBaseUrl: props.apiBaseUrl }),
   })
   const usageQuery = useQuery({
-    queryKey: ["dcx_app_authenticated_user_usage"],
-    queryFn: async () => readDcxAppAuthenticatedUserUsage({ apiBaseUrl: props.apiBaseUrl }),
+    queryKey: ["dcx_app_authenticated_user_usage", usagePeriodDays],
+    queryFn: async () => readDcxAppAuthenticatedUserUsage({
+      apiBaseUrl: props.apiBaseUrl,
+      days: usagePeriodDays,
+    }),
   })
 
   const accountSummary = accountSummaryQuery.data?.data ?? null
@@ -50,11 +64,44 @@ export function DcxAppUserUsagePage(props: Props) {
         ) : null}
 
         {usage ? (
-          <div className="grid gap-3 sm:grid-cols-3">
-            <UsageStat label="Total tokens" value={usage.total_tokens.toLocaleString()} />
-            <UsageStat label="Input tokens" value={usage.total_prompt_tokens.toLocaleString()} />
-            <UsageStat label="Output tokens" value={usage.total_candidates_tokens.toLocaleString()} />
-          </div>
+          <>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <UsageStat label="Total tokens" value={usage.total_tokens.toLocaleString()} />
+              <UsageStat label="Input tokens" value={usage.total_prompt_tokens.toLocaleString()} />
+              <UsageStat label="Output tokens" value={usage.total_candidates_tokens.toLocaleString()} />
+            </div>
+            <div className="mt-6 border-t border-black/6 pt-5">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold tracking-tight text-slate-950">Usage over time</h3>
+                  <p className="text-sm text-slate-500">Daily input, output, and total token counts.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {USAGE_PERIOD_OPTIONS.map((periodOption) => {
+                    const isSelectedPeriod = periodOption.days === usagePeriodDays
+                    return (
+                      <button
+                        key={periodOption.days}
+                        type="button"
+                        onClick={() => setUsagePeriodDays(periodOption.days)}
+                        className={
+                          isSelectedPeriod
+                            ? "border border-slate-950 bg-slate-950 px-3 py-1.5 text-sm font-semibold text-white"
+                            : "border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-400 hover:bg-slate-50"
+                        }
+                      >
+                        {periodOption.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+              <UsageTokensChart
+                dailyTotals={usage.daily_totals}
+                languageCode={selectedLanguageCode}
+              />
+            </div>
+          </>
         ) : null}
       </article>
 
@@ -111,4 +158,144 @@ function UsageStat(props: { label: string; value: string }) {
       <p className="mt-2 text-2xl font-semibold tabular-nums tracking-tight text-slate-950">{props.value}</p>
     </div>
   )
+}
+
+function UsageTokensChart(props: {
+  dailyTotals: DcxAppUsageDailyTotal[]
+  languageCode: string
+}) {
+  const chartWidth = 860
+  const chartHeight = 260
+  const chartPadding = { top: 18, right: 18, bottom: 34, left: 58 }
+  const plotWidth = chartWidth - chartPadding.left - chartPadding.right
+  const plotHeight = chartHeight - chartPadding.top - chartPadding.bottom
+  const maxTokenCount = Math.max(
+    1,
+    ...props.dailyTotals.map((dailyTotal) => dailyTotal.total_token_count),
+  )
+
+  const readPoint = (dayIndex: number, tokenCount: number): string => {
+    const x = props.dailyTotals.length <= 1
+      ? chartPadding.left
+      : chartPadding.left + (dayIndex / (props.dailyTotals.length - 1)) * plotWidth
+    const y = chartPadding.top + (1 - tokenCount / maxTokenCount) * plotHeight
+    return `${x.toFixed(2)},${y.toFixed(2)}`
+  }
+
+  const totalPoints = props.dailyTotals
+    .map((dailyTotal, dayIndex) => readPoint(dayIndex, dailyTotal.total_token_count))
+    .join(" ")
+  const inputPoints = props.dailyTotals
+    .map((dailyTotal, dayIndex) => readPoint(dayIndex, dailyTotal.prompt_token_count))
+    .join(" ")
+  const outputPoints = props.dailyTotals
+    .map((dailyTotal, dayIndex) => readPoint(dayIndex, dailyTotal.candidates_token_count))
+    .join(" ")
+  const guideValues = Array.from(new Set([maxTokenCount, Math.round(maxTokenCount / 2), 0]))
+  const labelIndexes = readDcxUsageChartLabelIndexes(props.dailyTotals.length)
+
+  return (
+    <div className="border border-slate-200 bg-slate-50/60 px-4 py-4">
+      <div className="mb-3 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold uppercase tracking-[0.14em]">
+        <UsageChartLegendItem color="#0f172a" label="Total" />
+        <UsageChartLegendItem color="#2563eb" label="Input" />
+        <UsageChartLegendItem color="#b7791f" label="Output" />
+      </div>
+      <div className="overflow-x-auto">
+        <svg
+          viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+          role="img"
+          aria-label="Daily token usage chart"
+          className="min-w-[680px] text-slate-500"
+        >
+          {guideValues.map((guideValue) => {
+            const y = chartPadding.top + (1 - guideValue / maxTokenCount) * plotHeight
+            return (
+              <g key={guideValue}>
+                <line
+                  x1={chartPadding.left}
+                  x2={chartWidth - chartPadding.right}
+                  y1={y}
+                  y2={y}
+                  stroke="#e2e8f0"
+                  strokeWidth="1"
+                />
+                <text
+                  x={chartPadding.left - 10}
+                  y={y + 4}
+                  textAnchor="end"
+                  className="fill-slate-500 text-[11px]"
+                >
+                  {readDcxUsageCompactNumber(guideValue)}
+                </text>
+              </g>
+            )
+          })}
+          {labelIndexes.map((dayIndex) => {
+            const dailyTotal = props.dailyTotals[dayIndex]
+            if (!dailyTotal) {
+              return null
+            }
+            const x = props.dailyTotals.length <= 1
+              ? chartPadding.left
+              : chartPadding.left + (dayIndex / (props.dailyTotals.length - 1)) * plotWidth
+            return (
+              <text
+                key={`${dailyTotal.usage_day}-${dayIndex}`}
+                x={x}
+                y={chartHeight - 8}
+                textAnchor={dayIndex === 0 ? "start" : dayIndex === props.dailyTotals.length - 1 ? "end" : "middle"}
+                className="fill-slate-500 text-[11px]"
+              >
+                {formatDcxUsageChartDayLabel(dailyTotal.usage_day, props.languageCode)}
+              </text>
+            )
+          })}
+          <polyline points={totalPoints} fill="none" stroke="#0f172a" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+          <polyline points={inputPoints} fill="none" stroke="#2563eb" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+          <polyline points={outputPoints} fill="none" stroke="#b7791f" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+        </svg>
+      </div>
+    </div>
+  )
+}
+
+function UsageChartLegendItem(props: { color: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-2 text-slate-600">
+      <span className="size-2.5" style={{ backgroundColor: props.color }} />
+      {props.label}
+    </span>
+  )
+}
+
+function readDcxUsageChartLabelIndexes(dayCount: number): number[] {
+  if (dayCount <= 0) {
+    return []
+  }
+  if (dayCount === 1) {
+    return [0]
+  }
+  return Array.from(new Set([0, Math.floor((dayCount - 1) / 2), dayCount - 1]))
+}
+
+function formatDcxUsageChartDayLabel(usageDay: string, languageCode: string): string {
+  const usageDate = new Date(`${usageDay}T00:00:00Z`)
+  if (Number.isNaN(usageDate.getTime())) {
+    return usageDay
+  }
+  return new Intl.DateTimeFormat(languageCode || "en", {
+    month: "short",
+    day: "numeric",
+  }).format(usageDate)
+}
+
+function readDcxUsageCompactNumber(value: number): string {
+  if (value >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(value >= 10_000_000 ? 0 : 1)}M`
+  }
+  if (value >= 1_000) {
+    return `${(value / 1_000).toFixed(value >= 10_000 ? 0 : 1)}K`
+  }
+  return value.toLocaleString()
 }

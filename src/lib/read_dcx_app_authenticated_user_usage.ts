@@ -17,6 +17,8 @@ export type DcxAppUsageEvent = {
 
 export type DcxAppUsageDailyTotal = {
   usage_day: string
+  prompt_token_count: number
+  candidates_token_count: number
   total_token_count: number
   event_count: number
 }
@@ -26,6 +28,7 @@ export type DcxAppAuthenticatedUserUsage = {
   total_candidates_tokens: number
   total_tokens: number
   total_events: number
+  daily_window_days: number
   recent_events: DcxAppUsageEvent[]
   daily_totals: DcxAppUsageDailyTotal[]
 }
@@ -47,8 +50,15 @@ type DcxAppUsageErrorResponse = {
 
 export async function readDcxAppAuthenticatedUserUsage(params: {
   apiBaseUrl: string
+  days?: number
 }): Promise<DcxAppUsageSuccessResponse> {
-  const response = await fetch(new URL("/users/me/usage", params.apiBaseUrl).toString(), {
+  const normalizedDays =
+    typeof params.days === "number" && Number.isFinite(params.days)
+      ? Math.max(1, Math.min(Math.trunc(params.days), 365))
+      : 30
+  const usageUrl = new URL(`/users/me/usage/days/${normalizedDays}`, params.apiBaseUrl)
+
+  const response = await fetch(usageUrl.toString(), {
     credentials: "include",
   })
   const payload = (await response.json()) as DcxAppUsageSuccessResponse | DcxAppUsageErrorResponse
