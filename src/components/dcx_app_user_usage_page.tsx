@@ -25,8 +25,8 @@ const USAGE_PERIOD_OPTIONS = [
   { label: "90D", days: 90 },
   { label: "1Y", days: 365 },
 ]
-const DCX_USAGE_CHART_TOTAL_COLOR = "#0f172a"
-const DCX_USAGE_CHART_INPUT_COLOR = "#3a5b7f"
+const DCX_USAGE_CHART_TOTAL_COLOR = "#3a5b7f"
+const DCX_USAGE_CHART_INPUT_COLOR = "#4db38f"
 const DCX_USAGE_CHART_OUTPUT_COLOR = "#f08a24"
 
 export function DcxAppUserUsagePage(props: Props) {
