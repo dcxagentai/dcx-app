@@ -27,6 +27,10 @@ import { readDcxAppAuthenticatedUserAccountSummary } from "../lib/read_dcx_app_a
 import {
   appendDcxAppNetworkFeedReply,
   readDcxAppNetworkFeed,
+  readDcxAppNetworkFeedPost,
+  setDcxAppNetworkFeedPostBookmark,
+  setDcxAppNetworkFeedPostLike,
+  setDcxAppNetworkFeedPostRepost,
   type DcxAppNetworkFeedPost,
   type DcxAppNetworkFeedScope,
 } from "../lib/dcx_app_network_api"
@@ -37,6 +41,7 @@ import {
 
 type Props = {
   apiBaseUrl: string
+  routeFeedPostId?: number | null
 }
 
 export function DcxAppNetworkFeedPage(props: Props) {
@@ -44,6 +49,9 @@ export function DcxAppNetworkFeedPage(props: Props) {
   const [scope, setScope] = useState<DcxAppNetworkFeedScope>("following")
   const [activeReplyPostId, setActiveReplyPostId] = useState<number | null>(null)
   const [replyTextByPostId, setReplyTextByPostId] = useState<Record<number, string>>({})
+  const [copiedSharePostId, setCopiedSharePostId] = useState<number | null>(null)
+  const routeFeedPostId = props.routeFeedPostId ?? null
+  const isPostDetailRoute = routeFeedPostId !== null
 
   const accountSummaryQuery = useQuery({
     queryKey: ["dcx_app_authenticated_user_account_summary"],
@@ -57,6 +65,17 @@ export function DcxAppNetworkFeedPage(props: Props) {
   const feedQuery = useQuery({
     queryKey: ["dcx_app_network_feed", scope],
     queryFn: async () => readDcxAppNetworkFeed({ apiBaseUrl: props.apiBaseUrl, scope }),
+    enabled: !isPostDetailRoute,
+  })
+
+  const feedPostQuery = useQuery({
+    queryKey: ["dcx_app_network_feed_post", routeFeedPostId],
+    queryFn: async () =>
+      readDcxAppNetworkFeedPost({
+        apiBaseUrl: props.apiBaseUrl,
+        feedPostId: routeFeedPostId ?? 0,
+      }),
+    enabled: isPostDetailRoute && routeFeedPostId !== null,
   })
 
   const replyMutation = useMutation({
@@ -72,15 +91,85 @@ export function DcxAppNetworkFeedPage(props: Props) {
         ...previous,
         [variables.feedPostId]: "",
       }))
-      await queryClient.invalidateQueries({ queryKey: ["dcx_app_network_feed"] })
+      await invalidateNetworkFeedPost(variables.feedPostId)
     },
   })
 
-  const posts = feedQuery.data?.data.posts ?? []
+  const likeMutation = useMutation({
+    mutationFn: async (params: { feedPostId: number; shouldLike: boolean }) =>
+      setDcxAppNetworkFeedPostLike({
+        apiBaseUrl: props.apiBaseUrl,
+        feedPostId: params.feedPostId,
+        shouldLike: params.shouldLike,
+      }),
+    onSuccess: async (_payload, variables) => {
+      await invalidateNetworkFeedPost(variables.feedPostId)
+    },
+  })
+
+  const repostMutation = useMutation({
+    mutationFn: async (params: { feedPostId: number; shouldRepost: boolean }) =>
+      setDcxAppNetworkFeedPostRepost({
+        apiBaseUrl: props.apiBaseUrl,
+        feedPostId: params.feedPostId,
+        shouldRepost: params.shouldRepost,
+      }),
+    onSuccess: async (_payload, variables) => {
+      await invalidateNetworkFeedPost(variables.feedPostId)
+    },
+  })
+
+  const bookmarkMutation = useMutation({
+    mutationFn: async (params: { feedPostId: number; shouldBookmark: boolean }) =>
+      setDcxAppNetworkFeedPostBookmark({
+        apiBaseUrl: props.apiBaseUrl,
+        feedPostId: params.feedPostId,
+        shouldBookmark: params.shouldBookmark,
+      }),
+    onSuccess: async (_payload, variables) => {
+      await invalidateNetworkFeedPost(variables.feedPostId)
+    },
+  })
+
+  async function invalidateNetworkFeedPost(feedPostId: number): Promise<void> {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["dcx_app_network_feed"] }),
+      queryClient.invalidateQueries({ queryKey: ["dcx_app_network_feed_post", feedPostId] }),
+    ])
+  }
+
+  async function handleSharePost(feedPostId: number): Promise<void> {
+    const postUrl = `${window.location.origin}/network/feed/${feedPostId}`
+    await navigator.clipboard?.writeText(postUrl)
+    setCopiedSharePostId(feedPostId)
+    window.setTimeout(() => {
+      setCopiedSharePostId((currentPostId) => (currentPostId === feedPostId ? null : currentPostId))
+    }, 1800)
+  }
+
+  const posts = isPostDetailRoute
+    ? feedPostQuery.data?.data
+      ? [feedPostQuery.data.data]
+      : []
+    : feedQuery.data?.data.posts ?? []
+  const isLoading = isPostDetailRoute ? feedPostQuery.isLoading : feedQuery.isLoading
+  const isError = isPostDetailRoute ? feedPostQuery.isError : feedQuery.isError
+  const error = isPostDetailRoute ? feedPostQuery.error : feedQuery.error
 
   return (
     <section className="flex min-h-[calc(100vh-5rem)] flex-col gap-4 text-slate-950">
       <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-3">
+        {isPostDetailRoute ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="rounded-full"
+            onClick={() => window.location.assign("/network/feed")}
+          >
+            Back to feed
+          </Button>
+        ) : (
         <div className="inline-flex rounded-full border border-slate-200 bg-white p-1">
           <Button
             type="button"
@@ -101,32 +190,37 @@ export function DcxAppNetworkFeedPage(props: Props) {
             All
           </Button>
         </div>
+        )}
         <Button
           type="button"
           variant="outline"
           size="sm"
           className="rounded-full"
-          onClick={() => void queryClient.invalidateQueries({ queryKey: ["dcx_app_network_feed"] })}
+          onClick={() =>
+            void (isPostDetailRoute && routeFeedPostId !== null
+              ? queryClient.invalidateQueries({ queryKey: ["dcx_app_network_feed_post", routeFeedPostId] })
+              : queryClient.invalidateQueries({ queryKey: ["dcx_app_network_feed"] }))
+          }
         >
           <RefreshCwIcon />
           {ux.refresh_button_label ?? "Refresh"}
         </Button>
       </div>
 
-      {feedQuery.isLoading ? (
+      {isLoading ? (
         <section className="mx-auto w-full max-w-3xl border border-black/6 bg-white px-6 py-8">
           <p className="text-sm text-slate-500">Loading network feed...</p>
         </section>
       ) : null}
 
-      {feedQuery.isError ? (
+      {isError ? (
         <section className="mx-auto w-full max-w-3xl border border-red-200 bg-white px-6 py-8">
-          <p className="text-sm text-red-600">{(feedQuery.error as Error).message}</p>
+          <p className="text-sm text-red-600">{(error as Error).message}</p>
         </section>
       ) : null}
 
       <div className="mx-auto w-full max-w-3xl border-x border-t border-slate-200 bg-white">
-        {posts.length === 0 && !feedQuery.isLoading ? (
+        {posts.length === 0 && !isLoading ? (
           <section className="border-b border-slate-200 px-6 py-10">
             <p className="text-sm text-slate-500">No network posts yet.</p>
           </section>
@@ -136,6 +230,7 @@ export function DcxAppNetworkFeedPage(props: Props) {
             key={post.feed_post_id}
             apiBaseUrl={props.apiBaseUrl}
             post={post}
+            isDetailView={isPostDetailRoute}
             selectedLanguageCode={selectedLanguageCode}
             selectedTimezoneIanaName={selectedTimezoneIanaName}
             replyText={replyTextByPostId[post.feed_post_id] ?? ""}
@@ -157,6 +252,31 @@ export function DcxAppNetworkFeedPage(props: Props) {
                 replyMutation.mutate({ feedPostId: post.feed_post_id, replyText })
               }
             }}
+            onOpenPost={() => {
+              if (!isPostDetailRoute) {
+                window.location.assign(`/network/feed/${post.feed_post_id}`)
+              }
+            }}
+            onToggleLike={() =>
+              likeMutation.mutate({
+                feedPostId: post.feed_post_id,
+                shouldLike: !post.viewer_has_liked,
+              })
+            }
+            onToggleRepost={() =>
+              repostMutation.mutate({
+                feedPostId: post.feed_post_id,
+                shouldRepost: !post.viewer_has_reposted,
+              })
+            }
+            onToggleBookmark={() =>
+              bookmarkMutation.mutate({
+                feedPostId: post.feed_post_id,
+                shouldBookmark: !post.viewer_has_bookmarked,
+              })
+            }
+            onSharePost={() => void handleSharePost(post.feed_post_id)}
+            isShareCopied={copiedSharePostId === post.feed_post_id}
           />
         ))}
       </div>
@@ -167,6 +287,7 @@ export function DcxAppNetworkFeedPage(props: Props) {
 function DcxNetworkFeedPostCard(props: {
   apiBaseUrl: string
   post: DcxAppNetworkFeedPost
+  isDetailView: boolean
   selectedLanguageCode: string
   selectedTimezoneIanaName: string | null
   replyText: string
@@ -175,23 +296,46 @@ function DcxNetworkFeedPostCard(props: {
   onOpenReplyComposer: () => void
   onChangeReplyText: (nextText: string) => void
   onSubmitReply: () => void
+  onOpenPost: () => void
+  onToggleLike: () => void
+  onToggleRepost: () => void
+  onToggleBookmark: () => void
+  onSharePost: () => void
+  isShareCopied: boolean
 }) {
   return (
-    <article className="border-b border-slate-200 bg-white px-4 py-4 transition-colors hover:bg-slate-50/50 sm:px-5">
+    <article
+      className={[
+        "border-b border-slate-200 bg-white px-4 py-4 transition-colors sm:px-5",
+        props.isDetailView ? "" : "cursor-pointer hover:bg-slate-50/50",
+      ].join(" ")}
+      onClick={props.isDetailView ? undefined : props.onOpenPost}
+      onKeyDown={(event) => {
+        if (!props.isDetailView && (event.key === "Enter" || event.key === " ")) {
+          event.preventDefault()
+          props.onOpenPost()
+        }
+      }}
+      role={props.isDetailView ? undefined : "link"}
+      tabIndex={props.isDetailView ? undefined : 0}
+    >
       <header className="flex items-start gap-3">
         <DcxAppNetworkAvatar author={props.post.author} size="lg" />
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-start justify-between gap-3">
+            <div onClick={(event) => event.stopPropagation()}>
             <DcxNetworkFeedAuthorLine
               author={props.post.author}
               createdAtTsMs={props.post.created_at_ts_ms}
               selectedLanguageCode={props.selectedLanguageCode}
               selectedTimezoneIanaName={props.selectedTimezoneIanaName}
             />
+            </div>
             <button
               type="button"
               className="rounded-full p-1 text-slate-500 transition-colors hover:bg-sky-50 hover:text-sky-700"
               aria-label="More post actions"
+              onClick={(event) => event.stopPropagation()}
             >
               <MoreHorizontalIcon className="size-5" />
             </button>
@@ -200,12 +344,23 @@ function DcxNetworkFeedPostCard(props: {
           <DcxNetworkFeedPostAttachment apiBaseUrl={props.apiBaseUrl} post={props.post} />
           <DcxNetworkFeedActionBar
             replyCount={props.post.reply_count}
+            repostCount={props.post.repost_count}
+            likeCount={props.post.like_count}
+            viewCount={props.post.view_count}
+            viewerHasReposted={props.post.viewer_has_reposted}
+            viewerHasLiked={props.post.viewer_has_liked}
+            viewerHasBookmarked={props.post.viewer_has_bookmarked}
+            isShareCopied={props.isShareCopied}
             onOpenReplyComposer={props.onOpenReplyComposer}
+            onToggleRepost={props.onToggleRepost}
+            onToggleLike={props.onToggleLike}
+            onToggleBookmark={props.onToggleBookmark}
+            onSharePost={props.onSharePost}
           />
         </div>
       </header>
       {(props.post.replies.length > 0 || props.isReplyComposerOpen) ? (
-      <section className="mt-3 ml-12 space-y-3 border-l border-slate-200 pl-4">
+      <section className="mt-3 ml-12 space-y-3 border-l border-slate-200 pl-4" onClick={(event) => event.stopPropagation()}>
         {props.post.replies.map((reply) => (
           <div key={reply.feed_reply_id} className="flex gap-2">
               <DcxAppNetworkAvatar author={reply.author} size="sm" />
@@ -226,13 +381,17 @@ function DcxNetworkFeedPostCard(props: {
             rows={2}
             placeholder="Post your reply..."
             onChange={(event) => props.onChangeReplyText(event.target.value)}
+            onClick={(event) => event.stopPropagation()}
             className="min-h-20 resize-y border-slate-200 bg-white text-sm shadow-none"
           />
           <Button
             type="button"
             className="self-end rounded-full"
             disabled={props.replyText.trim() === "" || props.isSavingReply}
-            onClick={props.onSubmitReply}
+            onClick={(event) => {
+              event.stopPropagation()
+              props.onSubmitReply()
+            }}
           >
             Reply
           </Button>
@@ -281,50 +440,117 @@ function DcxNetworkFeedAuthorLine(props: {
 
 function DcxNetworkFeedActionBar(props: {
   replyCount: number
+  repostCount: number
+  likeCount: number
+  viewCount: number
+  viewerHasReposted: boolean
+  viewerHasLiked: boolean
+  viewerHasBookmarked: boolean
+  isShareCopied: boolean
   onOpenReplyComposer: () => void
+  onToggleRepost: () => void
+  onToggleLike: () => void
+  onToggleBookmark: () => void
+  onSharePost: () => void
 }) {
   return (
     <div className="mt-3 grid grid-cols-6 items-center gap-1 text-slate-500 sm:max-w-xl">
       <button
         type="button"
         className="group inline-flex items-center gap-2 rounded-full py-1 text-sm transition-colors hover:text-sky-700"
-        onClick={props.onOpenReplyComposer}
+        title="Reply"
+        onClick={(event) => {
+          event.stopPropagation()
+          props.onOpenReplyComposer()
+        }}
       >
         <span className="rounded-full p-1.5 transition-colors group-hover:bg-sky-50">
           <MessageCircleIcon className="size-4" />
         </span>
-        <span>{props.replyCount}</span>
+        <span>{formatDcxNetworkFeedCount(props.replyCount)}</span>
       </button>
-      <span className="inline-flex items-center gap-2 rounded-full py-1 text-sm">
-        <span className="rounded-full p-1.5">
+      <button
+        type="button"
+        className={[
+          "group inline-flex items-center gap-2 rounded-full py-1 text-sm transition-colors hover:text-emerald-600",
+          props.viewerHasReposted ? "text-emerald-600" : "",
+        ].join(" ")}
+        title={props.viewerHasReposted ? "Remove repost" : "Repost"}
+        onClick={(event) => {
+          event.stopPropagation()
+          props.onToggleRepost()
+        }}
+      >
+        <span className="rounded-full p-1.5 transition-colors group-hover:bg-emerald-50">
           <Repeat2Icon className="size-4" />
         </span>
-        <span>0</span>
-      </span>
-      <span className="inline-flex items-center gap-2 rounded-full py-1 text-sm">
-        <span className="rounded-full p-1.5">
-          <HeartIcon className="size-4" />
+        <span>{formatDcxNetworkFeedCount(props.repostCount)}</span>
+      </button>
+      <button
+        type="button"
+        className={[
+          "group inline-flex items-center gap-2 rounded-full py-1 text-sm transition-colors hover:text-rose-600",
+          props.viewerHasLiked ? "text-rose-600" : "",
+        ].join(" ")}
+        title={props.viewerHasLiked ? "Unlike" : "Like"}
+        onClick={(event) => {
+          event.stopPropagation()
+          props.onToggleLike()
+        }}
+      >
+        <span className="rounded-full p-1.5 transition-colors group-hover:bg-rose-50">
+          <HeartIcon className={["size-4", props.viewerHasLiked ? "fill-current" : ""].join(" ")} />
         </span>
-        <span>0</span>
-      </span>
+        <span>{formatDcxNetworkFeedCount(props.likeCount)}</span>
+      </button>
       <span className="inline-flex items-center gap-2 rounded-full py-1 text-sm">
         <span className="rounded-full p-1.5">
           <BarChart3Icon className="size-4" />
         </span>
-        <span>0</span>
+        <span>{formatDcxNetworkFeedCount(props.viewCount)}</span>
       </span>
-      <span className="inline-flex justify-end rounded-full py-1 text-sm sm:justify-start">
-        <span className="rounded-full p-1.5">
-          <BookmarkIcon className="size-4" />
+      <button
+        type="button"
+        className={[
+          "group inline-flex justify-end rounded-full py-1 text-sm transition-colors hover:text-sky-700 sm:justify-start",
+          props.viewerHasBookmarked ? "text-sky-700" : "",
+        ].join(" ")}
+        title={props.viewerHasBookmarked ? "Remove bookmark" : "Bookmark"}
+        onClick={(event) => {
+          event.stopPropagation()
+          props.onToggleBookmark()
+        }}
+      >
+        <span className="rounded-full p-1.5 transition-colors group-hover:bg-sky-50">
+          <BookmarkIcon className={["size-4", props.viewerHasBookmarked ? "fill-current" : ""].join(" ")} />
         </span>
-      </span>
-      <span className="inline-flex justify-end rounded-full py-1 text-sm sm:justify-start">
-        <span className="rounded-full p-1.5">
+      </button>
+      <button
+        type="button"
+        className="group inline-flex justify-end rounded-full py-1 text-sm transition-colors hover:text-sky-700 sm:justify-start"
+        title={props.isShareCopied ? "Copied" : "Copy link"}
+        onClick={(event) => {
+          event.stopPropagation()
+          props.onSharePost()
+        }}
+      >
+        <span className="rounded-full p-1.5 transition-colors group-hover:bg-sky-50">
           <ShareIcon className="size-4" />
         </span>
-      </span>
+      </button>
     </div>
   )
+}
+
+function formatDcxNetworkFeedCount(count: number): string {
+  const normalizedCount = Number.isFinite(count) && count > 0 ? count : 0
+  if (normalizedCount < 1000) {
+    return `${normalizedCount}`
+  }
+  return new Intl.NumberFormat("en", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(normalizedCount)
 }
 
 function readDcxNetworkFeedRelativeTimestamp(createdAtTsMs: number): string {
@@ -365,7 +591,10 @@ function DcxNetworkFeedPostAttachment(props: {
   const attachmentUrl = new URL(attachment.attachment_url_path, props.apiBaseUrl).toString()
   if (attachment.attachment_kind === "image") {
     return (
-      <div className="mt-4 overflow-hidden rounded-md border border-slate-200 bg-slate-50">
+      <div
+        className="mt-4 overflow-hidden rounded-md border border-slate-200 bg-slate-50"
+        onClick={(event) => event.stopPropagation()}
+      >
         <img
           src={attachmentUrl}
           alt={attachment.original_filename || "Network post image"}
@@ -376,7 +605,10 @@ function DcxNetworkFeedPostAttachment(props: {
   }
 
   return (
-    <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-4 py-3">
+    <div
+      className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-4 py-3"
+      onClick={(event) => event.stopPropagation()}
+    >
       <audio controls className="w-full">
         <source src={attachmentUrl} type={attachment.content_type || "audio/mpeg"} />
       </audio>

@@ -380,6 +380,7 @@ function App() {
   const protectedAppMarketTradePublicationId = readProtectedAppMarketTradePublicationId(pathname)
   const protectedAppForumPostId = readProtectedAppForumPostId(pathname)
   const protectedAppNetworkNickname = readProtectedAppNetworkNickname(pathname)
+  const protectedAppNetworkFeedPostId = readProtectedAppNetworkFeedPostId(pathname)
   const protectedAppNetworkDmThreadId = readProtectedAppNetworkDmThreadId(pathname)
 
   useEffect(() => {
@@ -572,7 +573,7 @@ function App() {
         <DcxAppMarketForumPage apiBaseUrl={apiBaseUrl} routeForumPostId={protectedAppForumPostId} />
       ) : null}
       {protectedAppPathname === "/network/feed" ? (
-        <DcxAppNetworkFeedPage apiBaseUrl={apiBaseUrl} />
+        <DcxAppNetworkFeedPage apiBaseUrl={apiBaseUrl} routeFeedPostId={protectedAppNetworkFeedPostId} />
       ) : null}
       {protectedAppPathname === "/network/contacts" ? (
         <DcxAppNetworkContactsPage apiBaseUrl={apiBaseUrl} />
@@ -640,7 +641,7 @@ function readProtectedAppPathname(
     return "/me/market/forum"
   }
 
-  if (pathname === "/network/feed") {
+  if (pathname === "/network/feed" || /^\/network\/feed\/\d+$/.test(pathname)) {
     return "/network/feed"
   }
 
@@ -812,6 +813,15 @@ function readProtectedAppNetworkNickname(pathname: string): string | null {
     return null
   }
   return match[1]
+}
+
+function readProtectedAppNetworkFeedPostId(pathname: string): number | null {
+  const match = pathname.match(/^\/network\/feed\/(\d+)$/)
+  if (!match) {
+    return null
+  }
+  const parsedFeedPostId = Number.parseInt(match[1], 10)
+  return Number.isFinite(parsedFeedPostId) && parsedFeedPostId > 0 ? parsedFeedPostId : null
 }
 
 function readProtectedAppNetworkDmThreadId(pathname: string): number | null {

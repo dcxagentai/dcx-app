@@ -76,7 +76,15 @@ export type DcxAppNetworkFeedPost = {
   created_at_ts_ms: number
   updated_at_ts_ms: number
   reply_count: number
+  like_count: number
+  repost_count: number
+  bookmark_count: number
+  view_count: number
   viewer_follows_author: boolean
+  viewer_has_liked: boolean
+  viewer_has_reposted: boolean
+  viewer_has_bookmarked: boolean
+  feed_activity_ts_ms: number
   is_owned_by_authenticated_user: boolean
   attachment: DcxAppNetworkFeedAttachment | null
   replies: DcxAppNetworkFeedReply[]
@@ -181,6 +189,17 @@ export async function readDcxAppNetworkFeed(params: {
   })
 }
 
+export async function readDcxAppNetworkFeedPost(params: {
+  apiBaseUrl: string
+  feedPostId: number
+}): Promise<DcxNetworkSuccessResponse<DcxAppNetworkFeedPost>> {
+  return readDcxNetworkJson(new URL(`/network/feed/posts/${params.feedPostId}`, params.apiBaseUrl), {
+    method: "GET",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+  })
+}
+
 export async function createDcxAppNetworkFeedPost(params: {
   apiBaseUrl: string
   postText: string
@@ -218,6 +237,45 @@ export async function appendDcxAppNetworkFeedReply(params: {
       }),
     },
   )
+}
+
+export async function setDcxAppNetworkFeedPostLike(params: {
+  apiBaseUrl: string
+  feedPostId: number
+  shouldLike: boolean
+}): Promise<DcxNetworkSuccessResponse<DcxAppNetworkFeedPost>> {
+  return readDcxNetworkJson(new URL(`/network/feed/posts/${params.feedPostId}/like`, params.apiBaseUrl), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ should_like: params.shouldLike }),
+  })
+}
+
+export async function setDcxAppNetworkFeedPostRepost(params: {
+  apiBaseUrl: string
+  feedPostId: number
+  shouldRepost: boolean
+}): Promise<DcxNetworkSuccessResponse<DcxAppNetworkFeedPost>> {
+  return readDcxNetworkJson(new URL(`/network/feed/posts/${params.feedPostId}/repost`, params.apiBaseUrl), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ should_repost: params.shouldRepost }),
+  })
+}
+
+export async function setDcxAppNetworkFeedPostBookmark(params: {
+  apiBaseUrl: string
+  feedPostId: number
+  shouldBookmark: boolean
+}): Promise<DcxNetworkSuccessResponse<DcxAppNetworkFeedPost>> {
+  return readDcxNetworkJson(new URL(`/network/feed/posts/${params.feedPostId}/bookmark`, params.apiBaseUrl), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ should_bookmark: params.shouldBookmark }),
+  })
 }
 
 export async function readDcxAppNetworkProfile(params: {
