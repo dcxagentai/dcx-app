@@ -601,7 +601,7 @@ function DcxMarketTopicAiChatTurn(props: {
 }
 
 function readDcxMarketTopicReferenceCode(marketTopicId: number): string {
-  return `C${marketTopicId}`
+  return `AI${marketTopicId}`
 }
 
 function readDcxMarketTopicIsDirectAiChat(topic: DcxAppAuthenticatedUserMarketTopicDetail): boolean {
