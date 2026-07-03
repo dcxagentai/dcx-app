@@ -107,6 +107,11 @@ export function AppSidebar({
           isActive: currentPathname.startsWith("/network/feed"),
         },
         {
+          title: uxStrings.nav_network_bookmarks ?? "Bookmarks",
+          url: "/network/bookmarks",
+          isActive: currentPathname.startsWith("/network/bookmarks"),
+        },
+        {
           title: uxStrings.nav_network_contacts ?? "Contacts",
           url: "/network/contacts",
           isActive: currentPathname.startsWith("/network/contacts"),

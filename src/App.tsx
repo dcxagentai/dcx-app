@@ -575,6 +575,9 @@ function App() {
       {protectedAppPathname === "/network/feed" ? (
         <DcxAppNetworkFeedPage apiBaseUrl={apiBaseUrl} routeFeedPostId={protectedAppNetworkFeedPostId} />
       ) : null}
+      {protectedAppPathname === "/network/bookmarks" ? (
+        <DcxAppNetworkFeedPage apiBaseUrl={apiBaseUrl} feedMode="bookmarks" />
+      ) : null}
       {protectedAppPathname === "/network/contacts" ? (
         <DcxAppNetworkContactsPage apiBaseUrl={apiBaseUrl} />
       ) : null}
@@ -593,7 +596,7 @@ function App() {
 
 export default App
 
-type DcxProtectedAppPathname = "/me/account" | "/me/settings" | "/me/activity-log" | "/me/usage" | "/me/messages" | "/trades/objects" | "/trades/chats" | "/ai/chats" | "/trades/board" | "/me/market/forum" | "/network/feed" | "/network/contacts" | "/network/profile" | "/network/dms" | "/me/other" | "/new"
+type DcxProtectedAppPathname = "/me/account" | "/me/settings" | "/me/activity-log" | "/me/usage" | "/me/messages" | "/trades/objects" | "/trades/chats" | "/ai/chats" | "/trades/board" | "/me/market/forum" | "/network/feed" | "/network/bookmarks" | "/network/contacts" | "/network/profile" | "/network/dms" | "/me/other" | "/new"
 
 function readProtectedAppPathname(
   pathname: string,
@@ -643,6 +646,10 @@ function readProtectedAppPathname(
 
   if (pathname === "/network/feed" || /^\/network\/feed\/\d+$/.test(pathname)) {
     return "/network/feed"
+  }
+
+  if (pathname === "/network/bookmarks") {
+    return "/network/bookmarks"
   }
 
   if (pathname === "/network/contacts") {
@@ -710,6 +717,10 @@ function readProtectedAppPageTitle(
 
   if (pathname === "/network/feed") {
     return uxStrings.page_title_network_feed ?? "Feed"
+  }
+
+  if (pathname === "/network/bookmarks") {
+    return uxStrings.page_title_network_bookmarks ?? "Bookmarks"
   }
 
   if (pathname === "/network/contacts") {

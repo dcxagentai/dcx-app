@@ -90,7 +90,7 @@ export type DcxAppNetworkFeedPost = {
   replies: DcxAppNetworkFeedReply[]
 }
 
-export type DcxAppNetworkFeedScope = "following" | "all"
+export type DcxAppNetworkFeedScope = "following" | "all" | "bookmarks"
 
 export type DcxAppNetworkProfile = {
   user_id: number

@@ -42,6 +42,7 @@ import {
 type Props = {
   apiBaseUrl: string
   routeFeedPostId?: number | null
+  feedMode?: "feed" | "bookmarks"
 }
 
 export function DcxAppNetworkFeedPage(props: Props) {
@@ -52,6 +53,8 @@ export function DcxAppNetworkFeedPage(props: Props) {
   const [copiedSharePostId, setCopiedSharePostId] = useState<number | null>(null)
   const routeFeedPostId = props.routeFeedPostId ?? null
   const isPostDetailRoute = routeFeedPostId !== null
+  const feedMode = props.feedMode ?? "feed"
+  const activeFeedScope: DcxAppNetworkFeedScope = feedMode === "bookmarks" ? "bookmarks" : scope
 
   const accountSummaryQuery = useQuery({
     queryKey: ["dcx_app_authenticated_user_account_summary"],
@@ -63,8 +66,8 @@ export function DcxAppNetworkFeedPage(props: Props) {
   const selectedTimezoneIanaName = accountSummary?.preferred_timezone?.iana_name ?? null
 
   const feedQuery = useQuery({
-    queryKey: ["dcx_app_network_feed", scope],
-    queryFn: async () => readDcxAppNetworkFeed({ apiBaseUrl: props.apiBaseUrl, scope }),
+    queryKey: ["dcx_app_network_feed", activeFeedScope],
+    queryFn: async () => readDcxAppNetworkFeed({ apiBaseUrl: props.apiBaseUrl, scope: activeFeedScope }),
     enabled: !isPostDetailRoute,
   })
 
@@ -169,6 +172,12 @@ export function DcxAppNetworkFeedPage(props: Props) {
           >
             Back to feed
           </Button>
+        ) : feedMode === "bookmarks" ? (
+          <div className="inline-flex rounded-full border border-slate-200 bg-white p-1">
+            <Button type="button" variant="default" size="sm" className="rounded-full">
+              Bookmarks
+            </Button>
+          </div>
         ) : (
         <div className="inline-flex rounded-full border border-slate-200 bg-white p-1">
           <Button
@@ -222,7 +231,9 @@ export function DcxAppNetworkFeedPage(props: Props) {
       <div className="mx-auto w-full max-w-3xl border-x border-t border-slate-200 bg-white">
         {posts.length === 0 && !isLoading ? (
           <section className="border-b border-slate-200 px-6 py-10">
-            <p className="text-sm text-slate-500">No network posts yet.</p>
+            <p className="text-sm text-slate-500">
+              {feedMode === "bookmarks" ? "No bookmarked posts yet." : "No network posts yet."}
+            </p>
           </section>
         ) : null}
         {posts.map((post) => (
