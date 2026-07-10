@@ -5,7 +5,22 @@
  * `/fr/t/login`, while authenticated surfaces can still format dates and route handoffs consistently.
  */
 
-const DCX_APP_SUPPORTED_LANGUAGE_CODES = ["en", "es", "fr", "de"] as const
+const DCX_APP_SUPPORTED_LANGUAGE_CODES = [
+  "en",
+  "fr",
+  "de",
+  "es",
+  "pt",
+  "ru",
+  "tr",
+  "ar",
+  "hi",
+  "ur",
+  "id",
+  "zh",
+  "ja",
+  "vi",
+] as const
 
 type DcxAppSupportedLanguageCode = (typeof DCX_APP_SUPPORTED_LANGUAGE_CODES)[number]
 type DcxAppAuthRoutePath =
@@ -134,6 +149,46 @@ export function readDcxLocaleForLanguageCode(languageCode: string): string {
 
   if (normalizedLanguageCode === "de") {
     return "de-DE"
+  }
+
+  if (normalizedLanguageCode === "pt") {
+    return "pt-PT"
+  }
+
+  if (normalizedLanguageCode === "ru") {
+    return "ru-RU"
+  }
+
+  if (normalizedLanguageCode === "tr") {
+    return "tr-TR"
+  }
+
+  if (normalizedLanguageCode === "ar") {
+    return "ar-AE"
+  }
+
+  if (normalizedLanguageCode === "hi") {
+    return "hi-IN"
+  }
+
+  if (normalizedLanguageCode === "ur") {
+    return "ur-PK"
+  }
+
+  if (normalizedLanguageCode === "id") {
+    return "id-ID"
+  }
+
+  if (normalizedLanguageCode === "zh") {
+    return "zh-CN"
+  }
+
+  if (normalizedLanguageCode === "ja") {
+    return "ja-JP"
+  }
+
+  if (normalizedLanguageCode === "vi") {
+    return "vi-VN"
   }
 
   return "en-GB"

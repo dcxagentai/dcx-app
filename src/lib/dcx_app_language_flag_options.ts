@@ -20,6 +20,7 @@ const DCX_APP_LANGUAGE_TO_REGION_CODE: Record<string, string> = {
   fr: "FR",
   hi: "IN",
   id: "ID",
+  ja: "JP",
   pt: "BR",
   ru: "RU",
   tr: "TR",
