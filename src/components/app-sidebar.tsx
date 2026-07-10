@@ -19,7 +19,6 @@ import {
 import {
   BotIcon,
   InboxIcon,
-  ShieldUserIcon,
   MessageCircleMoreIcon,
   SendHorizontalIcon,
   StoreIcon,
@@ -189,24 +188,13 @@ export function AppSidebar({
         />
       </SidebarContent>
       <SidebarFooter>
-        {adminHref ? (
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip={uxStrings.nav_admin_workspace}>
-                <a href={adminHref}>
-                  <ShieldUserIcon />
-                  <span>{uxStrings.nav_admin_workspace}</span>
-                </a>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        ) : null}
         <NavUser
           user={{
             name: userRole ?? "user",
             email: userEmail ?? "DCX user",
           }}
           uxStrings={uxStrings}
+          adminHref={adminHref}
           onNavigateWithinApp={onNavigateWithinApp}
           onLogout={onLogout}
           isLogoutPending={isLogoutPending}

@@ -24,11 +24,13 @@ import {
   ScrollTextIcon,
   Settings2Icon,
   ShieldCheckIcon,
+  ShieldUserIcon,
 } from "lucide-react"
 
 export function NavUser({
   user,
   uxStrings,
+  adminHref,
   onNavigateWithinApp,
   onLogout,
   isLogoutPending,
@@ -38,6 +40,7 @@ export function NavUser({
     email: string
   }
   uxStrings: Record<string, string>
+  adminHref: string | null
   onNavigateWithinApp: (nextPathname: string) => void
   onLogout: (() => void) | null
   isLogoutPending: boolean
@@ -143,6 +146,14 @@ export function NavUser({
               </a>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
+            {adminHref ? (
+              <DropdownMenuItem asChild>
+                <a href={adminHref}>
+                  <ShieldUserIcon />
+                  {uxStrings.nav_admin_workspace ?? "Admin workspace"}
+                </a>
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuItem
               disabled={!onLogout || isLogoutPending}
               onSelect={(event) => {

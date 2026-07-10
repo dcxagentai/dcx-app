@@ -522,8 +522,7 @@ function App() {
       userEmail={authenticatedSessionSummary?.primary_email ?? null}
       userRole={authenticatedSessionSummary?.user_role ?? null}
       adminHref={
-        authenticatedSessionSummary?.user_role === "admin" ||
-        authenticatedSessionSummary?.user_role === "dev"
+        authenticatedSessionSummary?.allowed_surfaces.admin
           ? adminSurfaceUrl
           : null
       }
